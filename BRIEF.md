@@ -102,10 +102,10 @@ The site is a self-hosted full-stack web app at `showalter.business`. It has two
 - Landing page with a prominent **Request service** CTA
 - Bio, price table, TikTok link, email link, hero photo, (later) testimonials
 - Booking flow when "Request service" is tapped:
-  1. Customer picks a day from the visible booking horizon (configurable, e.g. next 4 weeks)
-  2. Customer sees Sawyer's open **1-hour slots** for that day
-  3. Customer picks a slot and fills the form (name, phone, email, address, service, optional notes)
-  4. On submit, the slot is **held** so no one else can pick it while Sawyer reviews
+  1. Customer picks a day from the visible booking horizon (admin-configurable, default 4 weeks)
+  2. Customer sees Sawyer's **open windows** for that day and picks an **ideal start time** within one of them (30-minute granularity by default, admin-configurable)
+  3. Customer fills the form: name, phone, email (optional), address, service, notes (optional), optional photos (up to 3 by default; admin-configurable)
+  4. On submit, the chosen start time — plus a buffer (default 60 min, admin-configurable) — is **held** so no one else can pick an overlapping start time
 - Public `/bookings/<token>/ics` endpoint serves an `.ics` file for "Add to Apple Calendar" on confirmation emails
 - **Buried fallback — "Text Sawyer directly"** — a small link at the bottom of the landing page for customers who have a quick question rather than a booking. Tap opens `sms:913-309-7340?body=<prefilled template>` with Sawyer's original message template:
 
