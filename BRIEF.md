@@ -28,28 +28,49 @@ Sawyer has been mowing lawns for clients for **three years**. That's not flashy,
 
 ## What He Wants Built
 
-### 1. Linktree-style landing page
-Replaces the current Linktree. Needs these buttons/links:
-- **Click Here To Message Now** (opens SMS, see template below)
-- **Price estimations** (currently a Google Sheets screenshot — should be rebuilt as styled HTML)
-- **Email**
-- **TikTok**
+### 1. Landing page
+Replaces the current Linktree. The page is centered on a primary **Request service** CTA that opens the booking flow. Also includes:
+- **Request service** — primary CTA, opens the booking flow (pick a day, pick a 1-hour slot, fill the form, submit)
+- **Price estimations** — styled HTML price table
+- **Email** — `mailto:` link
+- **TikTok** — link out
 
 ### 2. Services website
 Displays his services, bio, and links. Same color scheme and branding. Pictures section TBD — he's working on finding a good one (currently just has a grass background with his mower on the door hanger).
 
-## SMS Message Template
-When "Click Here To Message Now" is tapped, it should open a new SMS to Sawyer's number (913-309-7340), pre-filled with:
+## Confirmation Delivery
+
+After a customer submits a booking request, Sawyer reviews it in the admin and either **accepts** or **declines**. On accept, the admin surfaces two one-tap buttons:
+
+- **Send email confirmation** — opens `mailto:` with the full confirmation body (service, date, time, address, "Add to Google Calendar" link, "Add to Apple Calendar" link) pre-filled.
+- **Send text confirmation** — opens `sms:` on his phone with a short prefilled body plus a calendar shortlink.
+
+The email goes from Sawyer's Gmail; the text goes from his phone. No server-side email provider is required.
+
+### Prefilled email body (example)
 
 ```
-Hi, this is [name here]. I'm interested in your services.
+Hi [name],
 
-• Address:
-• Type of service:
-• Yard size:
-• Preferred date:
+Confirming your appointment:
 
-Thanks!
+• Service: [service name]
+• Date: [formatted date]
+• Time: [start time] – [end time]
+• Address: [address on file]
+
+Add to calendar:
+• Google: [google render URL]
+• Apple:  https://showalter.business/bookings/[token]/ics
+
+— Sawyer
+913-309-7340
+```
+
+### Prefilled SMS body (example)
+
+```
+Hi [name], this is Sawyer — you're confirmed for [service] on [date] at [time]. Reply here if anything changes. Add to calendar: [shortlink]
 ```
 
 ## Price Sheet (from his Google Sheet)
@@ -73,20 +94,45 @@ Thanks!
 - [ ] Receive 2–3 repeat-client testimonials from Sawyer
 - [ ] Confirm snow-removal pricing
 - [ ] Generate a new QR code once the final URL is locked in (Sawyer to use goqr.me)
+- [ ] (Alex) Confirm whether Web Push (PWA) for Sawyer's notifications is part of MVP or a follow-up
+- [ ] (Alex) Confirm booking state-machine wording (current provisional: submitted → pending → (accepted → completed | no_show) | declined | expired)
+- [ ] (Alex) Decide fate of the old "Click Here To Message Now" SMS button on the landing page (remove, keep as secondary, or bury)
 
 ## Scope and Approach
 
-The site is a self-hosted full-stack web app — no longer a static Linktree clone. One site at `showalter.business` that:
+The site is a self-hosted full-stack web app at `showalter.business`. It has two surfaces — the public site and the admin.
 
-- Serves a public landing page (Linktree-style buttons, bio, services, price sheet, TikTok / email links, hero photo)
-- Includes an **admin login** for Sawyer. Anything amorphic — prices, contact info, services, bio, hero photo, availability, testimonials — is editable through the admin.
-- Exposes an **availability calendar**. Sawyer marks days he's busy; the public site shows availability and, on tap of an available day, opens an SMS to his number with the template prefilled and the selected date dropped into the "Preferred date" line.
-- Supports **testimonials with admin moderation** — Sawyer sees submissions / entries he's added, approves or hides them.
-- Ships as a Docker container, deployed to Alex's homelab, fronted by Caddy, with DNS via Porkbun.
+### Public site
+- Landing page with a prominent **Request service** CTA
+- Bio, price table, TikTok link, email link, hero photo, (later) testimonials
+- Booking flow when "Request service" is tapped:
+  1. Customer picks a day from the visible booking horizon (configurable, e.g. next 4 weeks)
+  2. Customer sees Sawyer's open **1-hour slots** for that day
+  3. Customer picks a slot and fills the form (name, phone, email, address, service, optional notes)
+  4. On submit, the slot is **held** so no one else can pick it while Sawyer reviews
+- Public `/bookings/<token>/ics` endpoint serves an `.ics` file for "Add to Apple Calendar" on confirmation emails
 
-See [STACK.md](STACK.md) for the full tech-stack decision and rationale.
+### Admin (mobile-web-friendly)
+Single-admin login for Sawyer. Phone is a first-class form factor — he'll use the admin primarily from his phone's browser.
 
-### Soft-signal context
+Admin-editable areas:
+- **Contact info** (phone, email, TikTok, bio, SMS template)
+- **Services** (name, description, price, price suffix, sort order, active flag)
+- **Weekly availability template** (default pattern: which days of week are open, and the time windows for each)
+- **Per-date overrides** (override the template for specific dates — open with custom windows, or close entirely)
+- **Booking horizon** (how many weeks ahead customers can book, e.g. 4)
+- **Bookings inbox** — review submitted requests, accept or decline, send confirmations via `mailto:` / `sms:` buttons
+- **Testimonials** — moderate / add / hide
+- **Hero image upload**
+
+### Notifications
+- Sawyer gets an in-app badge + inbox entry whenever a new booking is submitted. Provisional: Web Push via PWA is a candidate follow-up so bookings ping his phone like a real app.
+- Customers do NOT receive any automated server-sent notifications. All outbound confirmations come from Sawyer's own Gmail / phone number through the prefilled `mailto:` and `sms:` buttons.
+
+### Deployment
+- Docker container on Alex's homelab, fronted by Caddy, DNS via Porkbun — unchanged.
+
+### Soft-signal context (unchanged)
 - Sawyer is non-technical and is deferring architectural calls to Alex. Default to simplicity over cleverness.
-- Lawn-stripe photos are a craft signal in the lawn-care world — they should drive the hero imagery and ideally become a subtle brand motif (e.g., diagonal dark-green stripes as background accents).
+- Lawn-stripe photos are a craft signal in the lawn-care world — they should drive the hero imagery and ideally become a subtle brand motif.
 - Cash-only payment — no Stripe / Venmo / processor integrations.

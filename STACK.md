@@ -12,11 +12,13 @@ This document captures the tech-stack decision for the Showalter Services site. 
 | UI                 | **Tailwind + shadcn/ui**                  | Fast to style. Pre-built calendar/date-picker, table, dialog components. Dark-green / black / white theme is trivially configurable via CSS variables. |
 | Images             | **Next.js `Image`** (plain, no `sharp`)   | Good enough for one hero photo + a small gallery. Skipping `sharp` keeps the image pipeline simple. |
 | Analytics          | **Umami** (self-hosted)                   | Privacy-friendly, lightweight, Dockerable. Tracks QR-scan → site-visit conversion without tracking individual visitors. |
+| Email / SMS delivery | **Client-side `mailto:` and `sms:` URIs** | Sawyer sends confirmations from his own Gmail / phone. No server-side email provider, no from-address setup. |
 | Container          | **Single Docker image**                   | Multi-stage build, runs on internal port **5827**. |
-| Reverse proxy      | **Caddy** (on host)                       | TLS auto-provisioned via Let's Encrypt. Fronts `showalter.business`. |
+| Calendar integration | **Public `.ics` endpoint + Google render URL** | `.ics` served from `/bookings/<token>/ics`; Google via `calendar.google.com/calendar/render?...`. Both links embedded in the prefilled email body. |
 | Data persistence   | **Host bind-mount** at `/data`            | SQLite DB file, uploaded images, and nightly backups all persist outside the container. |
 | Backups            | **In-container cron**                     | Nightly `sqlite3 .backup` dump into `/data/backups/YYYY-MM-DD.db`, 14-day retention. |
 | CI/CD              | **GitHub Actions → GHCR**                 | On merge to `main`, build and push `ghcr.io/lxrbckl-dev/project-showalter:{latest,<sha>}`. Alex pulls on the homelab. |
+| Reverse proxy      | **Caddy** (on host)                       | TLS auto-provisioned via Let's Encrypt. Fronts `showalter.business`. |
 
 ## Data model (sketch)
 
@@ -30,6 +32,8 @@ Single-row table.
 - `bio` TEXT
 - `sms_template` TEXT — so Sawyer can tweak wording without a deploy
 - `hero_image_path` TEXT
+- `booking_horizon_weeks` INTEGER — how many weeks ahead customers can book (default 4)
+- `slot_duration_minutes` INTEGER — slot size in minutes (default 60)
 
 ### `services`
 - `id` INTEGER PK
@@ -40,10 +44,26 @@ Single-row table.
 - `sort_order` INTEGER
 - `active` BOOLEAN — soft-archive instead of delete
 
-### `busy_days`
-- `date` TEXT (YYYY-MM-DD) PK
-- `kind` TEXT — `busy` | `blocked` (e.g. school hours)
+### `weekly_template_windows`
+Recurring weekly pattern. Empty rows for a weekday = unavailable (opt-in model).
+- `id` INTEGER PK
+- `day_of_week` INTEGER  (0=Sun … 6=Sat)
+- `start_time` TEXT      (HH:MM, 24h)
+- `end_time` TEXT        (HH:MM, 24h)
+- `note` TEXT (optional, e.g. "after school only")
+
+### `availability_overrides`
+One row per date that overrides the template.
+- `date` TEXT PK         (YYYY-MM-DD)
+- `mode` TEXT            ('open' | 'closed')
 - `note` TEXT (optional)
+
+### `availability_override_windows`
+Windows used only when the matching override row has `mode='open'`.
+- `id` INTEGER PK
+- `date` TEXT FK → availability_overrides.date
+- `start_time` TEXT
+- `end_time` TEXT
 
 ### `admin_user`
 Single-row table.
@@ -55,6 +75,29 @@ Single-row table.
 - `path` TEXT
 - `mime` TEXT
 - `caption` TEXT (optional)
+- `created_at` TEXT
+
+### `bookings`
+- `id` INTEGER PK
+- `token` TEXT UNIQUE    — random unguessable token used in `/bookings/<token>/ics` URL
+- `customer_name` TEXT
+- `customer_phone` TEXT
+- `customer_email` TEXT
+- `customer_address` TEXT
+- `service_id` INTEGER FK → services.id
+- `start_at` TEXT        — ISO timestamp of slot start
+- `end_at` TEXT          — ISO timestamp of slot end (start_at + slot_duration_minutes)
+- `notes` TEXT (optional) — customer-provided notes at submission
+- `status` TEXT          — one of: `pending` | `accepted` | `declined` | `completed` | `no_show` | `expired` | `canceled`
+- `created_at` TEXT
+- `decided_at` TEXT (nullable)
+
+### `notifications`
+Sawyer's in-app inbox.
+- `id` INTEGER PK
+- `kind` TEXT            — e.g. `booking_submitted`
+- `payload_json` TEXT    — arbitrary JSON blob (e.g. booking_id)
+- `read` BOOLEAN         — default false
 - `created_at` TEXT
 
 ### `testimonials`
@@ -138,6 +181,110 @@ services:
 ## Healthcheck
 
 `GET /api/health` returns `200 OK` with `{ "ok": true }`.
+
+## Availability model
+
+Availability is resolved per-date using this precedence:
+
+1. **Date override takes priority.** If a row exists in `availability_overrides` for the date:
+   - `mode='closed'` → the date is fully unavailable (ignore the template)
+   - `mode='open'` → use the `availability_override_windows` rows for that date (replaces the template for that date)
+2. **Otherwise fall back to the weekly template.** Look up `weekly_template_windows` rows for the date's `day_of_week`.
+3. **Empty = unavailable.** If no template windows exist for that weekday, the day is closed. This is intentional (opt-in default): Sawyer explicitly opens days he can work rather than explicitly closing days he can't.
+
+Slot generation from a window: each window is chopped into consecutive `slot_duration_minutes`-long slots starting at `start_time`. Leftover minutes that don't fit a full slot are discarded.
+
+Example: Saturday template `[(10:00, 13:30)]` with 60-minute slots → slots at `10:00–11:00`, `11:00–12:00`, `12:00–13:00`. The final 30 minutes are discarded.
+
+## Booking flow
+
+```
+Customer                                        Sawyer (admin)
+───────                                         ──────────────
+1. Opens /
+2. Taps "Request service"
+3. Sees next N weeks (N = booking_horizon_weeks)
+4. Taps a day → sees open slots for that day
+5. Taps a slot → form (name, phone, email,
+   address, service, notes)
+6. Submits ──────────────────────────────────▶  7. Slot becomes "held" (row in `bookings`
+                                                   with status=pending; slot hidden from
+                                                   public view)
+                                                8. Notification lands in Sawyer's inbox
+                                                   (badge appears on admin)
+                                                9. Sawyer opens admin on his phone,
+                                                   reviews, taps Accept or Decline.
+
+                                                Accept path:
+                                                10. status=accepted; decided_at=now
+                                                11. Admin shows two buttons:
+                                                    - "Send email confirmation"  → mailto:
+                                                    - "Send text confirmation"   → sms:
+                                                    Both open the native app prefilled.
+                                                    Sawyer taps Send in the native app.
+
+                                                Decline path:
+                                                10. status=declined; decided_at=now
+                                                11. Slot is released (becomes visible
+                                                    on the public site again).
+                                                12. Optional: Sawyer uses the same two
+                                                    buttons with a decline-template body.
+
+                                                Later (lifecycle):
+                                                - status=completed — marked after the job
+                                                - status=no_show   — marked if customer
+                                                                     didn't respond / didn't
+                                                                     show
+                                                - status=canceled  — either side cancels
+                                                                     after confirmation
+```
+
+### Booking state machine (provisional)
+
+```
+    submitted
+        │
+        ▼
+     pending ───▶ declined ───▶ (slot released)
+        │
+        ▼
+     accepted ───▶ completed
+        │
+        └──────▶ no_show
+        │
+        └──────▶ canceled
+
+     (pending for > X days with no decision) ──▶ expired
+```
+
+`X` (expiration window) is TBD. Not implemented for MVP unless needed.
+
+Pending Alex's final confirmation on the exact states and names.
+
+## Calendar integration
+
+Two links go in every confirmation email:
+
+1. **Google Calendar** — a `calendar.google.com/calendar/render?action=TEMPLATE&text=...&dates=...&details=...&location=...` URL generated server-side when rendering the prefilled email body. One tap → event added on any Google account.
+2. **Apple / universal** — `https://showalter.business/bookings/<token>/ics`. A public Next.js route handler that returns `Content-Type: text/calendar`. The `token` is a random unguessable string stored on the `bookings` row — no login required, but also not enumerable.
+
+Both links are baked into the email body; the SMS body uses a short link to the `.ics` endpoint for brevity.
+
+## Confirmation delivery
+
+All confirmations flow through Sawyer's own devices:
+
+- **Email** — admin button builds a `mailto:sshowalterservices@gmail.com?to=<customer_email>&subject=...&body=<URL-encoded body>` and triggers navigation to it on tap. Sawyer's iOS/Android Mail app opens with the body prefilled; he taps send. The email comes from his Gmail, not from a no-reply address.
+- **SMS** — admin button builds an `sms:<customer_phone>?body=<URL-encoded body>` and triggers navigation. His Messages app opens prefilled; he taps send. The text comes from his own number (913-309-7340).
+
+This simplification eliminates the need for any server-side email provider (Resend / SES / Mailgun / etc.) and removes from-address / deliverability concerns entirely. The only server-side dependencies are the `.ics` endpoint and the Google render URL (which is client-safe).
+
+Caveat: this requires Sawyer to actually tap **Send** in the native app — the server cannot guarantee the message went out. Acceptable tradeoff for a small single-operator business.
+
+## Notifications for Sawyer
+
+- **MVP:** in-app badge + inbox entries. The admin shell shows an unread count; the `notifications` table stores each event.
+- **Provisional future:** Web Push via a PWA (service worker + `Notification` API + VAPID keys). Would let the admin ping Sawyer's phone when the app isn't open. Flagged for a follow-up phase once MVP is stable. Pending Alex's final call on whether to include in MVP or defer.
 
 ## Out of scope for this document
 
