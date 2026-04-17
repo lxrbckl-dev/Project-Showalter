@@ -4,8 +4,10 @@
 - **Name:** Sawyer Showalter
 - **Age:** 15
 - **Business:** Showalter Services (lawn care / yard work)
-- **Domain:** `showalter.business` (already owned)
-- **Socials:** TikTok, email (address TBD from current Linktree)
+- **Domain:** `showalter.business` (already owned, registered via Porkbun)
+- **Phone:** 913-309-7340 (used for SMS CTA)
+- **Email:** sshowalterservices@gmail.com
+- **TikTok:** [@showalterservices](https://www.tiktok.com/@showalterservices)
 
 ## Background / Context
 - Sawyer printed 250 door hangers with a QR code pointing to a Linktree.
@@ -15,6 +17,9 @@
 
 ## Bio / Tagline (his exact words)
 > "My name is Sawyer Showalter, and I am a 15 year old entrepreneur. I take pride in providing affordable, high quality services you can trust every time."
+
+## Ethos
+Sawyer has been mowing lawns for clients for **three years**. That's not flashy, but it's the honest truth and it matters — at 15, a three-year track record is a legitimate trust signal, not a marketing line.
 
 ## Design Direction
 - **Color scheme:** black, darkish green, white
@@ -34,7 +39,7 @@ Replaces the current Linktree. Needs these buttons/links:
 Displays his services, bio, and links. Same color scheme and branding. Pictures section TBD — he's working on finding a good one (currently just has a grass background with his mower on the door hanger).
 
 ## SMS Message Template
-When "Click Here To Message Now" is tapped, it should open a new SMS to Sawyer's number pre-filled with:
+When "Click Here To Message Now" is tapped, it should open a new SMS to Sawyer's number (913-309-7340), pre-filled with:
 
 ```
 Hi, this is [name here]. I'm interested in your services.
@@ -57,23 +62,31 @@ Thanks!
 | Mowing | Mow, weedeat, and edge. | $40 for basic cut |
 | Clean ups | Clean up all debris, leaves, and includes a mowing. | $75+ |
 | Raking | Rake and bag leaves. | $70+ (hauling is an extra $10) |
+| Snow removal | Driveway + walkway clearing during winter storms. | $TBD (Sawyer to confirm pricing) |
+
+*The `+` on Clean-ups and Raking depends on yard size, hauling vs. not, and overall job complexity. Snow-removal pricing TBD — Sawyer handles snow work in the winter.*
 
 ## Open Questions / TODO
-- [ ] Get Sawyer's phone number for the SMS link
-- [ ] Confirm email address to display publicly
-- [ ] Confirm TikTok handle / URL
-- [ ] Confirm service area (useful for SEO + filtering out-of-area inquiries)
-- [ ] Decide: contact form in addition to SMS, or SMS only?
-- [ ] Confirm `showalter.business` DNS/hosting — where is it pointed today?
-- [ ] Sawyer to send a good photo for the site (mower / work-in-progress shot)
-- [ ] New QR code to be generated once final URL is locked in (he plans to use goqr.me)
+- [ ] Receive hi-res logo file from Sawyer (vector preferred: SVG / AI / PDF — otherwise highest-res PNG possible)
+- [ ] Sample exact dark-green hex from the logo once received
+- [ ] Receive lawn-stripe photos from Sawyer for the hero / site imagery
+- [ ] Receive 2–3 repeat-client testimonials from Sawyer
+- [ ] Confirm snow-removal pricing
+- [ ] Generate a new QR code once the final URL is locked in (Sawyer to use goqr.me)
 
-## Proposed Approach (my recommendation)
-Collapse both asks into **one site** at `showalter.business`:
-- Root `/` = the Linktree-style landing page (what the QR points to)
-- Optional `/services` or scroll sections for the fuller services page
-- Static site (Next.js on Vercel, or plain HTML/CSS/JS) — no backend needed
-- SMS link is a plain `sms:` URI with URL-encoded body
-- Price sheet rendered as a real HTML table, not a screenshot
+## Scope and Approach
 
-This avoids the $150/yr Linktree cost, gives him full control, and keeps hosting free or near-free on Vercel/Cloudflare Pages.
+The site is a self-hosted full-stack web app — no longer a static Linktree clone. One site at `showalter.business` that:
+
+- Serves a public landing page (Linktree-style buttons, bio, services, price sheet, TikTok / email links, hero photo)
+- Includes an **admin login** for Sawyer. Anything amorphic — prices, contact info, services, bio, hero photo, availability, testimonials — is editable through the admin.
+- Exposes an **availability calendar**. Sawyer marks days he's busy; the public site shows availability and, on tap of an available day, opens an SMS to his number with the template prefilled and the selected date dropped into the "Preferred date" line.
+- Supports **testimonials with admin moderation** — Sawyer sees submissions / entries he's added, approves or hides them.
+- Ships as a Docker container, deployed to Alex's homelab, fronted by Caddy, with DNS via Porkbun.
+
+See [STACK.md](STACK.md) for the full tech-stack decision and rationale.
+
+### Soft-signal context
+- Sawyer is non-technical and is deferring architectural calls to Alex. Default to simplicity over cleverness.
+- Lawn-stripe photos are a craft signal in the lawn-care world — they should drive the hero imagery and ideally become a subtle brand motif (e.g., diagonal dark-green stripes as background accents).
+- Cash-only payment — no Stripe / Venmo / processor integrations.
