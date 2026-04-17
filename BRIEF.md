@@ -93,7 +93,6 @@ Hi [name], this is Sawyer — you're confirmed for [service] on [date] at [time]
 - [ ] Receive lawn-stripe photos from Sawyer for the hero / site imagery
 - [ ] Receive 2–3 repeat-client testimonials from Sawyer
 - [ ] Confirm snow-removal pricing
-- [ ] Generate a new QR code once the final URL is locked in (Sawyer to use goqr.me)
 
 ## Scope and Approach
 
