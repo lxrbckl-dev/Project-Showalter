@@ -37,6 +37,7 @@ Single-row table.
 - `sms_template` TEXT
 - `hero_image_path` TEXT
 - `booking_horizon_weeks` INTEGER (default 4)
+- `min_advance_notice_hours` INTEGER (default 36) — hide candidate start times earlier than `now() + this value`; admin-configurable
 - `start_time_increment_minutes` INTEGER (default 30)
 - `booking_spacing_minutes` INTEGER (default 60)
 - `max_booking_photos` INTEGER (default 3)
@@ -134,6 +135,8 @@ One row per device Sawyer has subscribed for Web Push.
 
 ## Deployment topology
 
+The admin is served at `showalter.business/admin` (same-origin path, not a subdomain) — one Next.js app handles both public and admin routes behind a single Caddy upstream.
+
 ```
           Internet
              │
@@ -226,6 +229,8 @@ For each resolved window on a given date, generate candidate start times at `sta
 
 Example: Saturday window 10:00–14:00 with 30-minute granularity → candidates `10:00, 10:30, 11:00, 11:30, 12:00, 12:30, 13:00, 13:30`.
 
+Additionally, candidates are filtered by **minimum advance notice**: any candidate with `start_time < now() + min_advance_notice_hours` is hidden. The default is 36 hours (a day and a half) and is admin-configurable. This prevents edge-case bookings like 2:47 PM trying to book 3:00 PM the same day.
+
 ### Spacing / hold
 
 When a `bookings` row exists with `status IN (pending, accepted)` at start time `T`, suppress any candidate start time within `booking_spacing_minutes` on either side of `T`. The range `[T - booking_spacing_minutes, T + booking_spacing_minutes]` is considered "held."
@@ -294,7 +299,7 @@ Customer                                        Sawyer (admin)
      (pending for > X days with no decision) ──▶ expired
 ```
 
-`X` (expiration window) is TBD. Not implemented for MVP unless needed.
+Auto-expiration: a booking in `pending` for more than **3 days** automatically transitions to `expired` via the nightly cron. The start-time hold releases at that moment.
 
 ## Calendar integration
 
@@ -330,6 +335,16 @@ Two layers, both in MVP:
 
    **iOS note:** iOS 16.4+ supports Web Push but ONLY for PWAs — Sawyer must tap **Share → Add to Home Screen** once, open the admin from the home-screen icon, and accept the notification prompt. After that, his phone buzzes on every new booking.
 
+### Pending-booking reminders
+
+If a booking remains in `pending` state, Sawyer receives two reminder notifications before the auto-expire:
+
+- At the **24-hour mark** after submission — in-app inbox entry + Web Push.
+- At the **48-hour mark** — in-app inbox entry + Web Push.
+- At the **72-hour mark** the nightly cron transitions the booking to `expired` (no reminder — it's terminal).
+
+Reminder dispatch is handled by the same scheduling mechanism that runs auto-expire (the nightly cron, or a more frequent scheduler if needed — implementation detail).
+
 No third-party service is required (Apple / Google / Mozilla provide the push gateways for free; VAPID is a free W3C standard). This is not equivalent to Twilio / FCM / Resend — no account, no cost, no signup.
 
 ## Booking photos
@@ -358,7 +373,35 @@ Photos attached to `pending` or `accepted` bookings are never auto-purged; they 
 
 ### Access model
 
-Access control for these photos is tracked separately — see the open-question list in `BRIEF.md`. Current default assumption (pending confirmation): admin-only, not exposed on the public booking-token page. Implementer should wire this as admin-authenticated by default and loosen if confirmed otherwise.
+- **Customer:** can view the photos they submitted on their `/bookings/<token>` page (the same unguessable-token URL used for the calendar `.ics` download).
+- **Admin (Sawyer):** can view all photos of all bookings in the admin panel.
+- **Public:** photos are NOT exposed anywhere on the public landing page or any public listing. The only public-ish surface is the tokenized booking page, which requires possession of the token URL.
+
+## Customer booking page (`/bookings/<token>`)
+
+A single public route (no login required) keyed by an unguessable random `token` stored on the `bookings` row. The same URL is given to the customer in the confirmation email/SMS and used for:
+
+1. **Viewing the appointment** — service name + description, the scheduled start time, address on file, any notes they submitted, any photos they attached.
+2. **Downloading the `.ics`** — the existing `/bookings/<token>/ics` endpoint is served from the same token root.
+3. **Cancelling** — a "Cancel appointment" button transitions the booking to `canceled` and releases the start-time hold, freeing that time for other customers.
+
+### State-dependent rendering
+
+The page renders differently based on the current booking `status`:
+
+| Status       | What the customer sees |
+|--------------|------------------------|
+| `pending`    | "Your request has been received — waiting for Sawyer to confirm." Cancel button active; no calendar button yet. |
+| `accepted`   | Full appointment details + calendar download + cancel button |
+| `declined`   | "Sawyer couldn't take this one — feel free to submit another request." No calendar, no cancel. |
+| `canceled`   | "This appointment was cancelled." No actions. |
+| `expired`    | "This request expired without a response — feel free to submit a new one." No actions. |
+| `completed`  | "Thanks — see you next time!" Cancel hidden; calendar download still available if they want it. |
+| `no_show`    | Same as completed (terminal state, no actions). |
+
+### Security
+
+The token is generated with `crypto.randomUUID()` (or equivalent 128-bit random) at booking creation. No enumeration is possible; the URL is unguessable. Sharing the URL with another person effectively delegates cancel-power — acceptable for a low-stakes single-operator business, but worth noting.
 
 ## Landing-page fallback: text Sawyer directly
 

@@ -99,13 +99,17 @@ Hi [name], this is Sawyer — you're confirmed for [service] on [date] at [time]
 The site is a self-hosted full-stack web app at `showalter.business`. It has two surfaces — the public site and the admin.
 
 ### Public site
+- Single long-scroll landing page (no separate `/services` route — all content is on `/`)
 - Landing page with a prominent **Request service** CTA
 - Bio, price table, TikTok link, email link, hero photo, (later) testimonials
+- Sawyer's phone number (913-309-7340), email, and TikTok are displayed openly in a Contact section on the page — the buried "Text Sawyer directly" fallback link remains separately at the very bottom
 - Booking flow when "Request service" is tapped:
   1. Customer picks a day from the visible booking horizon (admin-configurable, default 4 weeks)
   2. Customer sees Sawyer's **open windows** for that day and picks an **ideal start time** within one of them (30-minute granularity by default, admin-configurable)
   3. Customer fills the form: name, phone, email (optional), address, service, notes (optional), optional photos (up to 3 by default; admin-configurable)
   4. On submit, the chosen start time — plus a buffer (default 60 min, admin-configurable) — is **held** so no one else can pick an overlapping start time
+- **Customer booking page** at `/bookings/<token>` — the unique link delivered to the customer in the confirmation. Shows appointment summary (service, start time, address on file), any notes/photos they submitted, an "Add to calendar" download, and a **Cancel appointment** button. The cancel button transitions the booking to `canceled` and releases the start-time hold.
+- **Zero-availability state** — if the booking horizon yields no available start times, the booking UI shows a friendly "no openings right now, check back soon" message instead of an empty picker
 - Public `/bookings/<token>/ics` endpoint serves an `.ics` file for "Add to Apple Calendar" on confirmation emails
 - **Buried fallback — "Text Sawyer directly"** — a small link at the bottom of the landing page for customers who have a quick question rather than a booking. Tap opens `sms:913-309-7340?body=<prefilled template>` with Sawyer's original message template:
 
