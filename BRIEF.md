@@ -94,9 +94,6 @@ Hi [name], this is Sawyer — you're confirmed for [service] on [date] at [time]
 - [ ] Receive 2–3 repeat-client testimonials from Sawyer
 - [ ] Confirm snow-removal pricing
 - [ ] Generate a new QR code once the final URL is locked in (Sawyer to use goqr.me)
-- [ ] (Alex) Confirm whether Web Push (PWA) for Sawyer's notifications is part of MVP or a follow-up
-- [ ] (Alex) Confirm booking state-machine wording (current provisional: submitted → pending → (accepted → completed | no_show) | declined | expired)
-- [ ] (Alex) Decide fate of the old "Click Here To Message Now" SMS button on the landing page (remove, keep as secondary, or bury)
 
 ## Scope and Approach
 
@@ -111,6 +108,20 @@ The site is a self-hosted full-stack web app at `showalter.business`. It has two
   3. Customer picks a slot and fills the form (name, phone, email, address, service, optional notes)
   4. On submit, the slot is **held** so no one else can pick it while Sawyer reviews
 - Public `/bookings/<token>/ics` endpoint serves an `.ics` file for "Add to Apple Calendar" on confirmation emails
+- **Buried fallback — "Text Sawyer directly"** — a small link at the bottom of the landing page for customers who have a quick question rather than a booking. Tap opens `sms:913-309-7340?body=<prefilled template>` with Sawyer's original message template:
+
+    ```
+    Hi, this is [name here]. I'm interested in your services.
+
+    • Address:
+    • Type of service:
+    • Yard size:
+    • Preferred date:
+
+    Thanks!
+    ```
+
+  Texts arrive in Sawyer's native Messages app and are NOT tracked by the application (no slot hold, no calendar, no status).
 
 ### Admin (mobile-web-friendly)
 Single-admin login for Sawyer. Phone is a first-class form factor — he'll use the admin primarily from his phone's browser.

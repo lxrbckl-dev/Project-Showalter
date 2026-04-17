@@ -100,6 +100,14 @@ Sawyer's in-app inbox.
 - `read` BOOLEAN         — default false
 - `created_at` TEXT
 
+### `push_subscriptions`
+One row per device Sawyer has subscribed for Web Push.
+- `id` INTEGER PK
+- `endpoint` TEXT UNIQUE — push service endpoint URL
+- `p256dh` TEXT — client's public ECDH key (base64url)
+- `auth` TEXT — auth secret (base64url)
+- `created_at` TEXT
+
 ### `testimonials`
 - `id` INTEGER PK
 - `author` TEXT
@@ -177,6 +185,9 @@ services:
 | `ADMIN_PASSWORD_HASH` | bcrypt hash of the admin password                |
 | `BASE_URL`            | `https://showalter.business` — used for absolute URLs, OG tags |
 | `PORT`                | `5827`                                           |
+| `VAPID_PUBLIC_KEY`    | Web Push public key (exposed to the client)      |
+| `VAPID_PRIVATE_KEY`   | Web Push private key (server only — signs pushes) |
+| `VAPID_SUBJECT`       | Contact URI for push services, e.g. `mailto:sshowalterservices@gmail.com` |
 
 ## Healthcheck
 
@@ -239,7 +250,7 @@ Customer                                        Sawyer (admin)
                                                                      after confirmation
 ```
 
-### Booking state machine (provisional)
+### Booking state machine
 
 ```
     submitted
@@ -258,8 +269,6 @@ Customer                                        Sawyer (admin)
 ```
 
 `X` (expiration window) is TBD. Not implemented for MVP unless needed.
-
-Pending Alex's final confirmation on the exact states and names.
 
 ## Calendar integration
 
@@ -283,8 +292,40 @@ Caveat: this requires Sawyer to actually tap **Send** in the native app — the 
 
 ## Notifications for Sawyer
 
-- **MVP:** in-app badge + inbox entries. The admin shell shows an unread count; the `notifications` table stores each event.
-- **Provisional future:** Web Push via a PWA (service worker + `Notification` API + VAPID keys). Would let the admin ping Sawyer's phone when the app isn't open. Flagged for a follow-up phase once MVP is stable. Pending Alex's final call on whether to include in MVP or defer.
+Two layers, both in MVP:
+
+1. **In-app badge + inbox** — the `notifications` table stores every event (new booking submitted, etc.); the admin shell shows an unread count. Always works, even if push fails or is disabled.
+2. **Web Push via PWA** — real push notifications on Sawyer's phone when the app isn't open. Implemented using:
+   - A service worker (`public/sw.js`)
+   - The W3C `Notification` API
+   - VAPID keys (self-generated via `npx web-push generate-vapid-keys`, stored as env vars: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`)
+   - The `web-push` npm package to dispatch notifications from the Next.js server
+   - The `push_subscriptions` table to persist each device's subscription
+
+   **iOS note:** iOS 16.4+ supports Web Push but ONLY for PWAs — Sawyer must tap **Share → Add to Home Screen** once, open the admin from the home-screen icon, and accept the notification prompt. After that, his phone buzzes on every new booking.
+
+No third-party service is required (Apple / Google / Mozilla provide the push gateways for free; VAPID is a free W3C standard). This is not equivalent to Twilio / FCM / Resend — no account, no cost, no signup.
+
+## Landing-page fallback: text Sawyer directly
+
+In addition to the booking flow, the public landing page has a small buried link — "Have a question? Text Sawyer directly →" — at the bottom. Tapping it opens `sms:913-309-7340?body=<URL-encoded template>` where the template is Sawyer's original pre-booking SMS body:
+
+```
+Hi, this is [name here]. I'm interested in your services.
+
+• Address:
+• Type of service:
+• Yard size:
+• Preferred date:
+
+Thanks!
+```
+
+### Operational note
+
+Messages sent via this fallback land in Sawyer's native Messages app, entirely outside the application. There is no slot hold, no status tracking, no calendar integration, and no admin inbox entry for these conversations.
+
+This is intentional — the fallback exists for "quick question" traffic (e.g. "do you do mulch?", "rate for a big yard?") that doesn't fit the rigid shape of the booking form. Sawyer carries two inboxes (admin + Messages); the booking form is still THE action and is visually primary.
 
 ## Out of scope for this document
 
