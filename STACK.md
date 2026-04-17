@@ -8,7 +8,7 @@ This document captures the tech-stack decision for the Showalter Services site. 
 |--------------------|-------------------------------------------|-----|
 | Framework          | **Next.js 15** (App Router)               | One codebase for public site + admin + API. Server actions simplify the CMS surface. React UI pairs well with the admin calendar. |
 | Database           | **SQLite** via **Drizzle ORM**            | Single file, zero ops. Fits a one-user admin + low-write workload. Mounted via a host volume, easy to back up. |
-| Auth               | **Auth.js** (credentials provider)        | Single admin account — no social-login surface area. Minimal dependencies. |
+| Auth               | **Auth.js + WebAuthn (passkeys); multi-admin via `ADMIN_EMAILS` env list** | One-tap biometric login. No passwords, no external email/SMS dependency for login. Admin slot count is env-configurable; unenrolled slots are gated by a BOOTSTRAP_ENABLED flag. |
 | UI                 | **Tailwind + shadcn/ui**                  | Fast to style. Pre-built calendar/date-picker, table, dialog components. Dark-green / black / white theme is trivially configurable via CSS variables. |
 | Images             | **Next.js `Image`** (plain, no `sharp`)   | Good enough for one hero photo + a small gallery. Skipping `sharp` keeps the image pipeline simple. |
 | Analytics          | **Umami** (self-hosted)                   | Privacy-friendly, lightweight, Dockerable. Tracks QR-scan → site-visit conversion without tracking individual visitors. |
@@ -74,10 +74,31 @@ Windows used only when the matching override row has `mode='open'`.
 - `start_time` TEXT
 - `end_time` TEXT
 
-### `admin_user`
-Single-row table.
-- `username` TEXT
-- `password_hash` TEXT
+### `admins`
+One row per admin slot (seeded from `ADMIN_EMAILS` env var on boot).
+- `id` INTEGER PK
+- `email` TEXT UNIQUE
+- `active` BOOLEAN (default true)     — soft-disable toggle (no deletions)
+- `enrolled_at` TEXT (nullable)       — NULL until the passkey is registered
+- `created_at` TEXT
+
+### `credentials`
+One row per passkey. An admin may enroll multiple devices (phone, laptop, tablet).
+- `id` INTEGER PK
+- `admin_id` INTEGER FK → admins.id
+- `credential_id` TEXT UNIQUE
+- `public_key` TEXT
+- `counter` INTEGER
+- `device_type` TEXT                  — e.g. "iPhone (iOS 17)"
+- `created_at` TEXT
+
+### `recovery_codes`
+Exactly one active recovery code per admin (enforced by UNIQUE on `admin_id` where `used_at IS NULL`). When used, a new code is generated and shown once.
+- `id` INTEGER PK
+- `admin_id` INTEGER FK → admins.id
+- `code_hash` TEXT                    — hashed at rest
+- `used_at` TEXT (nullable)
+- `created_at` TEXT
 
 ### `uploads`
 - `id` INTEGER PK
@@ -192,8 +213,8 @@ services:
       PORT: 5827
       BASE_URL: https://showalter.business
       AUTH_SECRET: ${AUTH_SECRET}
-      ADMIN_USERNAME: ${ADMIN_USERNAME}
-      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      ADMIN_EMAILS: ${ADMIN_EMAILS}
+      BOOTSTRAP_ENABLED: ${BOOTSTRAP_ENABLED:-false}
 ```
 
 ## Environment variables
@@ -201,8 +222,8 @@ services:
 | Var                   | Purpose                                          |
 |-----------------------|--------------------------------------------------|
 | `AUTH_SECRET`         | Auth.js session secret (generate with `openssl rand -base64 32`) |
-| `ADMIN_USERNAME`      | Sawyer's admin login username                    |
-| `ADMIN_PASSWORD_HASH` | bcrypt hash of the admin password                |
+| `ADMIN_EMAILS`        | Comma-separated list of admin emails (e.g. `sshowalterservices@gmail.com,alex@lxrbckl.com`). Slot count = list length. Boot reconciles DB with this list. |
+| `BOOTSTRAP_ENABLED`   | `true` allows unenrolled admin slots to register a passkey at `/admin/login`; `false` (production default) rejects enrollment and only accepts logins from already-enrolled admins. |
 | `BASE_URL`            | `https://showalter.business` — used for absolute URLs, OG tags |
 | `PORT`                | `5827`                                           |
 | `VAPID_PUBLIC_KEY`    | Web Push public key (exposed to the client)      |
@@ -320,6 +341,94 @@ All confirmations flow through Sawyer's own devices:
 This simplification eliminates the need for any server-side email provider (Resend / SES / Mailgun / etc.) and removes from-address / deliverability concerns entirely. The only server-side dependencies are the `.ics` endpoint and the Google render URL (which is client-safe).
 
 Caveat: this requires Sawyer to actually tap **Send** in the native app — the server cannot guarantee the message went out. Acceptable tradeoff for a small single-operator business.
+
+## Authentication
+
+The admin uses **passkeys** (WebAuthn) — a web-standard biometric login. No passwords, no external email/SMS provider needed for login. Admin slots are env-configurable.
+
+### Multi-admin via env
+
+`ADMIN_EMAILS` is a comma-separated list of admin emails:
+
+```
+ADMIN_EMAILS=sshowalterservices@gmail.com,alex@lxrbckl.com
+```
+
+The number of emails = number of admin slots. On boot, the app reconciles the `admins` table with this list:
+
+- Email in env, not in DB → **insert** as pending (`active=true`, `enrolled_at=NULL`)
+- Email in DB, not in env → **soft-disable** (`active=false`) — rows are never deleted (consistent with the platform's no-destructive-actions principle; preserves their credentials if they return)
+- Email in both → no change
+
+### Bootstrap safety flag
+
+`BOOTSTRAP_ENABLED` gates first-time passkey enrollment:
+
+- **`true`** — unenrolled admin slots accept new passkey registrations at `/admin/login`
+- **`false`** (production default) — `/admin/login` rejects enrollment; only already-enrolled admins can sign in
+
+Suggested onboarding flow: deploy with `BOOTSTRAP_ENABLED=true`, have each admin visit `/admin/login` on their device and enroll while you're watching, then flip to `false` and restart to close the enrollment window. Prevents an unenrolled slot from being hijacked by someone who guesses the admin URL.
+
+### Enrollment flow (first time, per admin)
+
+1. Admin opens `/admin/login` on their device (the installed PWA works best)
+2. Types their email, submits
+3. Server checks: email active, not yet enrolled, `BOOTSTRAP_ENABLED=true` → enter enrollment mode
+4. WebAuthn `navigator.credentials.create()` is called; the browser triggers the OS's native biometric prompt (Face ID / Touch ID / Windows Hello / Android fingerprint)
+5. Credential is persisted to `credentials`
+6. Server generates a single recovery code, hashes it, stores in `recovery_codes`, shows the plaintext **once**
+7. `admins.enrolled_at` is set
+
+### Login flow (thereafter)
+
+1. Admin opens `/admin/login`
+2. Types email, submits
+3. WebAuthn `navigator.credentials.get()` → biometric prompt → signed assertion returned
+4. Server verifies against `credentials` → issues a session cookie (sliding TTL, ~30 days)
+
+### Recovery code
+
+- One active code per admin at a time
+- Stored hashed
+- Shown in plaintext **once** at enrollment
+- Single-use: on successful recovery, a new code is generated and shown once
+
+### Multiple devices per admin
+
+An admin can enroll multiple passkeys over time (phone + laptop + tablet). Each enrollment appends a new row to `credentials` tied to the same `admin_id`. There is no cap in MVP.
+
+### Permissions
+
+All admins have equal permissions in MVP: any admin can CRUD any content, accept/decline any booking, edit availability, etc.
+
+Out of scope for MVP:
+- Role hierarchy (owner / member)
+- Admin-manages-admin via UI
+- Per-admin audit log of actions
+
+### CLI commands
+
+Documented for operations:
+
+```bash
+docker exec showalter pnpm admin:list
+# → prints each admin: email, active, enrolled_at, device_count
+
+docker exec showalter pnpm admin:reset <email>
+# → clears that admin's credentials and recovery_code rows; admin returns to pending-enrollment state
+
+docker exec showalter pnpm admin:disable <email>
+# → sets active=false (equivalent to removing the email from ADMIN_EMAILS)
+
+docker exec showalter pnpm admin:enable <email>
+# → re-enables a previously disabled admin (email must still be in ADMIN_EMAILS for login to succeed)
+```
+
+### Stack dependencies
+
+- `@simplewebauthn/server` — server-side credential verification
+- `@simplewebauthn/browser` — small client-side helper that wraps the WebAuthn browser APIs
+- Auth.js v5 handles sessions, CSRF, and middleware (passkey-specific logic sits alongside its adapter)
 
 ## Notifications for Sawyer
 

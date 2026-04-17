@@ -127,7 +127,9 @@ The site is a self-hosted full-stack web app at `showalter.business`. It has two
   Texts arrive in Sawyer's native Messages app and are NOT tracked by the application (no slot hold, no calendar, no status).
 
 ### Admin (mobile-web-friendly)
-Single-admin login for Sawyer. Phone is a first-class form factor — he'll use the admin primarily from his phone's browser.
+Admin login uses **passkeys** (Face ID / Touch ID / platform biometric) — no passwords. The number of admin accounts is controlled via the `ADMIN_EMAILS` Docker env var (comma-separated list). All admins have equal permissions in MVP.
+
+Multi-admin support for Sawyer and collaborators. Phone is a first-class form factor — he'll use the admin primarily from his phone's browser.
 
 Admin-editable areas:
 - **Contact info** (phone, email, TikTok, bio, SMS template)
