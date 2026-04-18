@@ -1,5 +1,7 @@
 # Tech Stack — Project Showalter
 
+**Status:** All sections below are implemented and live on `main` as of 2026-04-18. Any deltas from what the app actually does are bugs.
+
 This document captures the tech-stack decision for the Showalter Services site. Everything here is the current agreed-on direction; revise via PR if anything changes.
 
 ## Overview

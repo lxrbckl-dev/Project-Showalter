@@ -1,5 +1,21 @@
 # PHASES
 
+> **Status (as of 2026-04-18): all 12 phases complete.** This document is preserved as an implementation record. PRs by phase:
+> - Phase 0: #24
+> - Phase 1A/1B: #32, #34
+> - Phase 2: #33
+> - Phase 3A/3B/3C: #41, #40, #46
+> - Phase 4: #42
+> - Phase 5: #54
+> - Phase 6: #58
+> - Phase 7: #63
+> - Phase 8A/8B: #64, #62
+> - Phase 9: #68
+> - Phase 10: #74
+> - Phase 11: #76
+> - Phase 12 (split): #52 (SEO), #53 (PWA), #57 (Umami), #67 (error pages + a11y), #73 (deploy runbook)
+> - Post-phase: #78 (multi-device passkey)
+
 Each phase maps to one PR and one shippable milestone. A phase is not "done" until it can be deployed and exercised end-to-end — partial work stays on its branch until the whole phase is ready. This keeps main always green and deployable and gives QA a clean unit of review at every step.
 
 ---
