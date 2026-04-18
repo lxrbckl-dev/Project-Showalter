@@ -87,6 +87,12 @@ function setMinReviews(value: number): void {
 }
 
 test.describe('stats band', () => {
+  test.beforeEach(async ({ request }) => {
+    // Flush the server-side in-memory stats cache before each test so that DB
+    // mutations made in test setup are visible immediately (not after the 5-min TTL).
+    await request.post(`${BASE_URL}/api/test/flush-stats-cache`);
+  });
+
   test.afterEach(async () => {
     // Restore defaults to avoid polluting other tests
     const sqlite = new Database(DB_PATH);
