@@ -43,11 +43,11 @@ the scaffold doesn't need to be reshuffled once real features start landing.
 │   ├── features/                    # domain modules (auth, bookings, …)
 │   ├── lib/                         # cross-cutting utilities (no deps on features)
 │   ├── server/                      # long-running server infra (boot, cron, …)
-│   └── cli/                         # CLI entry points (`admin:list`, …)
+│   ├── cli/                         # CLI entry points (`admin:list`, …)
+│   └── instrumentation.ts           # Next.js entry hook (`src/` layout lives here, not repo root)
 ├── tests/                           # tests that don't colocate
 │   ├── e2e/                         # Playwright end-to-end
 │   └── unit/                        # optional — integration-style Vitest specs
-├── instrumentation.ts               # Next.js entry hook (MUST be at root)
 ├── next.config.ts                   # Next.js config (MUST be at root)
 ├── tailwind.config.ts               # Tailwind config (MUST be at root)
 ├── drizzle.config.ts                # Drizzle CLI config
@@ -231,7 +231,7 @@ object — `import * as schema from '@/db/schema'` works because
 
 ```
 src/server/
-├── boot.ts                          # called by instrumentation.ts; runs migrations
+├── boot.ts                          # called by src/instrumentation.ts; runs migrations + reconcile + seed
 ├── logger/                          # structured JSON logger wrapper
 ├── cron/                            # cron job definitions (Phase 8)
 │   ├── sweep.ts                     # */15 * * * *  — reminders + auto-expire
