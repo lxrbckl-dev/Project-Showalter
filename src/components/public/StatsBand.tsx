@@ -30,12 +30,12 @@ interface StatCardProps {
 function StatCard({ value, label, subtitle }: StatCardProps) {
   return (
     <div className="flex flex-col items-center px-4 py-6 text-center">
-      <span className="text-4xl font-extrabold tracking-tight text-green-400">{value}</span>
-      <span className="mt-1 text-sm font-semibold uppercase tracking-widest text-gray-300">
+      <span className="text-4xl font-extrabold tracking-tight text-[#0F3D2E]">{value}</span>
+      <span className="mt-1 text-sm font-semibold uppercase tracking-widest text-gray-500">
         {label}
       </span>
       {subtitle && (
-        <span className="mt-0.5 text-xs text-gray-500">{subtitle}</span>
+        <span className="mt-0.5 text-xs text-gray-400">{subtitle}</span>
       )}
     </div>
   );
@@ -59,7 +59,7 @@ export function StatsBand() {
     <section
       id="stats"
       aria-label="At a glance"
-      className="bg-gray-900 px-6 py-2"
+      className="border-y border-gray-200 bg-white px-6 py-2"
     >
       <div className="mx-auto grid max-w-4xl grid-cols-2 gap-y-0 sm:grid-cols-4">
         <StatCard

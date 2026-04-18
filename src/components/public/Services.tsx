@@ -24,7 +24,7 @@ export function Services({ services }: ServicesProps) {
     return (
       <section id="services" className="bg-white px-6 py-16">
         <div className="mx-auto max-w-2xl">
-          <h2 className="mb-4 text-2xl font-bold tracking-tight text-gray-900">Services</h2>
+          <h2 className="mb-4 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Services</h2>
           <p className="text-gray-500">No services listed yet — check back soon.</p>
         </div>
       </section>
@@ -34,13 +34,13 @@ export function Services({ services }: ServicesProps) {
   return (
     <section id="services" className="bg-white px-6 py-16">
       <div className="mx-auto max-w-2xl">
-        <h2 className="mb-2 text-2xl font-bold tracking-tight text-gray-900">Services</h2>
+        <h2 className="mb-2 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Services</h2>
         <p className="mb-8 text-sm italic text-gray-500">
           This is just an estimate — every job is different.
         </p>
         <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
           <table className="w-full text-left text-sm" aria-label="Services and pricing">
-            <thead className="bg-gray-900 text-white">
+            <thead className="bg-[#0F3D2E] text-white">
               <tr>
                 <th scope="col" className="px-4 py-3 font-semibold">Service</th>
                 <th scope="col" className="px-4 py-3 font-semibold">Description</th>
@@ -49,10 +49,10 @@ export function Services({ services }: ServicesProps) {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {services.map((service, idx) => (
-                <tr key={service.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <tr key={service.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}>
                   <td className="px-4 py-3 font-medium text-gray-900">{service.name}</td>
                   <td className="px-4 py-3 text-gray-600">{service.description}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-green-700">
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-[#0F3D2E]">
                     {formatPrice(service.priceCents, service.priceSuffix)}
                   </td>
                 </tr>

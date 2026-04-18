@@ -9,7 +9,6 @@ import { Hero } from '@/components/public/Hero';
 import { About } from '@/components/public/About';
 import { Gallery } from '@/components/public/Gallery';
 import { Services } from '@/components/public/Services';
-import { RepeatCTA } from '@/components/public/RepeatCTA';
 import { Contact } from '@/components/public/Contact';
 import { Footer } from '@/components/public/Footer';
 import { StatsBand } from '@/components/public/StatsBand';
@@ -17,16 +16,15 @@ import { StatsBand } from '@/components/public/StatsBand';
 /**
  * Public landing page — server component.
  *
- * Reads live from the database. Section order follows PHASES.md Phase 2:
+ * Reads live from the database. Section order:
  *   1. Hero
- *   2. (Stats widget — Phase 11, skipped)
+ *   2. Stats widget (Phase 11)
  *   3. About
  *   4. Gallery  (gracefully absent until Phase 3 adds site_photos)
  *   5. Services
- *   6. RepeatCTA
- *   7. #request anchor placeholder (Phase 5 booking flow)
- *   8. Contact
- *   9. Footer
+ *   6. #request anchor placeholder (Phase 5 booking flow)
+ *   7. Contact
+ *   8. Footer
  *
  * Gallery queries `site_photos` — the table doesn't exist until Phase 3.
  * The query is wrapped in try/catch to handle the missing table gracefully.
@@ -105,11 +103,8 @@ export default function HomePage() {
       {/* 5. Services */}
       <Services services={activeServices} />
 
-      {/* 6. Repeat CTA */}
-      <RepeatCTA />
-
       {/*
-        7. #request anchor — Phase 5 booking flow. The full multi-step form
+        6. #request anchor — Phase 5 booking flow. The full multi-step form
         lives at /book (dedicated route); this section is a compact visual
         anchor + CTA on the landing page so the "Request service" links at
         the top and in the hero still have somewhere meaningful to scroll to
@@ -117,25 +112,25 @@ export default function HomePage() {
       */}
       <section
         id="request"
-        className="bg-green-950 px-6 py-16 text-center text-white"
+        className="bg-neutral-50 px-6 py-16 text-center"
         aria-label="Request service"
       >
-        <h2 className="mb-3 text-2xl font-bold">Request a Service</h2>
-        <p className="mb-6 text-green-300">
+        <h2 className="mb-3 text-3xl font-bold text-gray-900 md:text-4xl">Request a Service</h2>
+        <p className="mb-6 text-gray-600">
           Pick a day and time, tell Sawyer about the job.
         </p>
         <a
           href="/book"
-          className="inline-block rounded-md bg-green-600 px-8 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400"
+          className="inline-block rounded-md bg-[#0F3D2E] px-8 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-[#1a5c44] focus:outline-none focus:ring-2 focus:ring-[#0F3D2E]"
         >
           Start booking
         </a>
       </section>
 
-      {/* 8. Contact */}
+      {/* 7. Contact */}
       <Contact siteConfig={config} />
 
-      {/* 9. Footer */}
+      {/* 8. Footer */}
       <Footer siteConfig={config} />
     </main>
   );
