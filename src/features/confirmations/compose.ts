@@ -63,16 +63,28 @@ Thanks for letting me work on your [service] today! If you have a quick moment, 
   review_request_sms: `Hi [name], thanks for the job today! If you have a sec, a quick review would mean a lot: [link] — Sawyer`,
 };
 
-const DEFAULT_SUBJECTS: Record<'email' | 'decline' | 'review', string> = {
-  email: 'Your appointment is confirmed — Showalter Services',
-  decline: 'About your service request — Showalter Services',
-  review: 'Quick favor — leave a review?',
-};
+/**
+ * Default email subjects. Two of them append the site title (admin-editable
+ * via `site_config.site_title`) so a future rebrand flows through to the
+ * subject line without a code change. The review-request subject doesn't
+ * include the brand — it reads like a casual personal ask and the brand
+ * showing up there would make it feel more transactional.
+ */
+function buildDefaultSubjects(
+  siteTitle: string,
+): Record<'email' | 'decline' | 'review', string> {
+  return {
+    email: `Your appointment is confirmed — ${siteTitle}`,
+    decline: `About your service request — ${siteTitle}`,
+    review: 'Quick favor — leave a review?',
+  };
+}
 
-function subjectForKind(kind: ConfirmationTemplateKind): string {
-  if (kind === 'confirmation_email') return DEFAULT_SUBJECTS.email;
-  if (kind === 'decline_email') return DEFAULT_SUBJECTS.decline;
-  if (kind === 'review_request_email') return DEFAULT_SUBJECTS.review;
+function subjectForKind(kind: ConfirmationTemplateKind, siteTitle: string): string {
+  const subjects = buildDefaultSubjects(siteTitle);
+  if (kind === 'confirmation_email') return subjects.email;
+  if (kind === 'decline_email') return subjects.decline;
+  if (kind === 'review_request_email') return subjects.review;
   // SMS kinds don't use a subject.
   return '';
 }
@@ -183,6 +195,7 @@ export function composeConfirmationForBooking(
   const cfg = db.select().from(siteConfig).limit(1).all()[0];
 
   const timezone = cfg?.timezone ?? 'America/Chicago';
+  const siteTitle = cfg?.siteTitle ?? 'Sawyer Showalter Service';
   const baseUrl = (opts.baseUrl ?? process.env.BASE_URL ?? 'https://showalter.business').replace(
     /\/+$/,
     '',
@@ -213,7 +226,7 @@ export function composeConfirmationForBooking(
   if (isEmailKind(kind)) {
     const to = row.customerEmail;
     if (!to) return { ok: false, reason: 'missing_email' };
-    const subject = subjectForKind(kind);
+    const subject = subjectForKind(kind, siteTitle);
     const encodedSubject = encodeURIComponent(subject);
     const href = `mailto:${to}?subject=${encodedSubject}&body=${encodedBody}`;
     return {

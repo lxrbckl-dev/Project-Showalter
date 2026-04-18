@@ -81,7 +81,15 @@ export function seedFromBrief(db: Db): void {
         phone: '+19133097340',
         email: 'sshowalterservices@gmail.com',
         tiktokUrl: 'https://www.tiktok.com/@showalterservices',
-        bio: 'My name is Sawyer Showalter, and I am a 15 year old entrepreneur. I take pride in providing affordable, high quality services you can trust every time.',
+        // Bio uses the `[age]` placeholder so the rendered age stays current
+        // year-over-year — see `src/lib/age.ts` and `src/components/public/About.tsx`.
+        // Admin can edit both DOB and bio from the Content → Contact tab.
+        bio: 'My name is Sawyer Showalter, and I am a [age] year old entrepreneur. I take pride in providing affordable, high quality services you can trust every time.',
+        // Seeded DOB is a placeholder — chosen so the brief-era "15 year old"
+        // copy still reads correctly on fresh dev DBs at project inception.
+        // Alex overrides this via Content → Contact once he has Sawyer's real
+        // DOB. NOT considered authoritative data.
+        dateOfBirth: '2010-10-15',
       })
       .where(isNull(siteConfig.phone))
       .run();

@@ -74,6 +74,27 @@ export function ContactForm({ config }: ContactFormProps) {
       </div>
 
       <div className="space-y-2">
+        <label htmlFor="dateOfBirth" className="block text-sm font-medium">
+          Date of birth{' '}
+          <span className="text-[hsl(var(--muted-foreground))]">
+            (optional — drives the <code>[age]</code> placeholder in the bio)
+          </span>
+        </label>
+        <Input
+          id="dateOfBirth"
+          name="dateOfBirth"
+          type="date"
+          defaultValue={config.dateOfBirth ?? ''}
+          data-testid="contact-date-of-birth"
+        />
+        {state.ok === false && state.errors.dateOfBirth && (
+          <p className="text-xs text-[hsl(var(--destructive))]">
+            {state.errors.dateOfBirth.join(', ')}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-2">
         <label htmlFor="bio" className="block text-sm font-medium">
           Bio <span className="text-[hsl(var(--muted-foreground))]">(max 2000 chars)</span>
         </label>
@@ -82,9 +103,13 @@ export function ContactForm({ config }: ContactFormProps) {
           name="bio"
           defaultValue={config.bio ?? ''}
           rows={6}
-          placeholder="Tell visitors about yourself..."
+          placeholder="Tell visitors about yourself... Use [age] to auto-fill Sawyer's current age."
           data-testid="contact-bio"
         />
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+          Tip: insert <code>[age]</code> anywhere in the bio and it will be replaced with
+          Sawyer&rsquo;s current age (derived from his DOB above) whenever the page is rendered.
+        </p>
         {state.ok === false && state.errors.bio && (
           <p className="text-xs text-[hsl(var(--destructive))]">{state.errors.bio.join(', ')}</p>
         )}

@@ -34,7 +34,7 @@ describe('seedFromBrief()', () => {
       CREATE TABLE site_config (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT,
-        hero_image_path TEXT, sms_template TEXT,
+        hero_image_path TEXT, date_of_birth TEXT, sms_template TEXT,
         booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
         min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
         start_time_increment_minutes INTEGER NOT NULL DEFAULT 30,
@@ -44,6 +44,7 @@ describe('seedFromBrief()', () => {
         photo_retention_days_after_resolve INTEGER NOT NULL DEFAULT 30,
         timezone TEXT NOT NULL DEFAULT 'America/Chicago',
         business_founded_year INTEGER NOT NULL DEFAULT 2023,
+        site_title TEXT NOT NULL DEFAULT 'Sawyer Showalter Service',
         show_landing_stats INTEGER NOT NULL DEFAULT 1,
         min_reviews_for_landing_stats INTEGER NOT NULL DEFAULT 3,
         min_rating_for_auto_publish INTEGER NOT NULL DEFAULT 4,
@@ -91,7 +92,7 @@ describe('seedFromBrief()', () => {
       CREATE TABLE site_config (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT,
-        hero_image_path TEXT, sms_template TEXT,
+        hero_image_path TEXT, date_of_birth TEXT, sms_template TEXT,
         booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
         min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
         start_time_increment_minutes INTEGER NOT NULL DEFAULT 30,
@@ -101,6 +102,7 @@ describe('seedFromBrief()', () => {
         photo_retention_days_after_resolve INTEGER NOT NULL DEFAULT 30,
         timezone TEXT NOT NULL DEFAULT 'America/Chicago',
         business_founded_year INTEGER NOT NULL DEFAULT 2023,
+        site_title TEXT NOT NULL DEFAULT 'Sawyer Showalter Service',
         show_landing_stats INTEGER NOT NULL DEFAULT 1,
         min_reviews_for_landing_stats INTEGER NOT NULL DEFAULT 3,
         min_rating_for_auto_publish INTEGER NOT NULL DEFAULT 4,
@@ -142,6 +144,9 @@ describe('seedFromBrief()', () => {
       expect(config[0].phone).toBe('+19133097340');
       expect(config[0].email).toBe('sshowalterservices@gmail.com');
       expect(config[0].bio).toContain('Sawyer Showalter');
+      // Bio uses the [age] placeholder — no hardcoded age literal
+      expect(config[0].bio).toContain('[age]');
+      expect(config[0].bio).not.toMatch(/\b15\s+year\s+old\b/i);
 
       const serviceRows = db.select().from(schema.services).all();
       expect(serviceRows).toHaveLength(5);
@@ -161,7 +166,7 @@ describe('seedFromBrief()', () => {
       CREATE TABLE site_config (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT,
-        hero_image_path TEXT, sms_template TEXT,
+        hero_image_path TEXT, date_of_birth TEXT, sms_template TEXT,
         booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
         min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
         start_time_increment_minutes INTEGER NOT NULL DEFAULT 30,
@@ -171,6 +176,7 @@ describe('seedFromBrief()', () => {
         photo_retention_days_after_resolve INTEGER NOT NULL DEFAULT 30,
         timezone TEXT NOT NULL DEFAULT 'America/Chicago',
         business_founded_year INTEGER NOT NULL DEFAULT 2023,
+        site_title TEXT NOT NULL DEFAULT 'Sawyer Showalter Service',
         show_landing_stats INTEGER NOT NULL DEFAULT 1,
         min_reviews_for_landing_stats INTEGER NOT NULL DEFAULT 3,
         min_rating_for_auto_publish INTEGER NOT NULL DEFAULT 4,

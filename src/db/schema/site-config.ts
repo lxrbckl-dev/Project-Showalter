@@ -22,6 +22,15 @@ export const siteConfig = sqliteTable('site_config', {
   bio: text('bio'),
   heroImagePath: text('hero_image_path'),
 
+  /**
+   * Sawyer's date of birth, stored as an ISO-8601 calendar date
+   * (`YYYY-MM-DD`). Nullable — the field is optional and starts NULL on fresh
+   * DBs until an admin sets it in the Content → Contact tab. Used by the
+   * `[age]` template placeholder in `bio` so the age rendered on the landing
+   * page stays current automatically (see `src/lib/age.ts`).
+   */
+  dateOfBirth: text('date_of_birth'),
+
   // SMS fallback template (buried "text Sawyer" link on landing page)
   smsTemplate: text('sms_template'),
 
@@ -39,6 +48,19 @@ export const siteConfig = sqliteTable('site_config', {
   // Locale / business
   timezone: text('timezone').notNull().default('America/Chicago'),
   businessFoundedYear: integer('business_founded_year').notNull().default(2023),
+
+  /**
+   * Site title / business name shown in the public-facing UI (Hero eyebrow,
+   * back-links, image alt text), SEO metadata (<title>, OG title, Twitter
+   * card), and the dynamic Open Graph image. Admin-editable from Content →
+   * Settings so Sawyer (or a future rebrand) can change the displayed name
+   * without a redeploy.
+   *
+   * The Hero eyebrow uppercases the value via Tailwind — the stored form is
+   * mixed-case so SEO titles and email subjects read naturally. Validated
+   * 1–60 chars after trim in `src/features/site-config/actions.ts`.
+   */
+  siteTitle: text('site_title').notNull().default('Sawyer Showalter Service'),
 
   // Landing-stats / auto-publish (INTEGER 0/1 for boolean)
   showLandingStats: integer('show_landing_stats').notNull().default(1),

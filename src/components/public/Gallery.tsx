@@ -8,6 +8,12 @@ interface SitePhoto {
 
 interface GalleryProps {
   photos: SitePhoto[];
+  /**
+   * Public site title — used as the alt-text fallback when a photo has no
+   * caption. Pulled from `site_config.site_title` (admin-editable) so a
+   * future rebrand updates the alt text too.
+   */
+  siteTitle: string;
 }
 
 /**
@@ -16,7 +22,7 @@ interface GalleryProps {
  * Renders nothing when photos array is empty (handles both the case where the
  * table doesn't exist yet — Phase 3 — and the case where no photos are uploaded).
  */
-export function Gallery({ photos }: GalleryProps) {
+export function Gallery({ photos, siteTitle }: GalleryProps) {
   if (photos.length === 0) return null;
 
   return (
@@ -32,7 +38,7 @@ export function Gallery({ photos }: GalleryProps) {
             >
               <Image
                 src={photo.path}
-                alt={photo.caption ?? 'Showalter Services work photo'}
+                alt={photo.caption ?? `${siteTitle} work photo`}
                 fill
                 className="object-cover object-center"
               />

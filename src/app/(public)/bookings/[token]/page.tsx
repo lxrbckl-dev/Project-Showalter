@@ -23,46 +23,49 @@ import { CancelButton } from '@/components/public/booking/CancelButton';
 export const dynamic = 'force-dynamic';
 
 // Status → copy for the top banner.
-const STATUS_COPY: Record<
-  BookingStatus,
-  { heading: string; body: string; canCancel: boolean }
-> = {
-  pending: {
-    heading: 'Request received',
-    body: 'Waiting for Sawyer to confirm. You can cancel below anytime before he responds.',
-    canCancel: true,
-  },
-  accepted: {
-    heading: 'Appointment confirmed',
-    body: 'Sawyer confirmed your appointment. See you then!',
-    canCancel: true,
-  },
-  declined: {
-    heading: "Sawyer couldn't take this one",
-    body: 'Feel free to submit another request with a different day or service.',
-    canCancel: false,
-  },
-  canceled: {
-    heading: 'Appointment canceled',
-    body: 'This appointment was canceled. No further action needed.',
-    canCancel: false,
-  },
-  expired: {
-    heading: 'Request expired',
-    body: 'This request sat pending for too long — feel free to submit a new one.',
-    canCancel: false,
-  },
-  completed: {
-    heading: 'Job completed',
-    body: 'Thanks for choosing Showalter Services — see you next time!',
-    canCancel: false,
-  },
-  no_show: {
-    heading: 'Marked no-show',
-    body: 'This appointment is closed out.',
-    canCancel: false,
-  },
-};
+// The `completed` body interpolates the admin-configurable site title so a
+// future rebrand flows through without a code change.
+function buildStatusCopy(
+  siteTitle: string,
+): Record<BookingStatus, { heading: string; body: string; canCancel: boolean }> {
+  return {
+    pending: {
+      heading: 'Request received',
+      body: 'Waiting for Sawyer to confirm. You can cancel below anytime before he responds.',
+      canCancel: true,
+    },
+    accepted: {
+      heading: 'Appointment confirmed',
+      body: 'Sawyer confirmed your appointment. See you then!',
+      canCancel: true,
+    },
+    declined: {
+      heading: "Sawyer couldn't take this one",
+      body: 'Feel free to submit another request with a different day or service.',
+      canCancel: false,
+    },
+    canceled: {
+      heading: 'Appointment canceled',
+      body: 'This appointment was canceled. No further action needed.',
+      canCancel: false,
+    },
+    expired: {
+      heading: 'Request expired',
+      body: 'This request sat pending for too long — feel free to submit a new one.',
+      canCancel: false,
+    },
+    completed: {
+      heading: 'Job completed',
+      body: `Thanks for choosing ${siteTitle} — see you next time!`,
+      canCancel: false,
+    },
+    no_show: {
+      heading: 'Marked no-show',
+      body: 'This appointment is closed out.',
+      canCancel: false,
+    },
+  };
+}
 
 function formatStartAt(iso: string, tz: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -93,13 +96,17 @@ export default async function BookingPage({
 
   const db = getDb();
   const cfg = db
-    .select({ timezone: siteConfigTable.timezone })
+    .select({
+      timezone: siteConfigTable.timezone,
+      siteTitle: siteConfigTable.siteTitle,
+    })
     .from(siteConfigTable)
     .limit(1)
     .all()[0];
   const tz = cfg?.timezone ?? 'America/Chicago';
+  const siteTitle = cfg?.siteTitle ?? 'Sawyer Showalter Service';
 
-  const copy = STATUS_COPY[booking.status];
+  const copy = buildStatusCopy(siteTitle)[booking.status];
 
   // Reschedule forward pointer — Phase 6.
   // If this booking was canceled via the reschedule flow, show a banner linking
@@ -123,7 +130,7 @@ export default async function BookingPage({
       <div className="mx-auto max-w-2xl px-6 py-12">
         <div className="mb-8">
           <Link href="/" className="text-sm text-green-300 hover:text-green-100">
-            &larr; Showalter Services
+            &larr; {siteTitle}
           </Link>
         </div>
 

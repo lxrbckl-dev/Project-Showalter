@@ -98,7 +98,7 @@ export default function HomePage() {
       <About siteConfig={config} />
 
       {/* 4. Gallery — gracefully absent until Phase 3 */}
-      <Gallery photos={photos} />
+      <Gallery photos={photos} siteTitle={config.siteTitle} />
 
       {/* 5. Services */}
       <Services services={activeServices} />

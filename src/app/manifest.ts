@@ -1,8 +1,16 @@
 import type { MetadataRoute } from 'next';
+import { getSiteConfig } from '@/features/site-config/queries';
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  // Pull the admin-configurable business name from site_config so the
+  // installed-PWA home-screen label tracks a rebrand. The short_name stays
+  // literally "Showalter" — it's the icon label and needs to stay short
+  // enough not to truncate on small screens regardless of the full title.
+  const config = await getSiteConfig();
+  const name = config?.siteTitle ?? 'Sawyer Showalter Service';
+
   return {
-    name: 'Showalter Services',
+    name,
     short_name: 'Showalter',
     description: 'Lawn care booking',
     start_url: '/',

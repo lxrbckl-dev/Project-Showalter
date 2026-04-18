@@ -28,6 +28,7 @@ function makeDb(): { sqlite: Database.Database; db: Db } {
     CREATE TABLE site_config (
       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
       phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT, hero_image_path TEXT,
+      date_of_birth TEXT,
       sms_template TEXT,
       booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
       min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
@@ -38,6 +39,7 @@ function makeDb(): { sqlite: Database.Database; db: Db } {
       photo_retention_days_after_resolve INTEGER NOT NULL DEFAULT 30,
       timezone TEXT NOT NULL DEFAULT 'America/Chicago',
       business_founded_year INTEGER NOT NULL DEFAULT 2023,
+      site_title TEXT NOT NULL DEFAULT 'Sawyer Showalter Service',
       show_landing_stats INTEGER NOT NULL DEFAULT 1,
       min_reviews_for_landing_stats INTEGER NOT NULL DEFAULT 3,
       min_rating_for_auto_publish INTEGER NOT NULL DEFAULT 4,

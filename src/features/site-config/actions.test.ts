@@ -96,6 +96,60 @@ describe('updateContact', () => {
     const result = await updateContact(PREV_OK, fd({ phone: '', email: '', tiktokUrl: 'https://tiktok.com/@test', bio: '' }));
     expect(result.ok).toBe(true);
   });
+
+  it('accepts empty dateOfBirth (optional)', async () => {
+    const result = await updateContact(
+      PREV_OK,
+      fd({ phone: '', email: '', tiktokUrl: '', bio: '', dateOfBirth: '' }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts valid dateOfBirth in YYYY-MM-DD', async () => {
+    const result = await updateContact(
+      PREV_OK,
+      fd({ phone: '', email: '', tiktokUrl: '', bio: '', dateOfBirth: '2010-06-15' }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects malformed dateOfBirth', async () => {
+    const result = await updateContact(
+      PREV_OK,
+      fd({ phone: '', email: '', tiktokUrl: '', bio: '', dateOfBirth: '06/15/2010' }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.dateOfBirth).toBeDefined();
+  });
+
+  it('rejects impossible calendar dates (Feb 30)', async () => {
+    const result = await updateContact(
+      PREV_OK,
+      fd({ phone: '', email: '', tiktokUrl: '', bio: '', dateOfBirth: '2010-02-30' }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.dateOfBirth).toBeDefined();
+  });
+
+  it('rejects dateOfBirth in the future', async () => {
+    const future = new Date();
+    future.setUTCFullYear(future.getUTCFullYear() + 5);
+    const yyyy = future.getUTCFullYear();
+    const mm = String(future.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(future.getUTCDate()).padStart(2, '0');
+    const result = await updateContact(
+      PREV_OK,
+      fd({
+        phone: '',
+        email: '',
+        tiktokUrl: '',
+        bio: '',
+        dateOfBirth: `${yyyy}-${mm}-${dd}`,
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.dateOfBirth).toBeDefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -154,6 +208,7 @@ describe('updateTemplates', () => {
 const currentYear = new Date().getFullYear();
 
 const VALID_SETTINGS = {
+  siteTitle: 'Sawyer Showalter Service',
   businessFoundedYear: '2023',
   bookingHorizonWeeks: '4',
   startTimeIncrementMinutes: '30',
@@ -259,5 +314,44 @@ describe('updateSettings', () => {
     const result = await updateSettings(PREV_OK, fd({ ...VALID_SETTINGS, minRatingForAutoPublish: '0' }));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors.minRatingForAutoPublish).toBeDefined();
+  });
+
+  // --- siteTitle ---
+
+  it('accepts a normal siteTitle', async () => {
+    const result = await updateSettings(
+      PREV_OK,
+      fd({ ...VALID_SETTINGS, siteTitle: 'Sawyer Showalter Service' }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects empty siteTitle', async () => {
+    const result = await updateSettings(PREV_OK, fd({ ...VALID_SETTINGS, siteTitle: '' }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.siteTitle).toBeDefined();
+  });
+
+  it('rejects whitespace-only siteTitle (trimmed to empty)', async () => {
+    const result = await updateSettings(PREV_OK, fd({ ...VALID_SETTINGS, siteTitle: '   ' }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.siteTitle).toBeDefined();
+  });
+
+  it('accepts siteTitle exactly 60 chars', async () => {
+    const result = await updateSettings(
+      PREV_OK,
+      fd({ ...VALID_SETTINGS, siteTitle: 'x'.repeat(60) }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects siteTitle longer than 60 chars', async () => {
+    const result = await updateSettings(
+      PREV_OK,
+      fd({ ...VALID_SETTINGS, siteTitle: 'x'.repeat(61) }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.siteTitle).toBeDefined();
   });
 });
