@@ -49,11 +49,12 @@ function fetchGalleryPhotos(): SitePhoto[] {
 
     const rows = sqlite
       .prepare(
-        'SELECT id, path, caption FROM site_photos WHERE active = 1 ORDER BY sort_order ASC',
+        'SELECT id, file_path AS path, caption FROM site_photos WHERE active = 1 ORDER BY sort_order ASC',
       )
       .all() as SitePhoto[];
 
-    return rows;
+    // Prefix with /uploads/ so Next.js Image can serve from the route handler
+    return rows.map((r) => ({ ...r, path: `/uploads/${r.path}` }));
   } catch {
     return [];
   }

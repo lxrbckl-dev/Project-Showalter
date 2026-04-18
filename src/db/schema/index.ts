@@ -28,3 +28,4 @@ export * from './recovery-codes';
 export * from './auth-sessions';
 export * from './services';
 export * from './availability';
+export * from './site-photos';

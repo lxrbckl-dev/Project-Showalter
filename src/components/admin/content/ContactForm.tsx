@@ -90,20 +90,6 @@ export function ContactForm({ config }: ContactFormProps) {
         )}
       </div>
 
-      <div className="space-y-2">
-        <label htmlFor="hero_image_path_ro" className="block text-sm font-medium">
-          Hero image path{' '}
-          <span className="text-[hsl(var(--muted-foreground))]">(read-only — managed in Phase 3C)</span>
-        </label>
-        <Input
-          id="hero_image_path_ro"
-          value={config.heroImagePath ?? ''}
-          readOnly
-          disabled
-          className="opacity-60"
-        />
-      </div>
-
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={isPending} data-testid="contact-save">
           {isPending ? 'Saving…' : 'Save'}

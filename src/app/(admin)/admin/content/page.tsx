@@ -17,6 +17,7 @@ import { auth } from '@/features/auth/auth';
 import { getSiteConfig } from '@/features/site-config/queries';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ContactForm } from '@/components/admin/content/ContactForm';
+import { HeroImageForm } from '@/components/admin/content/HeroImageForm';
 import { SmsForm } from '@/components/admin/content/SmsForm';
 import { TemplatesForm } from '@/components/admin/content/TemplatesForm';
 import { SettingsForm } from '@/components/admin/content/SettingsForm';
@@ -59,6 +60,9 @@ export default async function AdminContentPage() {
 
         <TabsContent value="contact" data-testid="tab-contact">
           <ContactForm config={config} />
+          <div className="mt-8 border-t border-[hsl(var(--border))] pt-8">
+            <HeroImageForm heroImagePath={config.heroImagePath ?? null} />
+          </div>
         </TabsContent>
 
         <TabsContent value="sms" data-testid="tab-sms">
