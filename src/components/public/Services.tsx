@@ -39,12 +39,12 @@ export function Services({ services }: ServicesProps) {
           This is just an estimate — every job is different.
         </p>
         <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm" aria-label="Services and pricing">
             <thead className="bg-gray-900 text-white">
               <tr>
-                <th className="px-4 py-3 font-semibold">Service</th>
-                <th className="px-4 py-3 font-semibold">Description</th>
-                <th className="px-4 py-3 text-right font-semibold">Price</th>
+                <th scope="col" className="px-4 py-3 font-semibold">Service</th>
+                <th scope="col" className="px-4 py-3 font-semibold">Description</th>
+                <th scope="col" className="px-4 py-3 text-right font-semibold">Price</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

@@ -19,7 +19,7 @@ export function Hero({ siteConfig }: HeroProps) {
       {siteConfig.heroImagePath ? (
         <Image
           src={siteConfig.heroImagePath}
-          alt="Showalter Services"
+          alt="Showalter Services — lawn care hero image"
           fill
           className="object-cover object-center opacity-60"
           priority

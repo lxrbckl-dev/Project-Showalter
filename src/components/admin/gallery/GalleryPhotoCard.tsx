@@ -64,7 +64,11 @@ export function GalleryPhotoCard({ photo }: GalleryPhotoCardProps) {
         {/* Caption editor */}
         <form action={captionAction} className="flex gap-2">
           <input type="hidden" name="id" value={photo.id} />
+          <label htmlFor={`gallery-caption-field-${photo.id}`} className="sr-only">
+            Caption for photo {photo.id}
+          </label>
           <Input
+            id={`gallery-caption-field-${photo.id}`}
             name="caption"
             defaultValue={photo.caption ?? ''}
             placeholder="Caption…"
