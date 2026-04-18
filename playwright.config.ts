@@ -11,6 +11,16 @@ const BASE_URL = process.env.BASE_URL ?? `http://localhost:${PORT}`;
 const DB_PATH = resolve(process.cwd(), 'dev.db');
 const DATABASE_URL = `file:${DB_PATH}`;
 
+// Local uploads root for E2E runs — /data/uploads is the production path but
+// requires root to create. Use a writable path under the repo for local runs.
+const UPLOADS_ROOT = process.env.UPLOADS_ROOT ?? resolve(process.cwd(), '.e2e-uploads');
+
+// Ensure SEED_FROM_BRIEF is set in the Playwright runner process before
+// globalSetup runs. globalSetup passes `...process.env` to the tsx subprocess
+// (seed-db.ts), and seedFromBrief() guards on this env var internally. Without
+// setting it here, the subprocess inherits an unset variable and skips seeding.
+process.env.SEED_FROM_BRIEF ??= 'true';
+
 /**
  * The webServer runs the real production entry point (`node
  * .next/standalone/server.js`) so the instrumentation hook fires and the DB
@@ -90,6 +100,12 @@ export default defineConfig({
           AUTH_SECRET:
             process.env.AUTH_SECRET ?? 'dev-only-auth-secret-change-in-production',
           BASE_URL: process.env.BASE_URL ?? BASE_URL,
+          // Seed Sawyer's personal data + services so the server has seeded
+          // content from boot. globalSetup will also re-seed after its wipe.
+          SEED_FROM_BRIEF: process.env.SEED_FROM_BRIEF ?? 'true',
+          // Upload root for file storage. Production uses /data/uploads (Docker
+          // bind-mount); for local E2E runs we use a writable path under the repo.
+          UPLOADS_ROOT,
         },
       },
 });

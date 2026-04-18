@@ -26,13 +26,15 @@ test('home page hero has "Request service" CTA linking to #request', async ({ pa
 
 test('home page services section renders when seeded', async ({ page }) => {
   await page.goto('/');
+  const servicesSection = page.locator('section#services');
   // Services heading
-  await expect(page.getByRole('heading', { name: /services/i })).toBeVisible();
-  // At least one seeded service
-  await expect(page.getByText('Mowing')).toBeVisible();
-  await expect(page.getByText('Trash Can Cleaning')).toBeVisible();
+  await expect(servicesSection.getByRole('heading', { name: /^services$/i })).toBeVisible();
+  // At least one seeded service — use exact: true to avoid matching description
+  // text in other cells (e.g. "includes a mowing" in Clean ups description)
+  await expect(servicesSection.getByRole('cell', { name: 'Mowing', exact: true })).toBeVisible();
+  await expect(servicesSection.getByRole('cell', { name: 'Trash Can Cleaning', exact: true })).toBeVisible();
   // Snow removal should show "Contact for pricing"
-  await expect(page.getByText('Contact for pricing')).toBeVisible();
+  await expect(servicesSection.getByText('Contact for pricing')).toBeVisible();
 });
 
 test('home page contact section shows phone number', async ({ page }) => {
@@ -58,6 +60,8 @@ test('home page #request anchor placeholder is present', async ({ page }) => {
 
 test('home page about section shows bio when seeded', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /about sawyer/i })).toBeVisible();
-  await expect(page.getByText(/15 year old entrepreneur/i)).toBeVisible();
+  const aboutSection = page.locator('section#about');
+  await expect(aboutSection.getByRole('heading', { name: /about sawyer/i })).toBeVisible();
+  // Scope to #about to avoid matching the Hero h1 "15-Year-Old Entrepreneur."
+  await expect(aboutSection.getByText(/15 year old entrepreneur/i)).toBeVisible();
 });
