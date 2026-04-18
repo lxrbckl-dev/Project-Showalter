@@ -27,24 +27,15 @@ function resetAdmin(): void {
   });
 }
 
-function mutateInviteExpiry(token: string, expiresAtIso: string): void {
-  execSync(
-    `pnpm exec tsx -e ${JSON.stringify(
-      `import Database from 'better-sqlite3';
-const path = process.env.DATABASE_URL.replace(/^file:/,'');
-const db = new Database(path);
-db.prepare('UPDATE admin_invites SET expires_at = ? WHERE token = ?').run(${JSON.stringify(expiresAtIso)}, ${JSON.stringify(token)});
-db.close();`,
-    )}`,
-    {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        DATABASE_URL: process.env.DATABASE_URL ?? 'file:./dev.db',
-      },
-    },
-  );
-}
+/**
+ * Previously this file defined a `mutateInviteExpiry` helper via
+ * `pnpm exec tsx -e "<SQL embedded as backticks>"`. The shell interpreted
+ * those backticks as command substitution, which stripped the SQL body and
+ * produced an esbuild parse error — blocking the entire spec. The helper
+ * was unused at runtime (only referenced via `void mutateInviteExpiry`), so
+ * it has been removed. See tests/e2e/helpers/create-expired-invite.ts for
+ * the file-based replacement pattern.
+ */
 
 test.describe('admin invites', () => {
   test.beforeAll(() => {
@@ -187,14 +178,7 @@ test.describe('admin invites', () => {
     // accept with a mismatched email. Expect the action to return ok:false.
 
     const mismatchCheck = execSync(
-      `pnpm exec tsx -e ${JSON.stringify(
-        `import Database from 'better-sqlite3';
-const path = process.env.DATABASE_URL.replace(/^file:/,'');
-const db = new Database(path);
-const row = db.prepare("SELECT token FROM admin_invites WHERE used_at IS NULL AND revoked_at IS NULL ORDER BY id DESC LIMIT 1").get();
-console.log(JSON.stringify({ hasPending: !!row }));
-db.close();`,
-      )}`,
+      'pnpm exec tsx tests/e2e/helpers/check-pending-invite.ts',
       {
         cwd: process.cwd(),
         env: {
@@ -225,24 +209,7 @@ db.close();`,
     // this context has no virtual authenticator paired with the founder).
     // Backdate its expires_at so the lookup rejects it.
     const tokenCheck = execSync(
-      `pnpm exec tsx -e ${JSON.stringify(
-        `import Database from 'better-sqlite3';
-import { randomUUID } from 'node:crypto';
-const path = process.env.DATABASE_URL.replace(/^file:/,'');
-const db = new Database(path);
-const founder = db.prepare("SELECT id FROM admins ORDER BY id ASC LIMIT 1").get();
-if (!founder) {
-  console.log(JSON.stringify({ token: null }));
-  process.exit(0);
-}
-const token = randomUUID();
-const now = new Date().toISOString();
-db.prepare(\`INSERT INTO admin_invites
-  (token, invited_email, created_by_admin_id, expires_at, created_at)
-  VALUES (?, ?, ?, ?, ?)\`).run(token, 'expired@test.com', founder.id, '2020-01-01T00:00:00Z', now);
-db.close();
-console.log(JSON.stringify({ token }));`,
-      )}`,
+      'pnpm exec tsx tests/e2e/helpers/create-expired-invite.ts',
       {
         cwd: process.cwd(),
         env: {
@@ -250,7 +217,9 @@ console.log(JSON.stringify({ token }));`,
           DATABASE_URL: process.env.DATABASE_URL ?? 'file:./dev.db',
         },
       },
-    ).toString().trim();
+    )
+      .toString()
+      .trim();
 
     const parsed = JSON.parse(tokenCheck.split('\n').pop() ?? '{}') as {
       token: string | null;
@@ -267,8 +236,5 @@ console.log(JSON.stringify({ token }));`,
     await page.goto(`/admin/signup?token=${parsed.token}`);
     await expect(page.getByTestId('invite-invalid-panel')).toBeVisible();
     await ctx.close();
-
-    // Silence unused mutation import if lint whines.
-    void mutateInviteExpiry;
   });
 });

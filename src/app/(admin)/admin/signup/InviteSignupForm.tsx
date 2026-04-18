@@ -11,8 +11,15 @@
  * Flow:
  *   1. `startAcceptInvite(token, email)` → WebAuthn registration options
  *   2. `startRegistration` (browser ceremony)
- *   3. `finishAcceptInvite(token, email, attestation)` → new admin + session
- *   4. Show recovery-code modal. On dismiss, route to /admin.
+ *   3. `finishAcceptInvite(token, email, attestation)` → new admin row +
+ *      plaintext recovery code. Session is NOT minted yet.
+ *   4. Show recovery-code modal.
+ *   5. On dismiss → call `finalizeInviteSession({ adminId, credentialId })`
+ *      to mint the session, then route to /admin.
+ *
+ * Deferring session minting until step 5 avoids the RSC-refresh-unmount
+ * bug that would otherwise eat the one-time recovery code (see
+ * `FoundingAdminForm` for the founding-flow analogue).
  */
 
 import { useState } from 'react';
@@ -24,6 +31,7 @@ import { AUTH_GENERIC_FAILURE_MESSAGE } from '@/features/auth/response';
 import {
   startAcceptInvite,
   finishAcceptInvite,
+  finalizeInviteSession,
 } from '@/features/auth/invites';
 import { RecoveryCodeModal } from '../login/RecoveryCodeModal';
 
@@ -33,7 +41,12 @@ type Props = {
   expiresAt: string;
 };
 
-type Stage = 'idle' | 'working' | 'recovery-modal';
+type Stage = 'idle' | 'working' | 'recovery-modal' | 'finalizing';
+
+type PendingSession = {
+  adminId: number;
+  credentialId: string;
+};
 
 function formatExpires(iso: string): string {
   try {
@@ -55,6 +68,7 @@ export function InviteSignupForm({ token, invitedEmail, expiresAt }: Props) {
   const [stage, setStage] = useState<Stage>('idle');
   const [error, setError] = useState<string | null>(null);
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingSession | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,6 +91,8 @@ export function InviteSignupForm({ token, invitedEmail, expiresAt }: Props) {
         setStage('idle');
         return;
       }
+      // Admin row + credential + recovery-code row are written; no session yet.
+      setPending({ adminId: finish.adminId, credentialId: finish.credentialId });
       setRecoveryCode(finish.recoveryCode);
       setStage('recovery-modal');
     } catch {
@@ -85,8 +101,20 @@ export function InviteSignupForm({ token, invitedEmail, expiresAt }: Props) {
     }
   }
 
-  function handleDismissRecoveryModal() {
+  async function handleDismissRecoveryModal() {
+    if (!pending) return;
+    setStage('finalizing');
+    setError(null);
+    const result = await finalizeInviteSession(pending);
+    if (!result.ok) {
+      // Keep the modal up so the recovery code remains visible. Surface the
+      // error so the user knows to sign in manually if finalize keeps failing.
+      setError(result.message);
+      setStage('recovery-modal');
+      return;
+    }
     setRecoveryCode(null);
+    setPending(null);
     setStage('idle');
     router.push('/admin');
     router.refresh();
@@ -136,8 +164,12 @@ export function InviteSignupForm({ token, invitedEmail, expiresAt }: Props) {
         )}
       </form>
 
-      {stage === 'recovery-modal' && recoveryCode && (
-        <RecoveryCodeModal code={recoveryCode} onDismiss={handleDismissRecoveryModal} />
+      {(stage === 'recovery-modal' || stage === 'finalizing') && recoveryCode && (
+        <RecoveryCodeModal
+          code={recoveryCode}
+          onDismiss={handleDismissRecoveryModal}
+          busy={stage === 'finalizing'}
+        />
       )}
     </>
   );

@@ -11,6 +11,9 @@ import { NextResponse, type NextRequest } from 'next/server';
  *
  * We skip:
  *   - `/admin/login` itself (otherwise we'd loop)
+ *   - `/admin/signup` (invite-acceptance page — by definition the invitee
+ *     has no session yet, so redirecting them to login would defeat the
+ *     point of the invite link)
  *   - Next.js internals (`_next`, favicon, etc.)
  */
 
@@ -21,6 +24,9 @@ export function middleware(req: NextRequest) {
 
   if (!pathname.startsWith('/admin')) return NextResponse.next();
   if (pathname === '/admin/login' || pathname.startsWith('/admin/login/')) {
+    return NextResponse.next();
+  }
+  if (pathname === '/admin/signup' || pathname.startsWith('/admin/signup/')) {
     return NextResponse.next();
   }
   if (pathname.startsWith('/admin/_next')) return NextResponse.next();

@@ -26,7 +26,9 @@ import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
 } from '@simplewebauthn/server';
+import { eq } from 'drizzle-orm';
 import { getDb, getSqlite } from '@/db';
+import { admins, credentials } from '@/db/schema';
 import { auth } from './auth';
 import { findAdminByEmail } from './admin-queries';
 import { consumeChallenge, saveChallenge } from './challenges';
@@ -53,6 +55,22 @@ import {
 const RATE_LIMIT_KEY = 'invite';
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 10 * 60_000;
+
+/**
+ * Finalize has its own bucket — mirrors the approach in `found.ts`. Keeps
+ * the invitee-accept rate limit from double-counting the session-mint step
+ * that now runs after the recovery-code modal dismissal.
+ */
+const FINALIZE_RATE_LIMIT_KEY = 'inviteFinalize';
+const FINALIZE_RATE_LIMIT = 20;
+const FINALIZE_RATE_WINDOW_MS = 10 * 60_000;
+
+/**
+ * Max age of `admins.enrolled_at` at which `finalizeInviteSession` will
+ * still mint a session. Same role as `FOUNDING_FINALIZE_MAX_AGE_MS` in
+ * `found.ts` — caps the replay window on a stolen finalize tuple.
+ */
+const INVITE_FINALIZE_MAX_AGE_MS = 10 * 60_000;
 
 type AdminCtx = { adminId: number };
 
@@ -250,7 +268,9 @@ export async function finishAcceptInvite(
   token: string,
   email: string,
   response: RegistrationResponseJSON,
-): Promise<AuthResult<{ recoveryCode: string; adminId: number }>> {
+): Promise<
+  AuthResult<{ recoveryCode: string; adminId: number; credentialId: string }>
+> {
   const ip = await getClientIp();
   const rl = checkRateLimit(`${RATE_LIMIT_KEY}:${ip}`, RATE_LIMIT, RATE_WINDOW_MS);
   if (!rl.allowed) {
@@ -322,22 +342,112 @@ export async function finishAcceptInvite(
     return authFailure();
   }
 
-  // Establish the session so the new admin lands on /admin after dismissing
-  // the recovery-code modal. Re-uses the shared signIn shim for parity with
-  // the founding + login flows.
+  // IMPORTANT: do NOT mint the session here. Same reasoning as
+  // `finishFoundingEnrollment` in `found.ts` — setting a session cookie from
+  // a server action triggers an RSC refresh, which unmounts the signup form
+  // before the client can flush `stage = 'recovery-modal'`, destroying the
+  // one-time recovery code before the user sees it.
+  //
+  // The new admin row exists without a session. The client mints the session
+  // via `finalizeInviteSession` after the recovery-code modal is dismissed.
+  return authOk({
+    recoveryCode: plaintextRecovery,
+    adminId: result.adminId,
+    credentialId: cred.id,
+  });
+}
+
+/**
+ * Finalize an invite-accept enrollment by minting a session.
+ *
+ * Mirrors `finalizeFoundingSession` in `found.ts`. Called by the client
+ * AFTER the recovery-code modal is dismissed.
+ */
+export async function finalizeInviteSession(
+  input: { adminId: number; credentialId: string },
+): Promise<AuthResult> {
+  const ip = await getClientIp();
+  const rl = checkRateLimit(
+    `${FINALIZE_RATE_LIMIT_KEY}:${ip}`,
+    FINALIZE_RATE_LIMIT,
+    FINALIZE_RATE_WINDOW_MS,
+  );
+  if (!rl.allowed) {
+    logAuthFailure('rate_limited', { scope: 'invites:finalize', ip });
+    return authFailure();
+  }
+
+  if (
+    typeof input?.adminId !== 'number' ||
+    !Number.isFinite(input.adminId) ||
+    typeof input?.credentialId !== 'string' ||
+    input.credentialId.length === 0
+  ) {
+    logAuthFailure('finalize_bad_input', { scope: 'invites:finalize' });
+    return authFailure();
+  }
+
+  // Refuse if the caller already has a session — guards double-finalize and
+  // blocks an attacker who is already logged in from stealing another
+  // admin's new session.
+  const existing = await auth();
+  if (existing) {
+    logAuthFailure('finalize_already_authenticated', {
+      scope: 'invites:finalize',
+    });
+    return authFailure();
+  }
+
+  const db = getDb();
+  const adminRows = db.select().from(admins).where(eq(admins.id, input.adminId)).all();
+  const admin = adminRows[0];
+  if (!admin) {
+    logAuthFailure('finalize_admin_not_found', { scope: 'invites:finalize' });
+    return authFailure();
+  }
+  if (!admin.active || !admin.enrolledAt) {
+    logAuthFailure('finalize_admin_not_ready', { scope: 'invites:finalize' });
+    return authFailure();
+  }
+
+  const enrolledAtMs = Date.parse(admin.enrolledAt);
+  if (!Number.isFinite(enrolledAtMs)) {
+    logAuthFailure('finalize_enrolled_at_unparseable', {
+      scope: 'invites:finalize',
+    });
+    return authFailure();
+  }
+  if (Date.now() - enrolledAtMs > INVITE_FINALIZE_MAX_AGE_MS) {
+    logAuthFailure('finalize_stale', { scope: 'invites:finalize' });
+    return authFailure();
+  }
+
+  const credRows = db
+    .select()
+    .from(credentials)
+    .where(eq(credentials.credentialId, input.credentialId))
+    .all();
+  const cred = credRows[0];
+  if (!cred || cred.adminId !== admin.id) {
+    logAuthFailure('finalize_credential_mismatch', {
+      scope: 'invites:finalize',
+    });
+    return authFailure();
+  }
+
   try {
     await signIn('webauthn', {
-      email: result.email,
+      email: admin.email,
       redirect: false,
-      credentialId: cred.id,
+      credentialId: cred.credentialId,
     });
   } catch (err) {
-    logAuthFailure('signin_after_accept_failed', {
-      scope: 'invites:accept:finish',
+    logAuthFailure('finalize_signin_failed', {
+      scope: 'invites:finalize',
       error: err instanceof Error ? err.message : String(err),
     });
     return authFailure();
   }
 
-  return authOk({ recoveryCode: plaintextRecovery, adminId: result.adminId });
+  return authOk();
 }

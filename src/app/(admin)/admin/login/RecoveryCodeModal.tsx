@@ -15,9 +15,16 @@ import { Button } from '@/components/ui/button';
 type Props = {
   code: string;
   onDismiss: () => void;
+  /**
+   * True while the caller is finalizing the flow (e.g. minting a session) in
+   * response to the dismiss click. Disables the dismiss button to prevent
+   * double-invocation. Enrollment complete server-side — if the async
+   * follow-up fails the caller surfaces that state; modal stays up.
+   */
+  busy?: boolean;
 };
 
-export function RecoveryCodeModal({ code, onDismiss }: Props) {
+export function RecoveryCodeModal({ code, onDismiss, busy = false }: Props) {
   const [confirmed, setConfirmed] = useState(false);
   const [copyOk, setCopyOk] = useState(false);
 
@@ -77,10 +84,10 @@ export function RecoveryCodeModal({ code, onDismiss }: Props) {
         <div className="mt-6 flex justify-end">
           <Button
             onClick={onDismiss}
-            disabled={!confirmed}
+            disabled={!confirmed || busy}
             data-testid="dismiss-modal-button"
           >
-            Continue to dashboard
+            {busy ? 'Signing in…' : 'Continue to dashboard'}
           </Button>
         </div>
       </div>
