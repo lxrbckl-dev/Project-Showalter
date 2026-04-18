@@ -3,9 +3,8 @@
  *
  * Usage: pnpm admin:enable <email>
  *
- * Note: the email must still be present in ADMIN_EMAILS for the admin to
- * remain active across the next server boot (boot-time reconciliation will
- * soft-disable any email not in ADMIN_EMAILS).
+ * Admins are no longer reconciled from an env list (#83) — a re-enabled
+ * admin stays enabled across reboots.
  */
 
 import { getDb } from '@/db';

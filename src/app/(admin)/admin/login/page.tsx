@@ -1,24 +1,42 @@
 /**
- * /admin/login — passkey enrollment + authentication entry point.
+ * /admin/login — passkey login + founding-admin entry point.
  *
- * Renders a fully client-side form because the WebAuthn ceremony requires
- * access to `navigator.credentials`. The page itself is a server component
- * that imports the client form; this keeps the server bundle small and lets
- * the login path render without touching the DB on GET.
+ * Server component. Renders one of two forms based on a tiny read-only check
+ * of the `admins` table:
+ *
+ *   - Empty table → `FoundingAdminForm`. The first visitor claims the
+ *     founding admin slot. The authoritative race-protection lives inside
+ *     the `finishFoundingEnrollment` server action, which re-checks the
+ *     table inside a transaction — we don't trust this page render.
+ *
+ *   - Non-empty → `LoginForm` (standard passkey login).
+ *
+ * WebAuthn ceremonies require `navigator.credentials`, so both variants are
+ * client components. This page only picks which one to render.
  */
 
+import { isAdminsTableEmpty } from '@/features/auth/found';
 import { LoginForm } from './LoginForm';
+import { FoundingAdminForm } from './FoundingAdminForm';
 
-export default function AdminLoginPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function AdminLoginPage() {
+  const empty = await isAdminsTableEmpty();
+
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-16">
       <div className="w-full">
-        <h1 className="text-2xl font-semibold tracking-tight">Admin sign-in</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {empty ? 'Create the first admin' : 'Admin sign-in'}
+        </h1>
         <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-          Passkey-powered. Use the device you enrolled with.
+          {empty
+            ? 'No admin exists yet on this deploy. Claim the founding admin slot by enrolling a passkey below.'
+            : 'Passkey-powered. Use the device you enrolled with.'}
         </p>
         <div className="mt-8">
-          <LoginForm />
+          {empty ? <FoundingAdminForm /> : <LoginForm />}
         </div>
       </div>
     </main>

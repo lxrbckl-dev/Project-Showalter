@@ -10,8 +10,8 @@
  * using the existing credentials — we need to re-enroll with a new virtual
  * authenticator.
  *
- * Never run in production. Relies on the same DATABASE_URL + ADMIN_EMAILS
- * env contract as schedule-session.ts and seed-db.ts.
+ * Never run in production. Relies on the same DATABASE_URL env contract as
+ * schedule-session.ts and seed-db.ts.
  */
 
 import { eq } from 'drizzle-orm';
@@ -27,7 +27,12 @@ async function main(): Promise<void> {
 
   const adminRow = db.select().from(admins).where(eq(admins.email, email)).all()[0];
   if (!adminRow) {
-    throw new Error(`Admin row for ${email} not found`);
+    // Since #83 admins are no longer pre-seeded at boot — if the first spec
+    // hasn't yet run the founding flow to create one, there's nothing to
+    // reset. That's a valid state for the start of a run; just no-op.
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify({ ok: true, email, note: 'no admin row yet' }));
+    return;
   }
 
   // Drop credentials + recovery codes for this admin.
@@ -40,11 +45,11 @@ async function main(): Promise<void> {
     db.delete(sessions).where(eq(sessions.userId, userRow.id)).run();
   }
 
-  // Reset enrolled_at so the login form treats the admin as pending again.
-  db.update(admins)
-    .set({ enrolledAt: null })
-    .where(eq(admins.id, adminRow.id))
-    .run();
+  // Delete the admin row entirely — the founding flow requires the admins
+  // table to be empty so the next spec boots into the founding form, not
+  // a pending-enrollment login. (Admins/credentials for this email will be
+  // re-created on enrollment.)
+  db.delete(admins).where(eq(admins.id, adminRow.id)).run();
 
   // eslint-disable-next-line no-console
   console.log(JSON.stringify({ ok: true, email }));

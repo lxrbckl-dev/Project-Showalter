@@ -11,7 +11,10 @@
  * adding test-mode code paths to production auth — keeps the production
  * auth surface unchanged.
  *
- * Expects DATABASE_URL + ADMIN_EMAILS in env (same as seed-db.ts).
+ * Expects DATABASE_URL in env. Creates the admin row on the fly
+ * if it does not yet exist — since #83 admins are no longer pre-seeded at
+ * boot, so this helper is the source of truth for specs that need a
+ * session without driving the full invite or founding flow.
  */
 import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
@@ -24,19 +27,28 @@ async function main(): Promise<void> {
   const db = getDb();
 
   // Ensure the admin row exists + is flagged as enrolled so the rest of
-  // the app treats the session as a real logged-in admin. Boot reconcile
-  // has already inserted the row in pending state; we flip enrolled_at.
-  const adminRow = db
+  // the app treats the session as a real logged-in admin. Since #83 admins
+  // are no longer pre-seeded at boot — create the row on the fly if missing.
+  const nowIso = new Date().toISOString();
+  let adminRow = db
     .select()
     .from(admins)
     .where(eq(admins.email, rawEmail))
     .all()[0];
   if (!adminRow) {
-    throw new Error(`Admin row for ${rawEmail} not found — run seed-db.ts first`);
+    db.insert(admins)
+      .values({
+        email: rawEmail,
+        active: 1,
+        enrolledAt: nowIso,
+        createdAt: nowIso,
+      })
+      .run();
+    adminRow = db.select().from(admins).where(eq(admins.email, rawEmail)).all()[0];
   }
-  if (!adminRow.enrolledAt) {
+  if (adminRow && !adminRow.enrolledAt) {
     db.update(admins)
-      .set({ enrolledAt: new Date().toISOString() })
+      .set({ enrolledAt: nowIso })
       .where(eq(admins.id, adminRow.id))
       .run();
   }

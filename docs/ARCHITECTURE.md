@@ -262,7 +262,9 @@ src/cli/
 ├── admin-list.ts                    # prints each admin: email, active, enrolled_at, device_count
 ├── admin-reset.ts                   # clears credentials + recovery_codes for an admin
 ├── admin-disable.ts                 # active=false
-└── admin-enable.ts                  # active=true (email must still be in ADMIN_EMAILS)
+├── admin-enable.ts                  # active=true
+├── admin-list-invites.ts            # prints every admin invite + derived status
+└── admin-revoke-invite.ts           # revoke by token prefix (#83)
 ```
 
 Wired in `package.json` scripts as `"admin:list": "tsx src/cli/admin-list.ts"`

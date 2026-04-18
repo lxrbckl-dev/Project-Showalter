@@ -20,7 +20,6 @@ function mintAdminSession(): { token: string } {
     env: {
       ...process.env,
       DATABASE_URL: process.env.DATABASE_URL ?? 'file:./dev.db',
-      ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? 'alex@test.com',
     },
   }).toString('utf-8');
   const lines = out.trim().split('\n');

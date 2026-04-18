@@ -4,7 +4,7 @@
  * Returned for:
  *   - unknown email
  *   - email known but not active
- *   - email known and active but not enrolled and BOOTSTRAP_ENABLED=false
+ *   - invite link expired / used / revoked / email-bound mismatch
  *   - WebAuthn verification failure
  *   - rate-limit exceeded
  *   - expired / missing challenge

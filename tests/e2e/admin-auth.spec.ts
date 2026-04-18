@@ -1,28 +1,27 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Admin auth E2E — drives enrollment + login end-to-end with Chromium's
- * WebAuthn virtual authenticator over the CDP protocol. The virtual
- * authenticator sits in the browser's WebAuthn stack and answers
+ * Admin auth E2E — drives the founding-admin + login flows end-to-end with
+ * Chromium's WebAuthn virtual authenticator over the CDP protocol. The
+ * virtual authenticator sits in the browser's WebAuthn stack and answers
  * `navigator.credentials.create() / get()` without any real device.
  *
- * This spec presumes the dev server is running with
- *   ADMIN_EMAILS=alex@test.com BOOTSTRAP_ENABLED=true
- * (see `playwright.config.ts` `webServer.env`). See `finishEnrollment` for
- * where the recovery code is minted and returned.
+ * Issue #83 retired ADMIN_EMAILS + BOOTSTRAP_ENABLED. The fresh DB starts
+ * with zero admins; /admin/login renders the FoundingAdminForm; the first
+ * submit claims the founding slot. See `finishFoundingEnrollment` for where
+ * the recovery code is minted and returned.
  */
 
 test('unauthenticated /admin redirects to /admin/login', async ({ page }) => {
   await page.goto('/admin');
   await expect(page).toHaveURL(/\/admin\/login$/);
-  await expect(page.getByRole('heading', { name: /admin sign-in/i })).toBeVisible();
+  // On a fresh DB the admins table is empty → founding-admin heading renders.
+  await expect(
+    page.getByRole('heading', { name: /create the first admin/i }),
+  ).toBeVisible();
 });
 
 test.describe('admin auth flow (virtual authenticator)', () => {
-  // Previously gated on RUN_AUTH_E2E because the admin row had to be seeded
-  // by hand. Ticket 1A's reconcileAdmins() now auto-seeds from ADMIN_EMAILS
-  // on boot, and global-setup wipes dev.db before each run so the admin is
-  // always pending/unenrolled when the spec starts — no gate needed.
   test('enroll then log in with virtual authenticator', async ({ context, page }) => {
     // Turn on the virtual authenticator for the whole context.
     const client = await context.newCDPSession(page);
@@ -38,12 +37,14 @@ test.describe('admin auth flow (virtual authenticator)', () => {
       },
     });
 
-    // 1. Visit login page.
+    // 1. Visit login page — fresh DB, founding flow renders.
     await page.goto('/admin/login');
-    await expect(page.getByRole('heading', { name: /admin sign-in/i })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /create the first admin/i }),
+    ).toBeVisible();
 
-    // 2. Enter email, submit — triggers startLogin (fails, not enrolled)
-    //    → startEnrollment (ok) → startRegistration with virtual authenticator.
+    // 2. Enter email, submit — triggers startFoundingEnrollment →
+    //    startRegistration with virtual authenticator.
     await page.getByTestId('email-input').fill('alex@test.com');
     await page.getByTestId('submit-button').click();
 
@@ -67,11 +68,12 @@ test.describe('admin auth flow (virtual authenticator)', () => {
     await page.getByRole('button', { name: /log out/i }).click();
     await expect(page).toHaveURL(/\/admin\/login$/);
 
-    // 7. Log back in (the virtual authenticator persists in the context).
+    // 7. Log back in. Now that an admin exists, /admin/login renders the
+    //    regular sign-in form (not founding).
+    await expect(page.getByRole('heading', { name: /admin sign-in/i })).toBeVisible();
     await page.getByTestId('email-input').fill('alex@test.com');
     await page.getByTestId('submit-button').click();
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByTestId('signed-in-email')).toContainText('alex@test.com');
   });
-
 });

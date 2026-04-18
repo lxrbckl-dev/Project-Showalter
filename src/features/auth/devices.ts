@@ -6,9 +6,8 @@
  *
  *   - `listMyDevices()` — enumerates the current admin's passkeys
  *   - `startAddDevice()` / `finishAddDevice()` — the add-another-device WebAuthn
- *     registration ceremony, distinct from bootstrap enrollment because it
- *     reuses the session-authenticated admin identity instead of an email +
- *     BOOTSTRAP_ENABLED gate.
+ *     registration ceremony. Always runs under an authenticated session —
+ *     no email-by-email gate — because the caller is already logged in.
  *   - `removeDevice()` — deletes a credential, with two load-bearing guards:
  *       1. REJECTS when it would leave the admin with zero credentials
  *          (can't-lock-yourself-out invariant)
@@ -105,9 +104,9 @@ export async function listMyDevices(): Promise<DeviceView[]> {
 }
 
 /**
- * Begin WebAuthn registration for an additional device. Unlike the bootstrap
- * enrollment path, there is NO `BOOTSTRAP_ENABLED` gate here — this is an
- * authenticated operation performed by the admin in their own settings.
+ * Begin WebAuthn registration for an additional device. Always runs inside
+ * an authenticated session — no env gate — because the admin is already
+ * signed in via the settings page.
  *
  * `excludeCredentials` lists every credentialId already registered to this
  * admin so the browser refuses to re-register the same authenticator (which

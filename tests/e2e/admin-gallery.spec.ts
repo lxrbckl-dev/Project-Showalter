@@ -34,7 +34,6 @@ async function loginWithSession(
     env: {
       ...process.env,
       DATABASE_URL: process.env.DATABASE_URL ?? 'file:./dev.db',
-      ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? email,
       TEST_ADMIN_EMAIL: email,
     },
   }).toString('utf-8');

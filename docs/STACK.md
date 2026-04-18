@@ -10,7 +10,7 @@ This document captures the tech-stack decision for the Showalter Services site. 
 |--------------------|-------------------------------------------|-----|
 | Framework          | **Next.js 15** (App Router)               | One codebase for public site + admin + API. Server actions simplify the CMS surface. React UI pairs well with the admin calendar. |
 | Database           | **SQLite** via **Drizzle ORM**            | Single file, zero ops. Fits a one-user admin + low-write workload. Mounted via a host volume, easy to back up. |
-| Auth               | **Auth.js + WebAuthn (passkeys); multi-admin via `ADMIN_EMAILS` env list** | One-tap biometric login. No passwords, no external email/SMS dependency for login. Admin slot count is env-configurable; unenrolled slots are gated by a BOOTSTRAP_ENABLED flag. |
+| Auth               | **Auth.js + WebAuthn (passkeys); founding admin on first visit + invite links for everyone else** | One-tap biometric login. No passwords, no external email/SMS dependency for login. First person to hit `/admin/login` on a fresh deploy claims the founding admin; subsequent admins onboard via single-use, email-bound, 24-hour invite links generated from `/admin/settings/admins`. No env configuration required. |
 | UI                 | **Tailwind + shadcn/ui**                  | Fast to style. Pre-built calendar/date-picker, table, dialog components. Dark-green / black / white theme is trivially configurable via CSS variables. |
 | Images             | **Next.js `Image`** (plain, no `sharp`)   | Good enough for one hero photo + a small gallery. Skipping `sharp` keeps the image pipeline simple. |
 | Analytics          | **Umami** (self-hosted)                   | Privacy-friendly, lightweight, Dockerable. Tracks QR-scan → site-visit conversion without tracking individual visitors. |
@@ -112,11 +112,24 @@ Windows used only when the matching override row has `mode='open'`.
 - `end_time` TEXT
 
 ### `admins`
-One row per admin slot (seeded from `ADMIN_EMAILS` env var on boot).
+One row per admin. Populated at runtime — the first row is written by the founding-admin flow on a fresh deploy, subsequent rows are written by `/admin/settings/admins` invite acceptance.
 - `id` INTEGER PK
 - `email` TEXT UNIQUE
 - `active` BOOLEAN (default true)     — soft-disable toggle (no deletions)
-- `enrolled_at` TEXT (nullable)       — NULL until the passkey is registered
+- `enrolled_at` TEXT (nullable)       — NULL-only for pre-#83 pending rows; new rows are always inserted with `enrolled_at = now()`
+- `created_at` TEXT
+
+### `admin_invites`
+Single-use, email-bound, 24-hour expiring invite links. See the Authentication section for the full lifecycle.
+- `id` INTEGER PK
+- `token` TEXT UNIQUE                 — random UUID, used as the URL token
+- `invited_email` TEXT                — lowercased + trimmed at insert time
+- `label` TEXT (nullable)             — optional friendly label, ≤60 chars
+- `created_by_admin_id` INTEGER FK → admins.id
+- `expires_at` TEXT                   — ISO-8601, set to `created_at + 24h` on insert
+- `used_at` TEXT (nullable)           — set when the invitee completes enrollment
+- `used_by_admin_id` INTEGER FK → admins.id (nullable)
+- `revoked_at` TEXT (nullable)        — set when an admin revokes the invite
 - `created_at` TEXT
 
 ### `credentials`
@@ -311,8 +324,6 @@ services:
       PORT: 5827
       BASE_URL: https://showalter.business
       AUTH_SECRET: ${AUTH_SECRET}
-      ADMIN_EMAILS: ${ADMIN_EMAILS}
-      BOOTSTRAP_ENABLED: ${BOOTSTRAP_ENABLED:-false}
       SEED_FROM_BRIEF: ${SEED_FROM_BRIEF:-false}
       BOOKING_RATE_LIMIT_PER_HOUR: ${BOOKING_RATE_LIMIT_PER_HOUR:-30}
       NEXT_PUBLIC_UMAMI_SRC: ${NEXT_PUBLIC_UMAMI_SRC:-}
@@ -369,9 +380,7 @@ analytics.showalter.business {
 | Var                   | Purpose                                          |
 |-----------------------|--------------------------------------------------|
 | `AUTH_SECRET`         | Auth.js session secret (generate with `openssl rand -base64 32`) |
-| `ADMIN_EMAILS`        | Comma-separated list of admin emails (e.g. `sshowalterservices@gmail.com,alex@lxrbckl.com`). Slot count = list length. Boot reconciles DB with this list. |
-| `BOOTSTRAP_ENABLED`   | `true` allows unenrolled admin slots to register a passkey at `/admin/login`; `false` (production default) rejects enrollment and only accepts logins from already-enrolled admins. |
-| `BASE_URL`            | `https://showalter.business` — used for absolute URLs, OG tags |
+| `BASE_URL`            | `https://showalter.business` — used for absolute URLs, OG tags, and the invite URLs copied from `/admin/settings/admins` |
 | `PORT`                | `5827`                                           |
 | `VAPID_PUBLIC_KEY`    | Web Push public key (exposed to the client)      |
 | `VAPID_PRIVATE_KEY`   | Web Push private key (server only — signs pushes) |
@@ -495,42 +504,40 @@ Caveat: this requires Sawyer to actually tap **Send** in the native app — the 
 
 ## Authentication
 
-The admin uses **passkeys** (WebAuthn) — a web-standard biometric login. No passwords, no external email/SMS provider needed for login. Admin slots are env-configurable.
+The admin uses **passkeys** (WebAuthn) — a web-standard biometric login. No passwords, no external email/SMS provider needed for login. Admin onboarding is **self-serve in-app** — the env-driven model that shipped in Phase 1 (was: env list + a boot-time toggle) was retired in #83. Neither of those env vars exists anymore.
 
-### Multi-admin via env
+### Founding admin (first admin on any deploy)
 
-`ADMIN_EMAILS` is a comma-separated list of admin emails:
+On a fresh deploy the `admins` table is empty. The first person to visit `/admin/login` is shown the **founding-admin form** (the page detects the empty table and renders it instead of the regular login form). They enter their email, enroll a passkey, and the resulting credential + admin row are the founding account.
 
-```
-ADMIN_EMAILS=sshowalterservices@gmail.com,alex@lxrbckl.com
-```
+Race protection lives inside `finishFoundingEnrollment`: after WebAuthn verification, the server opens a SQLite transaction that re-checks `count(admins) === 0` and inserts the admin row. If two visitors submit simultaneously, the `admins.email` UNIQUE constraint + the count-check together guarantee exactly one winner; the loser gets the canonical auth-failure response with no detail leak.
 
-The number of emails = number of admin slots. On boot, the app reconciles the `admins` table with this list:
+### Adding more admins (invite links)
 
-- Email in env, not in DB → **insert** as pending (`active=true`, `enrolled_at=NULL`)
-- Email in DB, not in env → **soft-disable** (`active=false`) — rows are never deleted (consistent with the platform's no-destructive-actions principle; preserves their credentials if they return)
-- Email in both → no change
+Every subsequent admin is onboarded via a single-use, email-bound invite link generated from `/admin/settings/admins`:
 
-### Bootstrap safety flag
+1. An enrolled admin fills in the invitee's email (required) and an optional friendly label ("Mom", "Saturday helper", …), and clicks **Create invite**.
+2. The server writes a row to `admin_invites` with a random UUID token, the lowercased invited email, and `expires_at = created_at + 24h` (hardcoded TTL).
+3. The admin copies the `/admin/signup?token=<t>` URL and sends it to the invitee however they want (text, email, paper).
+4. The invitee opens the URL. The signup page renders the invited email as **read-only** — defense in depth against typos and to surface the email binding.
+5. The invitee enrolls a passkey. `finishAcceptInvite` opens a transaction that re-validates the invite (pending, not expired, not revoked) AND re-checks the submitted email matches `invited_email` case-insensitively. On success, it inserts the new admin + credential + recovery code and marks the invite used.
 
-`BOOTSTRAP_ENABLED` gates first-time passkey enrollment:
+All failure paths (unknown, expired, revoked, used, email mismatch) return the **single canonical "couldn't sign in" failure** — no detail leak about which specific reason tripped the guard.
 
-- **`true`** — unenrolled admin slots accept new passkey registrations at `/admin/login`
-- **`false`** (production default) — `/admin/login` rejects enrollment; only already-enrolled admins can sign in
+Invites are single-use and tamper-resistant: once `used_at` is set, the same URL can't be accepted again. An admin can **revoke** a pending invite from the same settings page; a revoked invite becomes inert immediately.
 
-Suggested onboarding flow: deploy with `BOOTSTRAP_ENABLED=true`, have each admin visit `/admin/login` on their device and enroll while you're watching, then flip to `false` and restart to close the enrollment window. Prevents an unenrolled slot from being hijacked by someone who guesses the admin URL.
+### Invite statuses
 
-### Enrollment flow (first time, per admin)
+Derived on read (not a column), highest precedence first:
 
-1. Admin opens `/admin/login` on their device (the installed PWA works best)
-2. Types their email, submits
-3. Server checks: email active, not yet enrolled, `BOOTSTRAP_ENABLED=true` → enter enrollment mode
-4. WebAuthn `navigator.credentials.create()` is called; the browser triggers the OS's native biometric prompt (Face ID / Touch ID / Windows Hello / Android fingerprint)
-5. Credential is persisted to `credentials`
-6. Server generates a single recovery code, hashes it, stores in `recovery_codes`, shows the plaintext **once**
-7. `admins.enrolled_at` is set
+| Status | Condition |
+|--------|-----------|
+| `revoked` | `revoked_at` is set (highest precedence) |
+| `used` | `used_at` is set (and not revoked) |
+| `expired` | `expires_at < now()` and otherwise pending |
+| `pending` | everything else |
 
-### Login flow (thereafter)
+### Login flow (every subsequent sign-in)
 
 1. Admin opens `/admin/login`
 2. Types email, submits
@@ -541,25 +548,24 @@ Suggested onboarding flow: deploy with `BOOTSTRAP_ENABLED=true`, have each admin
 
 - One active code per admin at a time
 - Stored hashed
-- Shown in plaintext **once** at enrollment
+- Shown in plaintext **once** at enrollment (founding OR invite acceptance)
 - Single-use: on successful recovery, a new code is generated and shown once
 
 ### Multiple devices per admin
 
-An admin can enroll multiple passkeys over time (phone + laptop + tablet). Each enrollment appends a new row to `credentials` tied to the same `admin_id`. There is no cap in MVP.
+An admin can enroll multiple passkeys over time (phone + laptop + tablet). Each enrollment appends a new row to `credentials` tied to the same `admin_id` via `/admin/settings/devices`. There is no cap in MVP.
 
 ### Permissions
 
-All admins have equal permissions in MVP: any admin can CRUD any content, accept/decline any booking, edit availability, etc.
+All admins have equal permissions in MVP: any admin can CRUD any content, accept/decline any booking, edit availability, invite others, etc.
 
 Out of scope for MVP:
 - Role hierarchy (owner / member)
-- Admin-manages-admin via UI
 - Per-admin audit log of actions
 
 ### CLI commands
 
-Documented for operations:
+The in-app UI at `/admin/settings/admins` covers every common path. CLI is the break-glass channel for operators:
 
 ```bash
 docker exec showalter pnpm admin:list
@@ -569,13 +575,16 @@ docker exec showalter pnpm admin:reset <email>
 # → clears that admin's credentials and recovery_code rows; admin returns to pending-enrollment state
 
 docker exec showalter pnpm admin:disable <email>
-# → sets active=false (equivalent to removing the email from ADMIN_EMAILS)
+# → sets active=false (soft-disable)
 
 docker exec showalter pnpm admin:enable <email>
-# → re-enables a previously disabled admin (email must still be in ADMIN_EMAILS for login to succeed)
+# → re-enables a previously disabled admin
 
-docker exec showalter pnpm admin:add <email>
-# → onboards a new admin without a container restart (inserts a pending admin row so the email can enroll at /admin/login next time BOOTSTRAP_ENABLED=true)
+docker exec showalter pnpm admin:list-invites
+# → prints every invite with derived status (token prefix, email, status, label, expires_at, invited_by)
+
+docker exec showalter pnpm admin:revoke-invite <token-prefix>
+# → revoke by a short token prefix (minimum 6 chars; fails loudly if the prefix is ambiguous)
 ```
 
 ### Stack dependencies

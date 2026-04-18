@@ -105,10 +105,17 @@ See [`docs/STACK.md`](./docs/STACK.md) for the full deployment topology, `docker
 
 **First-time admin setup:**
 
-1. In `.env.local`, set `BOOTSTRAP_ENABLED=true` and `ADMIN_EMAILS=you@example.com`, then restart dev.
-2. Visit `/admin/login`, enter your email, and enroll a passkey (WebAuthn works on `http://localhost` without TLS).
-3. Save the recovery code shown once.
-4. Flip `BOOTSTRAP_ENABLED=false` once you're in.
+1. Visit `/admin/login`. Since the admins table is empty on a fresh DB, the
+   page renders the **founding-admin** form. Enter your email and enroll a
+   passkey (WebAuthn works on `http://localhost` without TLS).
+2. Save the recovery code shown once.
+3. Invite additional admins from `/admin/settings/admins`: enter their email
+   (and an optional friendly label), click **Create invite**, and share the
+   generated URL with them. The invite is single-use, email-bound, and
+   expires 24 hours after it was created.
+
+No `ADMIN_EMAILS` / `BOOTSTRAP_ENABLED` env vars required — they were
+retired in #83.
 
 **Helpful commands:**
 
@@ -125,6 +132,8 @@ pnpm admin:list              # list admins + their enrollment state
 pnpm admin:reset <email>     # clear credentials + recovery code for an admin
 pnpm admin:disable <email>   # soft-disable an admin
 pnpm admin:enable <email>    # re-enable an admin
+pnpm admin:list-invites      # list outstanding + historical invites
+pnpm admin:revoke-invite <token-prefix>  # revoke an invite by token prefix
 ```
 
 ---

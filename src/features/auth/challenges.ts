@@ -21,7 +21,12 @@ type Entry = { challenge: string; expiresAt: number };
 
 const store = new Map<string, Entry>();
 
-export type ChallengeKind = 'enroll' | 'login' | 'addDevice';
+export type ChallengeKind =
+  | 'enroll'
+  | 'login'
+  | 'addDevice'
+  | 'foundAdmin'
+  | 'acceptInvite';
 
 function k(kind: ChallengeKind, email: string): string {
   return `${kind}:${email.toLowerCase()}`;

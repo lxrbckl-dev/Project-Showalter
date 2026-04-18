@@ -123,10 +123,12 @@ This clears the admin's `credentials` and `recovery_codes` rows and leaves the `
 
 **Then:**
 
-1. Temporarily flip `BOOTSTRAP_ENABLED=true` in the Compose env and `docker compose up -d showalter` to apply.
-2. The admin visits `/admin/login` on their new device, types their email, and enrolls a fresh passkey.
+1. A currently-enrolled admin (the other operator) visits `/admin/settings/admins`, creates an invite for the reset admin's email, and copies the URL.
+2. The reset admin opens the invite URL on their new device, confirms the pre-filled email, and enrolls a fresh passkey.
 3. The server generates a new recovery code and shows it once — the admin saves it somewhere safe (password manager).
-4. Flip `BOOTSTRAP_ENABLED=false` and restart to close the enrollment window.
+4. The invite is single-use and auto-consumes; no further cleanup required.
+
+If the reset admin is the **only** admin (last-one-locked-out), Alex can run `admin:reset <email>` and then `admin:list` to confirm the admin is pending. Visiting `/admin/login` will then render the regular login form (the admins table isn't empty, so the founding form isn't shown) — but since their credentials are now gone, the canonical "can't sign in" failure fires. In that case, also delete the admin row directly via `sqlite3` or reset the DB from the latest nightly backup, then follow §6a's first-visit founding-admin flow.
 
 ### All admins locked out
 
@@ -135,8 +137,8 @@ Alex still has SSH access to the homelab. He runs the same `admin:reset` for him
 ### What NOT to do
 
 - Don't add a password-reset-via-email path. Email is not an authentication factor in this app.
-- Don't let `BOOTSTRAP_ENABLED=true` linger in production — always flip it back after enrollment.
 - Don't share recovery codes over chat / email — read them once, save them to a password manager, move on.
+- Don't share invite URLs any more widely than you have to. Even though invites are email-bound, the URL itself is the proof-of-invitation; anyone who can read the URL AND knows the invitee's email can complete signup.
 
 ---
 
@@ -149,10 +151,9 @@ pnpm install
 cp .env.example .env.local
 # edit .env.local — fill in:
 #   - AUTH_SECRET (openssl rand -base64 32)
-#   - ADMIN_EMAILS (your dev email)
 #   - VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT (npx web-push generate-vapid-keys)
-#   - BOOTSTRAP_ENABLED=true (dev)
 #   - SEED_FROM_BRIEF=true (first run)
+# (No admin env vars — visit /admin/login on first boot to claim the founding admin.)
 
 pnpm db:migrate    # runs drizzle migrations against the local SQLite file
 pnpm dev:seed      # seeds fake bookings, customers, reviews + pre-enrolled dev admin
@@ -215,9 +216,8 @@ Edit `/srv/showalter/.env` and fill in every blank value:
 ```bash
 # ─── App ───────────────────────────────────────────────────────────────────
 AUTH_SECRET=<output of openssl above>
-ADMIN_EMAILS=sshowalterservices@gmail.com,alex@lxrbckl.com
-BOOTSTRAP_ENABLED=true        # flip to false AFTER passkey enrollment (step 7)
 SEED_FROM_BRIEF=true          # first boot only — idempotent after that
+# (Admins are self-served in-app — no env configuration; see step 7.)
 
 # ─── VAPID (Web Push) ───────────────────────────────────────────────────────
 VAPID_PUBLIC_KEY=<from npx web-push generate-vapid-keys>
@@ -318,25 +318,25 @@ docker logs umami-db --tail 50     # look for "database system is ready to accep
 
 #### Step 7 — First-time admin enrollment (passkeys)
 
-At this point `BOOTSTRAP_ENABLED=true` is set. Perform enrollment while you're watching.
+After `docker compose up -d` the `admins` table is empty. The first person to visit `/admin/login` claims the founding admin slot — no env toggle required.
 
-1. Open `https://showalter.business/admin/login` in a browser on each admin's device.
-2. Each admin types their email and follows the biometric prompt.
-3. The server shows a **recovery code once** — each admin saves it to their password manager immediately.
-4. Confirm all intended admins are enrolled:
+1. **Founding admin.** Open `https://showalter.business/admin/login` in a browser on the founding admin's device. The page detects the empty admins table and renders the founding-admin form.
+   - The founding admin types their email and follows the biometric prompt.
+   - The server shows a **recovery code once** — save it to a password manager immediately.
+2. **Invite the rest of the team.** Still as the founding admin, go to `/admin/settings/admins`:
+   - For each additional admin, fill in their email (required) and an optional label, click **Create invite**, and copy the generated URL.
+   - Share each URL with the respective admin however you want (text, Signal, paper). Invites are single-use, email-bound, and expire 24h after creation.
+3. **Each invitee enrolls.** The invitee opens their URL, confirms their pre-filled email, and enrolls a passkey. Their recovery code is shown once — save to password manager.
+4. Confirm every admin is enrolled:
 
    ```bash
    docker exec showalter pnpm admin:list
    # every admin should show enrolled_at set (not NULL)
+   docker exec showalter pnpm admin:list-invites
+   # no invites in pending state if everyone signed up
    ```
 
-5. **Flip `BOOTSTRAP_ENABLED=false`** in `/srv/showalter/.env` and restart:
-
-   ```bash
-   docker compose up -d showalter
-   ```
-
-   The enrollment window is now closed.
+5. **Enrollment window.** There is no env toggle — the `admins` table is no longer empty, so `/admin/login` renders the regular login form (not the founding form). Additional admins can only be added via invite links issued from `/admin/settings/admins`.
 
 #### Step 8 — Verify health
 
@@ -425,8 +425,6 @@ Run through this before any first-time deploy or major homelab change.
 ### Secrets and config
 
 - [ ] `AUTH_SECRET` set and non-empty (32+ random bytes)
-- [ ] `ADMIN_EMAILS` set to the correct comma-separated list
-- [ ] `BOOTSTRAP_ENABLED=false` (unless currently onboarding new admins)
 - [ ] `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` all set
 - [ ] `UMAMI_APP_SECRET`, `UMAMI_DB_PASSWORD`, `UMAMI_DATABASE_URL` all set
 - [ ] `.env` file is `chmod 600` (not world-readable)
@@ -569,7 +567,7 @@ docker logs showalter --tail 200
 
 Common causes:
 - **Migration failure** → see section 1.
-- **Bad env var** (e.g. malformed `ADMIN_EMAILS`, missing `AUTH_SECRET`) — fix and restart.
+- **Bad env var** (e.g. missing `AUTH_SECRET`, malformed `DATABASE_URL`) — fix and restart.
 - **Disk full** — `df -h /srv/showalter`; prune old backups or extend the volume.
 
 If the container is crashlooping but the prior image ran clean, roll back per section 6c.

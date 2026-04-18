@@ -1,51 +1,39 @@
 'use client';
 
 /**
- * Passkey enrollment + login form.
+ * Passkey login form.
  *
- * Single email input → server action decides (via BOOTSTRAP + admin state)
- * which ceremony to run:
+ * Single email input → `startLogin` → WebAuthn `get()` → `finishLogin`
+ * → redirect to /admin.
  *
- *   - enrollment: `startEnrollment` → WebAuthn create → `finishEnrollment`
- *     → recovery-code modal → dismiss → /admin
- *   - login:      `startLogin`      → WebAuthn get    → `finishLogin`
- *                 → /admin
+ * First-time enrollment for additional admins is NOT handled here anymore —
+ * per issue #83, admins are onboarded via single-use invite links at
+ * `/admin/signup?token=...`. The only non-invite path that lands in this
+ * project is the founding-admin flow (rendered by `/admin/login` when the
+ * admins table is empty).
  *
- * Only two client-visible outcomes exist per the no-enumeration rule:
- *   1. success (continue / show recovery code)
- *   2. the canonical failure message
- *
- * The form never tells the user whether their email was valid, whether
- * bootstrap is enabled, or what specifically went wrong.
+ * No-enumeration rule still holds: client-visible outcomes are success +
+ * the single canonical failure message.
  */
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  startAuthentication,
-  startRegistration,
-} from '@simplewebauthn/browser';
+import { startAuthentication } from '@simplewebauthn/browser';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AUTH_GENERIC_FAILURE_MESSAGE } from '@/features/auth/response';
 import {
-  startEnrollment as startEnrollmentAction,
-  finishEnrollment as finishEnrollmentAction,
-} from '@/features/auth/enrollment';
-import {
   startLogin as startLoginAction,
   finishLogin as finishLoginAction,
 } from '@/features/auth/login';
-import { RecoveryCodeModal } from './RecoveryCodeModal';
 
-type Stage = 'idle' | 'working' | 'recovery-modal';
+type Stage = 'idle' | 'working';
 
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [stage, setStage] = useState<Stage>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,96 +45,63 @@ export function LoginForm() {
     }
     setStage('working');
 
-    // Try login path first. If the admin is in pending-enrollment state,
-    // startLogin returns the canonical failure (because `status !== enrolled`).
-    // We then try the enrollment path. A genuinely-unknown email fails both
-    // and the user sees the canonical error — no enumeration leak.
     const loginRes = await startLoginAction(email);
-    if (loginRes.ok) {
-      try {
-        const asserted = await startAuthentication({ optionsJSON: loginRes.options });
-        const finish = await finishLoginAction(email, asserted);
-        if (!finish.ok) {
-          setError(finish.message);
-          setStage('idle');
-          return;
-        }
-        router.push('/admin');
-        router.refresh();
-        return;
-      } catch {
-        setError(AUTH_GENERIC_FAILURE_MESSAGE);
-        setStage('idle');
-        return;
-      }
-    }
-
-    // Fall through to enrollment path.
-    const enrollRes = await startEnrollmentAction(email);
-    if (!enrollRes.ok) {
-      setError(enrollRes.message);
+    if (!loginRes.ok) {
+      setError(loginRes.message);
       setStage('idle');
       return;
     }
+
     try {
-      const attestation = await startRegistration({ optionsJSON: enrollRes.options });
-      const finish = await finishEnrollmentAction(email, attestation);
+      const asserted = await startAuthentication({ optionsJSON: loginRes.options });
+      const finish = await finishLoginAction(email, asserted);
       if (!finish.ok) {
         setError(finish.message);
         setStage('idle');
         return;
       }
-      setRecoveryCode(finish.recoveryCode);
-      setStage('recovery-modal');
+      router.push('/admin');
+      router.refresh();
     } catch {
       setError(AUTH_GENERIC_FAILURE_MESSAGE);
       setStage('idle');
     }
   }
 
-  function handleDismissRecoveryModal() {
-    setRecoveryCode(null);
-    setStage('idle');
-    router.push('/admin');
-    router.refresh();
-  }
-
   return (
-    <>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="block text-sm">
-          <span className="mb-1 block text-[hsl(var(--muted-foreground))]">Email</span>
-          <Input
-            type="email"
-            name="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={stage === 'working' || stage === 'recovery-modal'}
-            data-testid="email-input"
-          />
-        </label>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <label className="block text-sm">
+        <span className="mb-1 block text-[hsl(var(--muted-foreground))]">Email</span>
+        <Input
+          type="email"
+          name="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={stage === 'working'}
+          data-testid="email-input"
+        />
+      </label>
 
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={stage === 'working' || stage === 'recovery-modal'}
-          data-testid="submit-button"
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={stage === 'working'}
+        data-testid="submit-button"
+      >
+        {stage === 'working' ? 'Working…' : 'Sign in'}
+      </Button>
+
+      {error && (
+        <p
+          className="text-sm text-[hsl(var(--destructive))]"
+          data-testid="auth-error"
+          role="alert"
         >
-          {stage === 'working' ? 'Working…' : 'Continue'}
-        </Button>
-
-        {error && (
-          <p className="text-sm text-[hsl(var(--destructive))]" data-testid="auth-error" role="alert">
-            {error}
-          </p>
-        )}
-      </form>
-
-      {stage === 'recovery-modal' && recoveryCode && (
-        <RecoveryCodeModal code={recoveryCode} onDismiss={handleDismissRecoveryModal} />
+          {error}
+        </p>
       )}
-    </>
+    </form>
   );
 }

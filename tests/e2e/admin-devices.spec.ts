@@ -23,10 +23,11 @@ import { expect, test } from '@playwright/test';
  */
 
 /**
- * Wipe the test admin back to pending-enrollment state. Necessary because
- * admin-auth.spec.ts ran first on the shared dev.db and already enrolled
+ * Delete the test admin so this spec starts from a clean founding-admin
+ * state. admin-auth.spec.ts ran first on the shared dev.db and enrolled
  * `alex@test.com`; the virtual authenticator from that spec's context is
- * gone by the time we open our own.
+ * gone by the time we open our own, so we need to re-drive the founding
+ * flow with a fresh authenticator.
  */
 function resetAdmin(): void {
   execSync('pnpm exec tsx tests/e2e/reset-admin-for-devices.ts', {
@@ -34,7 +35,6 @@ function resetAdmin(): void {
     env: {
       ...process.env,
       DATABASE_URL: process.env.DATABASE_URL ?? 'file:./dev.db',
-      ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? 'alex@test.com',
     },
   });
 }
