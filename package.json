@@ -42,6 +42,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.2",
     "@playwright/test": "^1.48.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@tailwindcss/postcss": "^4.0.0-beta.1",
@@ -50,8 +51,8 @@
     "@types/node": "^22.8.0",
     "@types/node-cron": "^3.0.11",
     "@types/react": "^19.0.0",
-    "@types/web-push": "^3.6.4",
     "@types/react-dom": "^19.0.0",
+    "@types/web-push": "^3.6.4",
     "@vitest/ui": "^2.1.4",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
