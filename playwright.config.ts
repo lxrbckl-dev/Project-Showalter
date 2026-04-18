@@ -106,6 +106,10 @@ export default defineConfig({
           // Upload root for file storage. Production uses /data/uploads (Docker
           // bind-mount); for local E2E runs we use a writable path under the repo.
           UPLOADS_ROOT,
+          // Enable test-only helper endpoints (e.g. cache-flush routes) used by
+          // E2E specs to reset server-side state between tests. Never set this in
+          // a real production deployment.
+          ALLOW_TEST_ENDPOINTS: 'true',
         },
       },
 });
