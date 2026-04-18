@@ -12,9 +12,9 @@ export function About({ siteConfig }: AboutProps) {
   if (!siteConfig.bio) return null;
 
   return (
-    <section id="about" className="bg-white px-6 py-16">
+    <section id="about" className="bg-neutral-50 px-6 py-16">
       <div className="mx-auto max-w-2xl">
-        <h2 className="mb-4 text-2xl font-bold tracking-tight text-gray-900">About Sawyer</h2>
+        <h2 className="mb-4 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">About Sawyer</h2>
         <p className="text-base leading-relaxed text-gray-700">{siteConfig.bio}</p>
       </div>
     </section>

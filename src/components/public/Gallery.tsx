@@ -22,7 +22,7 @@ export function Gallery({ photos }: GalleryProps) {
   return (
     <section id="gallery" className="bg-gray-50 px-6 py-16">
       <div className="mx-auto max-w-4xl">
-        <h2 className="mb-8 text-2xl font-bold tracking-tight text-gray-900">Photo Gallery</h2>
+        <h2 className="mb-8 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Photo Gallery</h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {photos.map((photo) => (
             <div

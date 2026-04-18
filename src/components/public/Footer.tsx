@@ -29,9 +29,6 @@ export function Footer({ siteConfig }: FooterProps) {
           </a>
         </p>
       )}
-      <p>
-        &copy; {new Date().getFullYear()} Showalter Services. All rights reserved.
-      </p>
     </footer>
   );
 }
