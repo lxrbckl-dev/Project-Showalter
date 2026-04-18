@@ -38,7 +38,7 @@ Production runs inside Docker on port **5827**; dev runs on **3000**.
 ## Environment
 
 Every env var is documented in [`.env.example`](./.env.example). Migrations
-run automatically at boot via Next.js `instrumentation.ts` — a failed
+run automatically at boot via Next.js `src/instrumentation.ts` — a failed
 migration aborts startup rather than serving a half-migrated DB.
 
 ## Health

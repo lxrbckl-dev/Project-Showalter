@@ -3,25 +3,32 @@ import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * Playwright global setup — wipes `dev.db`, then runs migrations + reconciles
- * the admin list from ADMIN_EMAILS via a tsx subprocess so the auth E2E
- * always begins with a clean slate: no pre-existing admins, no prior
- * enrollments, but the target admin row exists in pending state.
+ * Playwright global setup — wipes `dev.db` and re-seeds (migrate + reconcile
+ * ADMIN_EMAILS) so every E2E run starts with the admin in a clean
+ * pending/unenrolled state.
  *
- * Why a subprocess instead of inline imports:
- *   The Playwright runner loads this file with its own TS loader, which does
- *   not resolve our `@/*` path aliases or handle the better-sqlite3 native
- *   module cleanly. `tsx` (already in devDeps) handles both.
- *
- * Why here instead of relying on instrumentation.ts:
- *   next.config.ts sets `output: 'standalone'`; the webServer command
- *   (`next start`) boots but migration-at-boot through instrumentation.ts
- *   doesn't run reliably in standalone mode. Running the same steps
- *   pre-server keeps the DB definitively ready.
+ * Why wipe + re-seed here and not just trust the server's own boot path:
+ *   - `src/instrumentation.ts` → `src/server/boot.ts` runs migrations and
+ *     reconciliation at server startup, and that IS the production boot
+ *     path. For a fresh server this is sufficient.
+ *   - However, Playwright starts `webServer` *before* `globalSetup`. That
+ *     means when globalSetup runs, boot() has already populated the DB. If
+ *     we simply wiped, the route bundles that open sqlite connections
+ *     lazily (first server action request) would observe an empty DB and
+ *     fail with "no such table" errors until the next server restart.
+ *   - So we wipe, *then* re-run the same migrate + reconcile sequence via a
+ *     `tsx` subprocess. The route chunks that haven't opened sqlite yet
+ *     will pick up the freshly-seeded file on first access.
  *
  * Without the wipe, a second run would find `alex@test.com` already enrolled
- * from the previous run and fall into the login branch (which fails because
- * the test recreates the virtual authenticator from scratch).
+ * from the previous run's webauthn ceremony and fall into the login branch
+ * (which fails because the test recreates the virtual authenticator from
+ * scratch).
+ *
+ * Why a tsx subprocess for the re-seed: Playwright's runner loads this file
+ * with its own TS loader, which doesn't resolve the `@/*` path aliases or
+ * handle better-sqlite3's native module cleanly. `tsx` (already in devDeps)
+ * handles both — same approach `pnpm db:migrate` already uses.
  */
 export default async function globalSetup(): Promise<void> {
   const cwd = process.cwd();
@@ -40,8 +47,6 @@ export default async function globalSetup(): Promise<void> {
     ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? 'alex@test.com',
   };
 
-  // Run migrations + reconcile via a tsx subprocess so the `@/*` path aliases
-  // and better-sqlite3 native module resolve the same way they do at runtime.
   execSync('pnpm exec tsx tests/e2e/seed-db.ts', {
     cwd,
     env,
