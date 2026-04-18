@@ -175,9 +175,202 @@ Prints the fully-interpolated `mailto:` / `sms:` URI to stdout for every shipped
 
 ## 6. Deployment
 
-Zero manual build step — merges to `main` trigger a GitHub Actions build that pushes `ghcr.io/lxrbckl-dev/project-showalter:latest` and `:<sha>`.
+Zero manual build step — merges to `main` trigger a GitHub Actions build that pushes `ghcr.io/lxrbckl-dev/project-showalter:latest` and `:<sha>`. Alex pulls on the homelab when ready.
 
-**On the homelab (per release):**
+---
+
+### 6a. First-time deploy (fresh homelab)
+
+Follow every step in order. Subsequent releases only need step 9 (pull + up).
+
+#### Step 1 — Generate secrets
+
+Run each command separately and keep the output — you will paste these into `.env` in step 2.
+
+```bash
+# Auth.js session secret
+openssl rand -base64 32         # → AUTH_SECRET
+
+# VAPID keypair (Web Push)
+npx web-push generate-vapid-keys
+# outputs VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY
+
+# Umami secrets
+openssl rand -base64 32         # → UMAMI_APP_SECRET
+openssl rand -base64 32         # → UMAMI_DB_PASSWORD
+# UMAMI_DATABASE_URL is constructed from the password (see step 2)
+```
+
+**Never commit these values to git.** Store them in a password manager alongside the recovery codes.
+
+#### Step 2 — Create `.env` on the homelab
+
+```bash
+mkdir -p /srv/showalter
+cp /path/to/repo/.env.example /srv/showalter/.env
+```
+
+Edit `/srv/showalter/.env` and fill in every blank value:
+
+```bash
+# ─── App ───────────────────────────────────────────────────────────────────
+AUTH_SECRET=<output of openssl above>
+ADMIN_EMAILS=sshowalterservices@gmail.com,alex@lxrbckl.com
+BOOTSTRAP_ENABLED=true        # flip to false AFTER passkey enrollment (step 7)
+SEED_FROM_BRIEF=true          # first boot only — idempotent after that
+
+# ─── VAPID (Web Push) ───────────────────────────────────────────────────────
+VAPID_PUBLIC_KEY=<from npx web-push generate-vapid-keys>
+VAPID_PRIVATE_KEY=<from npx web-push generate-vapid-keys>
+VAPID_SUBJECT=mailto:sshowalterservices@gmail.com
+
+# ─── Umami ──────────────────────────────────────────────────────────────────
+UMAMI_APP_SECRET=<output of openssl above>
+UMAMI_DB_PASSWORD=<output of openssl above>
+UMAMI_DATABASE_URL=postgresql://umami:<UMAMI_DB_PASSWORD>@umami-db:5432/umami
+# Leave these two blank until you complete section 7:
+NEXT_PUBLIC_UMAMI_SRC=
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=
+```
+
+Verify the file is only readable by your user:
+
+```bash
+chmod 600 /srv/showalter/.env
+```
+
+#### Step 3 — Place `docker-compose.yml` on the homelab
+
+Copy the `docker-compose.yml` from the repo root to `/srv/showalter/`:
+
+```bash
+cp /path/to/repo/docker-compose.yml /srv/showalter/docker-compose.yml
+```
+
+Docker Compose resolves the `.env` file automatically when both files are in the same directory.
+
+#### Step 4 — Point Porkbun DNS
+
+Create two `A` records in the Porkbun dashboard:
+
+| Hostname                      | Type | Value                        | TTL  |
+|-------------------------------|------|------------------------------|------|
+| `showalter.business`          | A    | `<homelab public IP>`        | 600  |
+| `analytics.showalter.business`| A    | `<homelab public IP>`        | 600  |
+
+Verify propagation (wait a few minutes, then):
+
+```bash
+dig showalter.business +short
+dig analytics.showalter.business +short
+# both should return your homelab's public IP
+```
+
+#### Step 5 — Add Caddyfile blocks
+
+Add both blocks to the homelab's Caddyfile (typically `/etc/caddy/Caddyfile`):
+
+```caddy
+showalter.business, www.showalter.business {
+    encode zstd gzip
+    reverse_proxy localhost:5827
+}
+
+analytics.showalter.business {
+    encode zstd gzip
+    reverse_proxy localhost:3001
+}
+```
+
+Caddy auto-provisions TLS via Let's Encrypt for both hostnames.
+
+Reload Caddy to pick up the new blocks:
+
+```bash
+caddy reload --config /etc/caddy/Caddyfile
+# or, if running as a systemd service:
+systemctl reload caddy
+```
+
+Verify Caddy accepted the config (no errors):
+
+```bash
+caddy validate --config /etc/caddy/Caddyfile
+```
+
+#### Step 6 — Pull images and start all containers
+
+```bash
+cd /srv/showalter
+docker compose pull
+docker compose up -d
+```
+
+This starts all three services: `showalter`, `umami`, and `umami-db`.
+
+Wait ~15 seconds for `umami-db` to initialise, then check logs:
+
+```bash
+docker logs showalter --tail 50    # look for "server listening on port 5827"
+docker logs umami --tail 50        # look for "server started on port 3000"
+docker logs umami-db --tail 50     # look for "database system is ready to accept connections"
+```
+
+#### Step 7 — First-time admin enrollment (passkeys)
+
+At this point `BOOTSTRAP_ENABLED=true` is set. Perform enrollment while you're watching.
+
+1. Open `https://showalter.business/admin/login` in a browser on each admin's device.
+2. Each admin types their email and follows the biometric prompt.
+3. The server shows a **recovery code once** — each admin saves it to their password manager immediately.
+4. Confirm all intended admins are enrolled:
+
+   ```bash
+   docker exec showalter pnpm admin:list
+   # every admin should show enrolled_at set (not NULL)
+   ```
+
+5. **Flip `BOOTSTRAP_ENABLED=false`** in `/srv/showalter/.env` and restart:
+
+   ```bash
+   docker compose up -d showalter
+   ```
+
+   The enrollment window is now closed.
+
+#### Step 8 — Verify health
+
+```bash
+curl -sf https://showalter.business/api/health
+# expected: {"ok":true}
+```
+
+Also confirm:
+
+- `https://showalter.business` loads the public landing page.
+- `https://showalter.business/admin` redirects to `/admin/login` (not a 500).
+- An admin can log in with their passkey.
+
+#### Step 9 — Complete Umami setup
+
+Perform the one-time Umami configuration from section 7, then come back here and set the tracking env vars in `/srv/showalter/.env`:
+
+```bash
+NEXT_PUBLIC_UMAMI_SRC=https://analytics.showalter.business/script.js
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=<website ID from the Umami dashboard>
+```
+
+Restart the main app to pick up the new vars:
+
+```bash
+docker compose up -d showalter
+```
+
+---
+
+### 6b. Routine releases (pull + up)
+
+After the first-time setup above, every subsequent release is three commands:
 
 ```bash
 cd /srv/showalter
@@ -185,18 +378,86 @@ docker compose pull showalter
 docker compose up -d showalter
 ```
 
-Caddy is a separate process and keeps the prior `showalter` container serving until the new one is healthy. `docker compose up -d` swaps in-flight; the in-flight-request drain window (30 seconds via SIGTERM handling) ensures open form submissions complete cleanly.
+Caddy keeps the prior container serving while the new one starts. The app's 30-second SIGTERM drain window lets any in-flight form submissions complete before the old container exits.
 
-**Rollback to a previous image.** Every CI build pushes an immutable `:<sha>` tag. To roll back:
+**Verify after every release:**
 
 ```bash
-# Edit /srv/showalter/docker-compose.yml → pin image to the known-good SHA:
-# image: ghcr.io/lxrbckl-dev/project-showalter:<sha>
-docker compose pull showalter
-docker compose up -d showalter
+curl -sf https://showalter.business/api/health
+# expected: {"ok":true}
 ```
 
-Do the same for Umami (`ghcr.io/umami-software/umami:postgresql-latest`) — its `docker compose pull umami && docker compose up -d umami` is independent of the main app.
+---
+
+### 6c. Rollback to a previous image
+
+Every CI build pushes an immutable `:<sha>` tag to GHCR. To roll back:
+
+1. Find the last known-good commit SHA from the GitHub Actions run history.
+2. Edit `/srv/showalter/docker-compose.yml` — pin the `showalter` image to that SHA:
+
+   ```yaml
+   image: ghcr.io/lxrbckl-dev/project-showalter:<sha>
+   ```
+
+3. Pull and restart:
+
+   ```bash
+   cd /srv/showalter
+   docker compose pull showalter
+   docker compose up -d showalter
+   ```
+
+4. Verify health, then file a bug to fix `main` before reverting the pin.
+
+Umami updates are independent:
+
+```bash
+docker compose pull umami && docker compose up -d umami
+```
+
+---
+
+## 6d. Pre-deploy checklist
+
+Run through this before any first-time deploy or major homelab change.
+
+### Secrets and config
+
+- [ ] `AUTH_SECRET` set and non-empty (32+ random bytes)
+- [ ] `ADMIN_EMAILS` set to the correct comma-separated list
+- [ ] `BOOTSTRAP_ENABLED=false` (unless currently onboarding new admins)
+- [ ] `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` all set
+- [ ] `UMAMI_APP_SECRET`, `UMAMI_DB_PASSWORD`, `UMAMI_DATABASE_URL` all set
+- [ ] `.env` file is `chmod 600` (not world-readable)
+
+### DNS
+
+- [ ] `dig showalter.business +short` returns the homelab's public IP
+- [ ] `dig analytics.showalter.business +short` returns the homelab's public IP
+- [ ] `dig www.showalter.business +short` returns the homelab's public IP (if applicable)
+
+### Homelab ports
+
+- [ ] Port 443 (HTTPS) open inbound on the router / firewall
+- [ ] Port 80 (HTTP) open inbound — Caddy needs it for the ACME TLS-ALPN challenge
+- [ ] Internal ports 5827 (showalter) and 3001 (umami) accessible from Caddy on the host
+
+### Docker and Caddy
+
+- [ ] Docker daemon running: `docker info`
+- [ ] Caddy running and config validates: `caddy validate --config /etc/caddy/Caddyfile`
+- [ ] Caddyfile has both `showalter.business` and `analytics.showalter.business` blocks
+
+### Storage
+
+- [ ] `/srv/showalter/data/` directory exists and is writable by Docker
+- [ ] `/srv/showalter/umami-db/` directory exists and is writable by Docker
+- [ ] `df -h /srv/showalter` — at least a few GB free (SQLite + uploads + 14-day backups)
+
+### Image availability
+
+- [ ] `docker pull ghcr.io/lxrbckl-dev/project-showalter:latest` succeeds (confirms GHCR auth + CI built the image)
 
 ---
 
@@ -269,11 +530,11 @@ analytics.showalter.business {
 
 Reload Caddy after saving: `caddy reload --config /etc/caddy/Caddyfile` (or `systemctl reload caddy`).
 
-**Umami is non-critical.** If Umami or `umami-db` goes down, the main site is unaffected. See section 9 (Incident response) for restart steps.
+**Umami is non-critical.** If Umami or `umami-db` goes down, the main site is unaffected. See section 10 (Incident response) for restart steps.
 
 ---
 
-## 9. Accessibility test checklist
+## 8. Accessibility test checklist
 
 Target: WCAG 2.1 AA on a best-effort basis. Every PR that touches public or admin UI runs the automated pass; manual passes happen on release candidates.
 
@@ -296,7 +557,7 @@ Ship blockers: any Level-A failure, or any Level-AA failure on the booking form 
 
 ---
 
-## 9. Incident response
+## 10. Incident response
 
 A short decision tree for the most-likely failure modes.
 
@@ -311,7 +572,7 @@ Common causes:
 - **Bad env var** (e.g. malformed `ADMIN_EMAILS`, missing `AUTH_SECRET`) — fix and restart.
 - **Disk full** — `df -h /srv/showalter`; prune old backups or extend the volume.
 
-If the container is crashlooping but the prior image ran clean, roll back per section 6.
+If the container is crashlooping but the prior image ran clean, roll back per section 6c.
 
 ### SQLite locked
 

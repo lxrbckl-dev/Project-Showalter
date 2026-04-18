@@ -290,7 +290,9 @@ showalter.business, www.showalter.business {
 
 If Caddy runs in Docker on a shared bridge network, replace `localhost:5827` with the container name (e.g. `showalter:5827`).
 
-## `docker-compose.yml` (stub)
+## `docker-compose.yml`
+
+The canonical file lives at the repo root. Reproduced here for reference — always treat the repo root version as the source of truth.
 
 ```yaml
 services:
@@ -311,6 +313,11 @@ services:
       BOOTSTRAP_ENABLED: ${BOOTSTRAP_ENABLED:-false}
       SEED_FROM_BRIEF: ${SEED_FROM_BRIEF:-false}
       BOOKING_RATE_LIMIT_PER_HOUR: ${BOOKING_RATE_LIMIT_PER_HOUR:-30}
+      NEXT_PUBLIC_UMAMI_SRC: ${NEXT_PUBLIC_UMAMI_SRC:-}
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
     networks:
       - showalter-net
 
@@ -325,6 +332,8 @@ services:
       APP_SECRET: ${UMAMI_APP_SECRET}
     depends_on:
       - umami-db
+    networks:
+      - showalter-net
 
   umami-db:
     image: postgres:16-alpine
@@ -336,6 +345,8 @@ services:
       POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD}
     volumes:
       - /srv/showalter/umami-db:/var/lib/postgresql/data
+    networks:
+      - showalter-net
 
 networks:
   showalter-net:
