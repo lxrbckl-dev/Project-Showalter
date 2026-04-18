@@ -43,6 +43,18 @@ Single-row table.
 - `max_booking_photos` INTEGER (default 3)
 - `booking_photo_max_bytes` INTEGER (default 10485760)  — 10 MB
 - `photo_retention_days_after_resolve` INTEGER (default 30)
+- `timezone` TEXT (default `'America/Chicago'`)
+- `business_founded_year` INTEGER (e.g. `2023`) — used by the landing-page stats widget
+- `show_landing_stats` BOOLEAN (default true) — master toggle for the landing-page stats band
+- `min_reviews_for_landing_stats` INTEGER (default 3) — stats band stays hidden until this many submitted reviews exist
+- `min_rating_for_auto_publish` INTEGER (default 4) — reviews at or above this rating can auto-promote their photos
+- `auto_publish_top_review_photos` BOOLEAN (default true) — master toggle for auto-promotion into `site_photos`
+- `template_confirmation_email` TEXT — confirmation email body (admin-editable; default shipped, see Message templates)
+- `template_confirmation_sms` TEXT — confirmation SMS body
+- `template_decline_email` TEXT — decline email body
+- `template_decline_sms` TEXT — decline SMS body
+- `template_review_request_email` TEXT — review-request email body
+- `template_review_request_sms` TEXT — review-request SMS body
 
 ### `services`
 - `id` INTEGER PK
@@ -110,10 +122,11 @@ Exactly one active recovery code per admin (enforced by UNIQUE on `admin_id` whe
 ### `bookings`
 - `id` INTEGER PK
 - `token` TEXT UNIQUE    — random unguessable token used in `/bookings/<token>/ics` URL
-- `customer_name` TEXT
-- `customer_phone` TEXT
-- `customer_email` TEXT
-- `customer_address` TEXT
+- `customer_id` INTEGER FK → customers.id
+- `address_id` INTEGER FK → customer_addresses.id
+- `customer_name` TEXT   — historical snapshot of what was entered at booking time (denormalized, preserved even if the customer record is later edited)
+- `customer_phone` TEXT  — historical snapshot
+- `customer_email` TEXT  — historical snapshot
 - `service_id` INTEGER FK → services.id
 - `start_at` TEXT        — ISO timestamp of slot start
 - `notes` TEXT (optional) — customer-provided notes at submission
@@ -131,6 +144,58 @@ Customer-uploaded photos attached to a booking submission.
 - `size_bytes` INTEGER
 - `created_at` TEXT
 
+### `customers`
+Master customer directory (the INDEX book). One row per unique person Sawyer has served.
+- `id` INTEGER PK
+- `name` TEXT
+- `phone` TEXT            — normalized to E.164 (e.g. `+19133097340`)
+- `email` TEXT (nullable)
+- `notes` TEXT            — admin-editable freeform notes
+- `created_at` TEXT
+- `updated_at` TEXT
+- `last_booking_at` TEXT (nullable)
+
+### `customer_addresses`
+Every address a customer has used. A customer can have many.
+- `id` INTEGER PK
+- `customer_id` INTEGER FK → customers.id
+- `address` TEXT
+- `created_at` TEXT
+- `last_used_at` TEXT
+
+### `reviews`
+One review per customer, optionally tied to a specific booking.
+- `id` INTEGER PK
+- `customer_id` INTEGER FK → customers.id
+- `booking_id` INTEGER FK → bookings.id **(nullable — standalone reviews are supported for customers Sawyer served before the app existed)**
+- `token` TEXT UNIQUE     — used in `/review/<token>`
+- `status` TEXT           — `pending` | `submitted`
+- `rating` INTEGER (nullable, 1–5)
+- `review_text` TEXT (nullable)
+- `requested_at` TEXT
+- `submitted_at` TEXT (nullable)
+
+Constraint: `UNIQUE(booking_id)` when `booking_id IS NOT NULL` — at most one review per booking; multiple standalone (booking-less) reviews for the same customer are allowed.
+
+### `review_photos`
+Customer-uploaded photos attached to a review.
+- `id` INTEGER PK
+- `review_id` INTEGER FK → reviews.id
+- `file_path` TEXT
+- `mime_type` TEXT
+- `size_bytes` INTEGER
+- `created_at` TEXT
+
+### `site_photos`
+Landing-page photo gallery. Mix of admin-uploaded shots and photos auto-promoted from high-rated reviews.
+- `id` INTEGER PK
+- `file_path` TEXT
+- `caption` TEXT (nullable)
+- `sort_order` INTEGER
+- `active` BOOLEAN (default true) — soft-archive instead of delete
+- `source_review_id` INTEGER FK → reviews.id (nullable) — set when the photo was auto-promoted from a review; stays `NULL` for admin-uploaded shots
+- `created_at` TEXT
+
 ### `notifications`
 Sawyer's in-app inbox.
 - `id` INTEGER PK
@@ -145,13 +210,6 @@ One row per device Sawyer has subscribed for Web Push.
 - `endpoint` TEXT UNIQUE — push service endpoint URL
 - `p256dh` TEXT — client's public ECDH key (base64url)
 - `auth` TEXT — auth secret (base64url)
-- `created_at` TEXT
-
-### `testimonials`
-- `id` INTEGER PK
-- `author` TEXT
-- `quote` TEXT
-- `approved` BOOLEAN — default false
 - `created_at` TEXT
 
 ## Deployment topology
@@ -215,6 +273,8 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       ADMIN_EMAILS: ${ADMIN_EMAILS}
       BOOTSTRAP_ENABLED: ${BOOTSTRAP_ENABLED:-false}
+      SEED_FROM_BRIEF: ${SEED_FROM_BRIEF:-false}
+      BOOKING_RATE_LIMIT_PER_HOUR: ${BOOKING_RATE_LIMIT_PER_HOUR:-30}
 ```
 
 ## Environment variables
@@ -229,6 +289,8 @@ services:
 | `VAPID_PUBLIC_KEY`    | Web Push public key (exposed to the client)      |
 | `VAPID_PRIVATE_KEY`   | Web Push private key (server only — signs pushes) |
 | `VAPID_SUBJECT`       | Contact URI for push services, e.g. `mailto:sshowalterservices@gmail.com` |
+| `SEED_FROM_BRIEF`     | Default `false`. When `true` AND target tables are empty, pre-seed `services`, `site_config`, and `weekly_template_windows` from Sawyer's brief data on first boot. Idempotent — only seeds when tables are empty, won't wipe data later. |
+| `BOOKING_RATE_LIMIT_PER_HOUR` | Default `30`. Generous IP-based rate limit on the booking-form endpoint; easy to tighten if attacked. |
 
 ## Healthcheck
 
@@ -422,6 +484,9 @@ docker exec showalter pnpm admin:disable <email>
 
 docker exec showalter pnpm admin:enable <email>
 # → re-enables a previously disabled admin (email must still be in ADMIN_EMAILS for login to succeed)
+
+docker exec showalter pnpm admin:add <email>
+# → onboards a new admin without a container restart (inserts a pending admin row so the email can enroll at /admin/login next time BOOTSTRAP_ENABLED=true)
 ```
 
 ### Stack dependencies
@@ -429,6 +494,218 @@ docker exec showalter pnpm admin:enable <email>
 - `@simplewebauthn/server` — server-side credential verification
 - `@simplewebauthn/browser` — small client-side helper that wraps the WebAuthn browser APIs
 - Auth.js v5 handles sessions, CSRF, and middleware (passkey-specific logic sits alongside its adapter)
+
+## Seeding
+
+The `SEED_FROM_BRIEF` env var (default `false`) controls first-boot seeding from Sawyer's brief data.
+
+**What gets seeded** when `SEED_FROM_BRIEF=true`:
+
+- `services` — the price-sheet entries (Trash Can Cleaning, Mowing, Clean ups, Raking, Snow removal) with their default descriptions, prices, and suffixes
+- `site_config` — the single row populated with Sawyer's phone, email, TikTok, bio, SMS template, sensible defaults for horizon/spacing/photos, and the six shipped message-template bodies (see "Message templates")
+- `weekly_template_windows` — a baseline weekly availability pattern
+
+**Idempotency rule.** Each target table is seeded only when it's empty at boot. If any of the above tables already has rows, that table is skipped entirely — `SEED_FROM_BRIEF=true` will never wipe or overwrite existing data. This means it's safe to leave set in any environment: it only does work on a blank database.
+
+**When to flip it.** Typical usage is `SEED_FROM_BRIEF=true` on the very first deploy, then leave it on — there's no harm in it after the initial seed because the idempotency check makes subsequent boots a no-op.
+
+## Rate limiting and anti-spam
+
+The public booking endpoint (`POST /api/bookings`) sits behind a small middleware layer that protects against low-effort abuse.
+
+- **IP-based rate limit.** The middleware tracks submissions per source IP over a rolling one-hour window. When the count exceeds `BOOKING_RATE_LIMIT_PER_HOUR` (default `30`), subsequent submissions from that IP are rejected until the window rolls forward. The default is generous — it's meant to stop pathological bots, not throttle real customers.
+- **Hidden honeypot field.** The booking form includes an invisible, non-labeled input (hidden via CSS, off-screen, and `tabindex="-1"` / `aria-hidden="true"`). Real users never touch it; naive scrapers fill every field they see. If the honeypot arrives non-empty, the server returns a silent `200 OK` as if the submission succeeded — no row is created, no notification fires, and the bot gets no signal that it was detected. This "pretend success" response is deliberate: returning a `4xx` would tip bots off to refine their payload.
+- **Tightening under attack.** If Sawyer ever gets hit, lowering `BOOKING_RATE_LIMIT_PER_HOUR` (e.g. to 5) and restarting the container is enough to clamp down without a code change.
+
+## Admin-initiated bookings
+
+Sawyer frequently books walk-in and phone-call customers himself. The admin supports creating a booking manually from the bookings inbox.
+
+- **Status starts at `accepted`.** Admin-initiated bookings skip the `pending` state entirely — Sawyer is the authority, so there's nobody to accept or decline the request.
+- **Soft warnings, not hard blocks.** The normal public-flow guardrails (`min_advance_notice_hours`, `booking_spacing_minutes`) are surfaced as warnings in the admin UI when Sawyer is the creator, but they do not prevent submission. Sawyer can double-book himself or book something an hour from now if he wants to.
+- **"Pick existing or create new" customer selector.** The form starts with a search input: type a name, phone, or address and pick a match from the INDEX book, or fall back to "create new customer." Selecting an existing customer optionally lets Sawyer reuse a saved address from `customer_addresses`.
+- **Full confirmation flow still applies.** Admin-initiated bookings still get a random `token` and a `/bookings/<token>` page — Sawyer can tap the standard "Send email confirmation" / "Send text confirmation" buttons to ping the customer exactly as he would for public-flow bookings.
+
+## Reschedule flow
+
+Rescheduling is implemented as **cancel-old + create-new** rather than in-place editing. This keeps the state machine simple and the audit trail intact.
+
+- **Old booking** transitions to `canceled` (`decided_at` set to now). Its start-time hold is released.
+- **New booking** is created with a fresh random `token` and the new `start_at`. If the reschedule originated from the admin UI, it's an admin-initiated booking and starts at `accepted`; if the public flow ever exposes a reschedule path, the new booking would start at `pending` and follow the normal accept/decline loop.
+- **Old `/bookings/<old-token>` page** renders a friendly "This appointment was rescheduled to [new date/time]. See your updated confirmation." message linking to `/bookings/<new-token>`. The rescheduled-to pointer is recorded so the old page can look it up.
+- **Confirmation to the customer.** Sawyer taps the standard "Send email confirmation" / "Send text confirmation" buttons on the new booking to notify the customer. No automated rebroadcast.
+
+## Complete / no-show queue
+
+The admin dashboard surfaces a **"Needs attention"** section listing every `accepted` booking whose `start_at` is in the past.
+
+- Each row has two buttons: **Mark completed** and **Mark no-show**.
+- **Mark completed** transitions `status` to `completed` and unlocks a **"Request review"** button on the same row (and on the booking detail view). Tapping it generates a `pending` `reviews` row tied to this booking + customer, allocates a token, and opens the same `mailto:` / `sms:` buttons with the review-request templates populating the body.
+- **Mark no-show** transitions `status` to `no_show`. No review prompt.
+- Both transitions are terminal; the booking drops out of the queue once set.
+
+## Reviews
+
+Reviews replace the old `testimonials` concept. They support both booking-tied and standalone ("pre-app") customers, and they can optionally promote photos to the landing-page gallery.
+
+**Lifecycle.** A review row is created in `pending` state at the moment Sawyer requests it (from the "Needs attention" queue or from a customer's INDEX page — see below). When the customer submits the `/review/<token>` form, the row transitions to `submitted` with `rating`, `review_text`, and `submitted_at` populated.
+
+**Public form (`/review/<token>`).** No login required. Star rating (1–5), freeform text (optional), and optional photo upload. Photo caps mirror the booking attachment caps — `max_booking_photos` default 3 (admin-settable), same accepted MIME types and size limit. EXIF is stripped on upload (see "Conventions and defaults").
+
+**Standalone review requests.** For customers Sawyer served before the app existed, the INDEX book's customer detail page has a **"Request review"** button that creates a `reviews` row with `booking_id = NULL`. The rest of the flow is identical. A customer can therefore have multiple `booking_id=NULL` reviews, but at most one review per specific `booking_id` (see the UNIQUE constraint).
+
+**Auto-publish rule.** When a review transitions to `submitted`:
+
+- If `rating >= site_config.min_rating_for_auto_publish` (default 4) **AND** `site_config.auto_publish_top_review_photos = true`, every attached `review_photos` row is copied into `site_photos` with `source_review_id` set to the review's `id`. The photo is immediately visible in the landing-page gallery.
+- Admin can always set `site_photos.active = false` to hide an auto-promoted photo without touching the underlying review. The review itself is never auto-published — only its photos — so there is no "review moderation" problem.
+
+**Moderation.** Reviews are internal by default. The admin can browse reviews, edit the rating/text for typo fixes, soft-archive via an `active` toggle on the review (if needed post-MVP), and the public landing page does not render review text at all — only the aggregate stats band pulls from them.
+
+## INDEX book (customers directory)
+
+The INDEX book is the admin's master customer directory. It's backed by the `customers` and `customer_addresses` tables.
+
+**Matching rule (on new booking).** When a booking is submitted, the system tries to match the customer in this order:
+
+1. By normalized phone (E.164) — strongest signal
+2. By email (if phone doesn't match)
+3. Otherwise, create a new `customers` row
+
+When a match is found, the existing `customers.id` is reused and `bookings.customer_id` points to it. The booking's `customer_name` / `customer_phone` / `customer_email` are still captured as historical snapshots (they reflect exactly what the customer typed at booking time, even if the master record is later edited).
+
+**Address accumulation.** On every booking, the submitted `address` string is matched against `customer_addresses` for that customer — if it already exists, `last_used_at` is bumped; otherwise a new row is inserted. `bookings.address_id` points to the matched/created row.
+
+**Admin search.** The INDEX book top-level view is a search input plus a list of customers sorted by `last_booking_at` desc. The MVP uses SQL `LIKE '%q%'` across name / phone / email / address fields. If the directory ever outgrows it, switch to SQLite FTS5 — the data model doesn't have to change.
+
+**Customer detail view.** Tapping a customer opens a page showing:
+
+- Master info block — name, phone, email, timestamps (editable in an inline edit mode)
+- Admin-only notes field (freeform, editable)
+- Address history — every row from `customer_addresses`, most-recently-used first
+- Bookings list — chronological, showing status and service
+- Reviews — every review this customer has given, rating + text
+- Photos — thumbnails of every photo attached to any of this customer's completed bookings
+
+## Landing-page gallery
+
+The landing page's photo gallery is backed by the `site_photos` table. Two sources feed it:
+
+- **Admin-uploaded** — Sawyer uploads photos directly through an admin gallery manager (drag to reorder `sort_order`; toggle `active` to soft-archive). `source_review_id` stays `NULL` for these.
+- **Auto-promoted** — photos from high-rated reviews are copied in automatically per the rule in "Reviews." `source_review_id` tracks the origin so the admin can always see which gallery photos came from which review, and removing a review (soft-archiving its row) can be cross-referenced with its promoted `site_photos`.
+
+The landing page renders the gallery as a simple grid of `active=true` photos in `sort_order`. Tapping a photo on mobile opens a lightbox / enlarged view. The gallery section is hidden entirely if no active photos exist.
+
+## Landing-page stats widget
+
+A small stats band sits just under the hero on the landing page. It shows aggregate trust signals — no per-review text, no per-customer info.
+
+**Stats shown (three, plus optional fourth):**
+
+1. Average rating + review count — `AVG(rating)` and `COUNT(*)` across `reviews` where `status = 'submitted'`
+2. Total completed jobs — `COUNT(*)` where `bookings.status = 'completed'`
+3. Distinct customers served — `COUNT(DISTINCT customer_id)` across bookings in `completed` status
+4. Years in business (optional) — `current_year - site_config.business_founded_year`, rendered only if the founded year is set
+
+**Visibility gating.** The band is shown only when `site_config.show_landing_stats = true` **AND** the submitted-review count is at least `site_config.min_reviews_for_landing_stats` (default 3). This prevents the band from displaying "1 review, 5 stars" on day one.
+
+**Performance.** The stats are computed on demand with a short in-memory cache (a few minutes is plenty — writes are rare). No dedicated stats table in MVP.
+
+## Message templates
+
+Six editable message templates live in `site_config` as TEXT columns. Each is shipped with a sensible default body (verbatim below) and is editable from admin settings. Templates support variable interpolation — the server substitutes bracketed placeholders against the booking/customer context before populating the `mailto:` / `sms:` body.
+
+**Shipped defaults (verbatim):**
+
+### Confirmation email — `template_confirmation_email`
+
+```
+Hi [name],
+
+Confirming your appointment:
+
+• Service: [service]
+• Date: [date]
+• Time: [time]
+• Address: [address]
+
+Add to calendar:
+• Google: [google_link]
+• Apple:  [ics_link]
+
+— Sawyer
+913-309-7340
+```
+
+### Confirmation SMS — `template_confirmation_sms`
+
+```
+Hi [name], this is Sawyer — you're confirmed for [service] on [date] at [time]. Reply here if anything changes. Add to calendar: [shortlink]
+```
+
+### Decline email — `template_decline_email`
+
+```
+Hi [name],
+
+Thanks for reaching out about [service] on [date]. Unfortunately I'm not able to take it on that day — if a different date works, feel free to submit another request!
+
+— Sawyer
+913-309-7340
+```
+
+### Decline SMS — `template_decline_sms`
+
+```
+Hi [name], Sawyer here — can't do [service] on [date], sorry! If another day works feel free to book again.
+```
+
+### Review request email — `template_review_request_email`
+
+```
+Hi [name],
+
+Thanks for letting me work on your [service] today! If you have a quick moment, I'd really appreciate a review — it helps a lot:
+
+[link]
+
+— Sawyer
+913-309-7340
+```
+
+### Review request SMS — `template_review_request_sms`
+
+```
+Hi [name], thanks for the job today! If you have a sec, a quick review would mean a lot: [link] — Sawyer
+```
+
+### Supported variables per template
+
+| Variable        | Confirmation email | Confirmation SMS | Decline email | Decline SMS | Review req. email | Review req. SMS |
+|-----------------|:------------------:|:----------------:|:-------------:|:-----------:|:-----------------:|:---------------:|
+| `[name]`        | ✓                  | ✓                | ✓             | ✓           | ✓                 | ✓               |
+| `[service]`     | ✓                  | ✓                | ✓             | ✓           | ✓                 |                 |
+| `[date]`        | ✓                  | ✓                | ✓             | ✓           |                   |                 |
+| `[time]`        | ✓                  | ✓                |               |             |                   |                 |
+| `[address]`     | ✓                  |                  |               |             |                   |                 |
+| `[link]`        |                    |                  |               |             | ✓                 | ✓               |
+| `[google_link]` | ✓                  |                  |               |             |                   |                 |
+| `[ics_link]`    | ✓                  |                  |               |             |                   |                 |
+| `[shortlink]`   |                    | ✓                |               |             |                   |                 |
+
+Unknown variables in a template body are left as literal text (no crash) — this keeps Sawyer's edits forgiving.
+
+## Landing-page section order
+
+The public landing page is a single long-scroll page. Top-to-bottom section order (mirrors BRIEF.md):
+
+1. **Hero** — photo + "15-year-old entrepreneur" tagline + primary **Request service** CTA
+2. **Landing stats band** — aggregate only; hidden unless `show_landing_stats = true` AND submitted-review count ≥ `min_reviews_for_landing_stats`
+3. **About / bio**
+4. **Photo gallery** — `site_photos` where `active = true`, ordered by `sort_order`
+5. **Services + price table**
+6. **Request service** — repeat CTA
+7. **Contact** — phone (plain text), email, TikTok
+8. **Footer** — includes the buried "Text Sawyer directly" fallback link
 
 ## Notifications for Sawyer
 
@@ -493,6 +770,8 @@ A single public route (no login required) keyed by an unguessable random `token`
 1. **Viewing the appointment** — service name + description, the scheduled start time, address on file, any notes they submitted, any photos they attached.
 2. **Downloading the `.ics`** — the existing `/bookings/<token>/ics` endpoint is served from the same token root.
 3. **Cancelling** — a "Cancel appointment" button transitions the booking to `canceled` and releases the start-time hold, freeing that time for other customers.
+4. **Customer self-cancel triggers a Sawyer notification** — when the customer taps Cancel, Sawyer receives an in-app inbox entry and a Web Push: *"Customer cancelled: [service] on [date]"*.
+5. **Rescheduled bookings** — if the booking was canceled via the reschedule path (see "Reschedule flow"), this page renders a "rescheduled to [new date/time]. See your updated confirmation." link to the new `/bookings/<new-token>`.
 
 ### State-dependent rendering
 
@@ -532,6 +811,23 @@ Thanks!
 Messages sent via this fallback land in Sawyer's native Messages app, entirely outside the application. There is no slot hold, no status tracking, no calendar integration, and no admin inbox entry for these conversations.
 
 This is intentional — the fallback exists for "quick question" traffic (e.g. "do you do mulch?", "rate for a big yard?") that doesn't fit the rigid shape of the booking form. Sawyer carries two inboxes (admin + Messages); the booking form is still THE action and is visually primary.
+
+## Conventions and defaults
+
+A catch-all for cross-cutting defaults that apply across the app.
+
+- **Photo EXIF stripping on upload** — both booking attachments and review photos have their EXIF metadata stripped at upload time (location data, device info, timestamps) before being written to `/data`. Originals are not preserved.
+- **SMS shortlink for `.ics`** — the confirmation SMS uses a short `/c/<token>` shortlink that 302s to `/bookings/<token>/ics`, so the SMS stays under typical carrier length limits.
+- **Form validation rules** — `name` ≤ 100 chars; `phone` US format, normalized to E.164 before storage; `email` RFC 5321-compliant; `address` ≤ 500 chars; `notes` ≤ 2000 chars. Validation runs both client-side (UX) and server-side (source of truth).
+- **Admin nav pattern** — bottom tab bar on mobile, sidebar on desktop. Same routes, different chrome.
+- **Retroactive settings policy** — changes to `site_config` (horizon, spacing, photo caps, template bodies, etc.) apply to **new** bookings and new messages only. Existing bookings preserve the state they were created with; they're not retroactively mutated.
+- **Migrations on boot** — DB schema migrations run automatically at container startup, before the HTTP server accepts traffic. A failed migration aborts the boot instead of serving a half-migrated DB.
+- **Friendly error pages** — branded 404 / 500 / invalid-token pages instead of raw stack traces. The invalid-token page (for `/bookings/<bad-token>` and `/review/<bad-token>`) is intentionally vague to avoid leaking enumeration signal.
+- **SEO basics** — `robots.txt`, `sitemap.xml`, meta title / description on every public page, OG + Twitter card tags on `/`. The admin is `noindex`.
+- **Calendar `.ics` reminder** — the served `.ics` includes a `VALARM` set to 24 hours before `start_at`, so the customer gets a day-before reminder automatically.
+- **Phone number normalization** — phone numbers are stripped to digits and prepended with `+1` before storage (E.164). The display layer re-formats to US style for humans.
+- **Accessibility target** — WCAG 2.1 AA on a best-effort basis. Focus-visible rings, alt text on images, sufficient color contrast, keyboard-navigable flows.
+- **Admin dashboard header strip** — a tiny stat strip at the top of the admin home view surfacing counts of pending bookings and confirmed bookings this week. At-a-glance signal without opening any tab.
 
 ## Out of scope for this document
 
