@@ -2,6 +2,7 @@ import { migrate } from '@/db/migrate';
 import { getDb, resolveDatabasePath } from '@/db';
 import { reconcileAdmins } from '@/features/auth/reconcile';
 import { seedFromBrief } from '@/features/site-config/seed';
+import { registerCronJobs } from '@/server/cron';
 
 let booted = false;
 
@@ -72,6 +73,24 @@ export async function boot(): Promise<void> {
         level: 'error',
         timestamp: new Date().toISOString(),
         msg: 'boot: admin reconciliation failed',
+        error: message,
+      }),
+    );
+  }
+
+  // Register cron jobs after migrations + reconcile + seed.
+  // Non-fatal: a cron registration failure should not prevent the server from
+  // starting, but it will log prominently.
+  try {
+    registerCronJobs();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // eslint-disable-next-line no-console
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        timestamp: new Date().toISOString(),
+        msg: 'boot: cron job registration failed',
         error: message,
       }),
     );
