@@ -8,7 +8,12 @@ export default defineConfig({
   globalSetup: require.resolve('./tests/e2e/global-setup.ts'),
   timeout: 30_000,
   expect: { timeout: 5_000 },
-  fullyParallel: true,
+  // Tests share a single webServer + dev.db; cross-file enrollment mutates
+  // the same admin row, so run one worker at a time to avoid races. Within
+  // a file, tests still execute in order (fullyParallel controls cross-test
+  // parallelism inside a single file — we leave it off-by-default).
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: process.env.CI ? 'github' : 'list',
