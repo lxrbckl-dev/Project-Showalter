@@ -12,7 +12,11 @@
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "admin:list": "tsx src/cli/admin-list.ts",
+    "admin:reset": "tsx src/cli/admin-reset.ts",
+    "admin:disable": "tsx src/cli/admin-disable.ts",
+    "admin:enable": "tsx src/cli/admin-enable.ts"
   },
   "dependencies": {
     "next": "^15.0.0",
