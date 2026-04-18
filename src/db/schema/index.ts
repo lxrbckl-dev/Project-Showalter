@@ -27,3 +27,4 @@ export * from './credentials';
 export * from './recovery-codes';
 export * from './auth-sessions';
 export * from './services';
+export * from './availability';
