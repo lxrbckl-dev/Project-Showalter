@@ -1,12 +1,34 @@
 /**
  * `/admin/settings` — top-level settings hub.
  *
- * For MVP this is a thin index that lists sub-sections. Currently only the
- * Devices manager is wired up (issue #77). Future settings (notification
- * preferences, stats toggles, etc.) hang off this page.
+ * Thin index that lists sub-sections. Current entries:
+ *   - Devices: manage passkeys for your own account (#77)
+ *   - Admins: manage the admin roster + invite links (#83)
  */
 
 import Link from 'next/link';
+
+type Entry = {
+  href: string;
+  label: string;
+  description: string;
+  testId: string;
+};
+
+const ENTRIES: Entry[] = [
+  {
+    href: '/admin/settings/devices',
+    label: 'Devices',
+    description: 'Manage the passkeys you use to sign in.',
+    testId: 'settings-devices-link',
+  },
+  {
+    href: '/admin/settings/admins',
+    label: 'Admins',
+    description: 'Invite and manage the people who can sign in.',
+    testId: 'settings-admins-link',
+  },
+];
 
 export default function AdminSettingsPage() {
   return (
@@ -19,18 +41,20 @@ export default function AdminSettingsPage() {
       </div>
 
       <ul className="divide-y divide-[hsl(var(--border))] rounded-md border border-[hsl(var(--border))]">
-        <li>
-          <Link
-            href="/admin/settings/devices"
-            className="block px-4 py-3 hover:bg-[hsl(var(--accent))]"
-            data-testid="settings-devices-link"
-          >
-            <div className="font-medium">Devices</div>
-            <div className="text-sm text-[hsl(var(--muted-foreground))]">
-              Manage the passkeys you use to sign in.
-            </div>
-          </Link>
-        </li>
+        {ENTRIES.map((entry) => (
+          <li key={entry.href}>
+            <Link
+              href={entry.href}
+              className="block px-4 py-3 hover:bg-[hsl(var(--accent))]"
+              data-testid={entry.testId}
+            >
+              <div className="font-medium">{entry.label}</div>
+              <div className="text-sm text-[hsl(var(--muted-foreground))]">
+                {entry.description}
+              </div>
+            </Link>
+          </li>
+        ))}
       </ul>
     </div>
   );

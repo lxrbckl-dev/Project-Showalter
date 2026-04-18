@@ -38,15 +38,18 @@ Cancellation sets `status=canceled` and releases the held time slot. Once a book
 
 Authentication uses **passkeys** (WebAuthn) via SimpleWebAuthn + Auth.js v5. No passwords.
 
-**First-time enrollment (BOOTSTRAP flow):**
-1. Set `BOOTSTRAP_ENABLED=true` and `ADMIN_EMAILS=you@example.com` in the environment
-2. Visit `/admin/login`, enter your email, enroll a passkey (Face ID / Touch ID)
-3. A recovery code is shown once — save it
-4. Set `BOOTSTRAP_ENABLED=false` in production
+**Founding admin (first person on a fresh deploy):**
+1. Visit `/admin/login`. Because the admins table is empty, the page renders the founding-admin form.
+2. Enter email, enroll a passkey (Face ID / Touch ID) — the ceremony opens the OS's native biometric prompt.
+3. A recovery code is shown once — save it to a password manager.
 
-**Multi-device support:** each device gets its own `credentials` row. Sawyer can enroll his phone, laptop, and tablet separately. Passkeys can be renamed or removed from the Device Management panel in the admin. A last-device guard prevents removing the only enrolled credential (which would lock out the account). See [`src/features/auth/`](../src/features/auth/).
+**Invite another admin:** from `/admin/settings/admins`, fill in the invitee's email (and an optional label like "Mom" or "Saturday helper"), click **Create invite**, and copy the `/admin/signup?token=...` URL. Share however you want — invites are single-use, email-bound, and expire 24h after creation. If you need to undo one, click **Revoke** on that row.
 
-**Recovery:** if all devices are lost, use the recovery code to reset credentials. A new code is issued on use. CLI: `pnpm admin:reset <email>`.
+**Accept an invite:** the invitee opens their URL. The page shows their pre-filled (read-only) email and an **Enroll passkey** button. After the ceremony they see their own recovery code and land on the admin dashboard.
+
+**Multi-device support:** each device gets its own `credentials` row. An admin can enroll their phone, laptop, and tablet separately. Passkeys can be renamed or removed from `/admin/settings/devices`. A last-device guard prevents removing the only enrolled credential (which would lock out the account). See [`src/features/auth/`](../src/features/auth/).
+
+**Recovery:** if all devices are lost, use the recovery code to reset credentials. A new code is issued on use. CLI: `pnpm admin:reset <email>`, then either the admin goes through the founding flow (if theirs was the only row AND you deleted it) or a co-admin issues a fresh invite.
 
 ---
 
@@ -194,7 +197,7 @@ Key security controls implemented across the app:
 | **EXIF stripping** | All photo uploads (booking photos, review photos) — `exifr` strips metadata before storage |
 | **Optimistic locking** | Booking accept/decline checks `updated_at` to prevent stale-state double-actions |
 | **No enumeration** | Invalid token pages return a vague "not found" to avoid leaking valid token existence |
-| **Session management** | Auth.js v5 sessions; `BOOTSTRAP_ENABLED=false` in production locks out unenrolled slots |
+| **Session management** | Auth.js v5 sessions (30-day sliding TTL). New admins only land via founding flow (empty table) or a valid invite. |
 | **Passkey security** | WebAuthn `counter` checked on each authentication to detect cloned credentials |
 | **Last-device guard** | Cannot remove the only enrolled credential — prevents self-lockout |
 | **No secrets in DB** | Recovery codes are hashed at rest (`code_hash`); raw code shown once, never stored |

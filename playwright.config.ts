@@ -92,11 +92,11 @@ export default defineConfig({
           NODE_ENV: 'production',
           PORT: String(PORT),
           DATABASE_URL,
-          // Auth E2E defaults — global-setup wipes dev.db before the server
-          // boots, and boot()'s reconcileAdmins reseeds the admin from
-          // ADMIN_EMAILS, so the flow always starts at pending/unenrolled.
-          BOOTSTRAP_ENABLED: process.env.BOOTSTRAP_ENABLED ?? 'true',
-          ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? 'alex@test.com',
+          // Auth E2E: since #83 the admin model is invite-based. Global-setup
+          // wipes dev.db before the server boots, so the admins table is
+          // always empty at test-run start and /admin/login renders the
+          // founding-admin form. Specs that need an existing admin create
+          // one via dedicated tsx helpers.
           AUTH_SECRET:
             process.env.AUTH_SECRET ?? 'dev-only-auth-secret-change-in-production',
           BASE_URL: process.env.BASE_URL ?? BASE_URL,

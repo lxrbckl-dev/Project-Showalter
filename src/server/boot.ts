@@ -1,6 +1,5 @@
 import { migrate } from '@/db/migrate';
 import { getDb, resolveDatabasePath } from '@/db';
-import { reconcileAdmins } from '@/features/auth/reconcile';
 import { seedFromBrief } from '@/features/site-config/seed';
 import { registerCronJobs } from '@/server/cron';
 
@@ -12,8 +11,11 @@ let booted = false;
  * exits the process with a non-zero code rather than serving a half-migrated
  * database.
  *
- * After migrations, reconciles the `admins` table against the
- * `ADMIN_EMAILS` environment variable (comma-separated list of admin emails).
+ * Phase 1C (issue #83) retired the env-driven admin reconciler. Admins now
+ * bootstrap via the "first visitor claims founding admin" flow at
+ * `/admin/login` and are added thereafter via single-use invite links
+ * issued from `/admin/settings/admins`. No env-driven reconciliation runs
+ * at boot.
  *
  * Safe to call multiple times — subsequent calls are no-ops.
  */
@@ -54,31 +56,7 @@ export async function boot(): Promise<void> {
     process.exit(1);
   }
 
-  // Reconcile ADMIN_EMAILS after migrations complete.
-  try {
-    const raw = process.env.ADMIN_EMAILS ?? '';
-    const emailList = raw
-      .split(',')
-      .map((e) => e.trim())
-      .filter(Boolean);
-    const db = getDb() as Parameters<typeof reconcileAdmins>[0];
-    await reconcileAdmins(db, emailList);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    // Non-fatal: a reconciliation failure should not prevent the server from
-    // starting. Log the error and continue.
-    // eslint-disable-next-line no-console
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        timestamp: new Date().toISOString(),
-        msg: 'boot: admin reconciliation failed',
-        error: message,
-      }),
-    );
-  }
-
-  // Register cron jobs after migrations + reconcile + seed.
+  // Register cron jobs after migrations + seed.
   // Non-fatal: a cron registration failure should not prevent the server from
   // starting, but it will log prominently.
   try {
