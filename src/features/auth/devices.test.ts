@@ -183,7 +183,7 @@ beforeEach(() => {
   currentSession = null;
   mockVerifyResult = null;
   __resetChallenges();
-  process.env.BASE_URL = 'http://localhost:3000';
+  process.env.BASE_URL = 'http://localhost:5827';
 });
 
 afterEach(() => {

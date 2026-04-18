@@ -101,7 +101,7 @@ See [`docs/STACK.md`](./docs/STACK.md) for the full deployment topology, `docker
    ```
    SEED_FROM_BRIEF=true pnpm dev
    ```
-6. Open `http://localhost:3000`
+6. Open `http://localhost:5827`
 
 **First-time admin setup:**
 
@@ -120,7 +120,7 @@ retired in #83.
 **Helpful commands:**
 
 ```
-pnpm dev                     # dev server on :3000
+pnpm dev                     # dev server on :5827
 pnpm build                   # production build (standalone output)
 pnpm start                   # run the built standalone (requires asset copies — see Dockerfile)
 pnpm test                    # vitest unit tests

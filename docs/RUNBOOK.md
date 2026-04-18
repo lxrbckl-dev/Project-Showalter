@@ -157,10 +157,10 @@ cp .env.example .env.local
 
 pnpm db:migrate    # runs drizzle migrations against the local SQLite file
 pnpm dev:seed      # seeds fake bookings, customers, reviews + pre-enrolled dev admin
-pnpm dev           # http://localhost:3000
+pnpm dev           # http://localhost:5827
 ```
 
-**Passkey enrollment on localhost.** WebAuthn spec explicitly allows `http://localhost` without TLS, so enrollment and login work out of the box on `http://localhost:3000`. No self-signed certs needed.
+**Passkey enrollment on localhost.** WebAuthn spec explicitly allows `http://localhost` without TLS, so enrollment and login work out of the box on `http://localhost:5827`. No self-signed certs needed.
 
 **Web Push on localhost.** Service workers register on `http://localhost` (spec exception for localhost). You can exercise the full push flow end-to-end in dev — subscribe a browser, fire a test push, see the notification.
 
