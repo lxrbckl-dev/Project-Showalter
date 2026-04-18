@@ -20,12 +20,12 @@ export type RelyingParty = {
 const RP_NAME = 'Showalter Services';
 
 export function getRelyingParty(): RelyingParty {
-  const raw = process.env.BASE_URL ?? 'http://localhost:3000';
+  const raw = process.env.BASE_URL ?? 'http://localhost:5827';
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
-    url = new URL('http://localhost:3000');
+    url = new URL('http://localhost:5827');
   }
   return {
     rpID: url.hostname,

@@ -971,7 +971,7 @@ Auth.js handles sessions and CSRF; the items below lock down the details that ma
 - **Session TTL: 30 days sliding.** Every authenticated request refreshes the expiry; an idle session auto-expires after 30 days.
 - **`/admin/login` rate limit.** 5 attempts per 10 minutes per IP, using the same middleware that throttles the public booking form. Exceeding the limit returns the same generic "couldn't sign in" message (see below) rather than a rate-limit-specific error.
 - **No admin-email enumeration.** Responses for unknown-email and wrong-credential login attempts are **byte-identical**: same status code, same body ("couldn't sign in — try again or use your recovery code"). Prevents an attacker from probing which emails are real admins.
-- **WebAuthn on localhost.** WebAuthn spec allows localhost without TLS, so `http://localhost:3000` "just works" for dev enrollment and login — no self-signed certs needed.
+- **WebAuthn on localhost.** WebAuthn spec allows localhost without TLS, so `http://localhost:5827` "just works" for dev enrollment and login — no self-signed certs needed.
 
 ## Out of scope for this document
 
