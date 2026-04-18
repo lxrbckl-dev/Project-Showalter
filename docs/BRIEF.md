@@ -9,6 +9,8 @@
 - **Email:** sshowalterservices@gmail.com
 - **TikTok:** [@showalterservices](https://www.tiktok.com/@showalterservices)
 
+**Build status:** Implementation complete. See [`docs/FEATURES.md`](./FEATURES.md) for a walkthrough and [`docs/RUNBOOK.md`](./RUNBOOK.md) §6a for deployment.
+
 ## Background / Context
 - Sawyer printed 250 door hangers with a QR code pointing to a Linktree.
 - The Linktree turned out to be a 7-day trial on an unsigned-in account, so the QR is now dead.
