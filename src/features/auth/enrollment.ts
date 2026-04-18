@@ -171,8 +171,14 @@ export async function finishEnrollment(
   const recoveryCode = await issueRecoveryCode(admin.id);
 
   // Establish the session so the recovery-code modal can dismiss into /admin.
+  // Record the just-registered credential_id so it shows up as "this device"
+  // in the devices-management UI and is invalidated cleanly if removed.
   try {
-    await signIn('webauthn', { email: normalized, redirect: false });
+    await signIn('webauthn', {
+      email: normalized,
+      redirect: false,
+      credentialId: cred.id,
+    });
   } catch (err) {
     logAuthFailure('signin_after_enroll_failed', {
       scope: 'enroll:finish',

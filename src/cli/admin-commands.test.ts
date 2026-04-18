@@ -39,6 +39,7 @@ function createTestDb(): TestDb {
       public_key TEXT NOT NULL,
       counter INTEGER NOT NULL DEFAULT 0,
       device_type TEXT,
+      label TEXT,
       created_at TEXT NOT NULL
     );
     CREATE TABLE recovery_codes (
