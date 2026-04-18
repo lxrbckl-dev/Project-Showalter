@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getDb } from '@/db';
 import { auth } from '@/features/auth/auth';
 import { decideBookingCore, type DecideResult } from './decide-core';
+import { invalidateLandingStatsCache } from '@/features/stats/queries';
 
 /**
  * Admin decide server actions — Phase 6.
@@ -40,6 +41,10 @@ function revalidateInbox(bookingId: number): void {
     revalidatePath('/admin/inbox');
     revalidatePath(`/admin/inbox/${bookingId}`);
     revalidatePath('/admin');
+    // Invalidate landing-page stats cache when booking status changes — the
+    // completed count and customers-served figures may have changed.
+    invalidateLandingStatsCache();
+    revalidatePath('/');
   } catch {
     // Non-request contexts (tests, CLI) — ignore.
   }

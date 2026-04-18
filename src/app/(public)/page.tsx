@@ -12,6 +12,7 @@ import { Services } from '@/components/public/Services';
 import { RepeatCTA } from '@/components/public/RepeatCTA';
 import { Contact } from '@/components/public/Contact';
 import { Footer } from '@/components/public/Footer';
+import { StatsBand } from '@/components/public/StatsBand';
 
 /**
  * Public landing page — server component.
@@ -92,7 +93,8 @@ export default function HomePage() {
       {/* 1. Hero */}
       <Hero siteConfig={config} />
 
-      {/* 2. Stats widget — Phase 11, skipped */}
+      {/* 2. Stats widget — Phase 11 */}
+      <StatsBand />
 
       {/* 3. About */}
       <About siteConfig={config} />
