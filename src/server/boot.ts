@@ -1,5 +1,6 @@
 import { migrate } from '@/db/migrate';
-import { resolveDatabasePath } from '@/db';
+import { getDb, resolveDatabasePath } from '@/db';
+import { reconcileAdmins } from '@/features/auth/reconcile';
 
 let booted = false;
 
@@ -8,6 +9,9 @@ let booted = false;
  * traffic is accepted. Runs DB migrations; on failure, logs to stderr and
  * exits the process with a non-zero code rather than serving a half-migrated
  * database.
+ *
+ * After migrations, reconciles the `admins` table against the
+ * `ADMIN_EMAILS` environment variable (comma-separated list of admin emails).
  *
  * Safe to call multiple times — subsequent calls are no-ops.
  */
@@ -42,5 +46,29 @@ export async function boot(): Promise<void> {
       }),
     );
     process.exit(1);
+  }
+
+  // Reconcile ADMIN_EMAILS after migrations complete.
+  try {
+    const raw = process.env.ADMIN_EMAILS ?? '';
+    const emailList = raw
+      .split(',')
+      .map((e) => e.trim())
+      .filter(Boolean);
+    const db = getDb() as Parameters<typeof reconcileAdmins>[0];
+    await reconcileAdmins(db, emailList);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // Non-fatal: a reconciliation failure should not prevent the server from
+    // starting. Log the error and continue.
+    // eslint-disable-next-line no-console
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        timestamp: new Date().toISOString(),
+        msg: 'boot: admin reconciliation failed',
+        error: message,
+      }),
+    );
   }
 }
