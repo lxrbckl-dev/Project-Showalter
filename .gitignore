@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Production data / runtime
+/data/
+dev.db
+dev.db-journal
+*.sqlite
+*.sqlite-journal
+*.db
+*.db-journal
+
+# Local env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.vitest-cache/
+playwright-report/
+test-results/
+playwright/.cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Misc
+*.tsbuildinfo
