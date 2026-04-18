@@ -8,6 +8,7 @@ import {
   getInboxQueue,
 } from '@/features/bookings/admin-queries';
 import { formatUSPhone } from '@/lib/formatters/phone';
+import { PushSubscribeButton } from '@/components/admin/PushSubscribeButton';
 
 /**
  * Admin dashboard — Phase 6.
@@ -37,6 +38,12 @@ export default async function AdminDashboardPage() {
     .all()[0];
   const tz = cfg?.timezone ?? 'America/Chicago';
 
+  // VAPID public key is passed down to the client subscribe button — it
+  // needs it to call pushManager.subscribe(). We keep the var server-only
+  // (no NEXT_PUBLIC_) so the private key's sibling never accidentally
+  // ships into the client bundle.
+  const vapidPublicKey = process.env.VAPID_PUBLIC_KEY ?? '';
+
   return (
     <div className="space-y-6">
       <section>
@@ -50,6 +57,10 @@ export default async function AdminDashboardPage() {
           </Link>
           .
         </p>
+      </section>
+
+      <section data-testid="push-subscribe-section">
+        <PushSubscribeButton vapidPublicKey={vapidPublicKey} />
       </section>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

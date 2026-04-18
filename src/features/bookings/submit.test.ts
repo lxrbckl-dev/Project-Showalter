@@ -159,7 +159,11 @@ describe('submitBookingCore', () => {
       generateToken: () => 'test-token-happy',
     });
 
-    expect(result).toEqual({ ok: true, token: 'test-token-happy' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.token).toBe('test-token-happy');
+    expect(typeof result.bookingId).toBe('number');
+    expect(result.serviceName).toBe('Mowing');
     const rows = db.select().from(bookings).all();
     expect(rows).toHaveLength(1);
     expect(rows[0].customerPhone).toBe('+19133097340');
@@ -193,7 +197,11 @@ describe('submitBookingCore', () => {
       uploader: noopUploader,
       generateToken: () => 'fake-honeypot-token',
     });
-    expect(result).toEqual({ ok: true, token: 'fake-honeypot-token' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.token).toBe('fake-honeypot-token');
+    // Honeypot path omits bookingId/serviceName — it never created a row.
+    expect(result.bookingId).toBeUndefined();
     expect(db.select().from(bookings).all()).toHaveLength(0);
     sqlite.close();
   });
@@ -283,7 +291,9 @@ describe('submitBookingCore', () => {
       uploader: noopUploader,
       generateToken: () => 'replacement',
     });
-    expect(second).toEqual({ ok: true, token: 'replacement' });
+    expect(second.ok).toBe(true);
+    if (!second.ok) throw new Error('expected ok');
+    expect(second.token).toBe('replacement');
     sqlite.close();
   });
 
@@ -298,7 +308,9 @@ describe('submitBookingCore', () => {
       uploader: noopUploader,
       generateToken: () => 'tok',
     });
-    expect(result).toEqual({ ok: true, token: 'tok' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.token).toBe('tok');
     sqlite.close();
   });
 
@@ -344,7 +356,9 @@ describe('submitBookingCore', () => {
       uploader: failingUploader,
       generateToken: () => 'survives',
     });
-    expect(result).toEqual({ ok: true, token: 'survives' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.token).toBe('survives');
     expect(db.select().from(bookings).all()).toHaveLength(1);
     sqlite.close();
   });
