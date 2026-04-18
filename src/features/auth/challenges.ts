@@ -21,7 +21,9 @@ type Entry = { challenge: string; expiresAt: number };
 
 const store = new Map<string, Entry>();
 
-function k(kind: 'enroll' | 'login', email: string): string {
+export type ChallengeKind = 'enroll' | 'login' | 'addDevice';
+
+function k(kind: ChallengeKind, email: string): string {
   return `${kind}:${email.toLowerCase()}`;
 }
 
@@ -32,7 +34,7 @@ function sweep(now: number): void {
 }
 
 export function saveChallenge(
-  kind: 'enroll' | 'login',
+  kind: ChallengeKind,
   email: string,
   challenge: string,
   now: number = Date.now(),
@@ -42,7 +44,7 @@ export function saveChallenge(
 }
 
 export function consumeChallenge(
-  kind: 'enroll' | 'login',
+  kind: ChallengeKind,
   email: string,
   now: number = Date.now(),
 ): string | null {

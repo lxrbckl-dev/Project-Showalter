@@ -54,6 +54,15 @@ export const sessions = sqliteTable('session', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   expires: integer('expires', { mode: 'timestamp_ms' }).notNull(),
+  /**
+   * Which passkey was used to establish this session. Nullable because
+   * pre-0011 session rows have no associated credential. Added in migration
+   * 0011 so the devices-management feature can identify "this device" and,
+   * more importantly, invalidate exactly-the-right sessions when a credential
+   * is removed. Stores the WebAuthn `credential_id` (base64url), matching
+   * `credentials.credential_id`.
+   */
+  credentialId: text('credentialId'),
 });
 
 export const verificationTokens = sqliteTable(

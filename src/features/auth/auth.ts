@@ -46,6 +46,12 @@ export type AuthSession = {
     email: string;
     name?: string | null;
   };
+  /**
+   * WebAuthn credential_id (base64url) that was used to establish this
+   * session, if known. Pre-0011 sessions, and server-side session creations
+   * that didn't pass a credentialId, have this field as null.
+   */
+  credentialId: string | null;
   expires: Date;
 };
 
@@ -115,6 +121,7 @@ export async function auth(): Promise<AuthSession | null> {
 
   return {
     user: { id: user.id, email: user.email ?? '', name: user.name },
+    credentialId: row.credentialId ?? null,
     expires: new Date(expiresAt),
   };
 }
@@ -122,12 +129,18 @@ export async function auth(): Promise<AuthSession | null> {
 /**
  * Auth.js-compatible `signIn` shim. Only supports our `webauthn` "provider"
  * name for parity with the original config. Creates the session row + sets
- * the cookie. Called from `finishLogin` AND `finishEnrollment` after a
- * successful WebAuthn verification.
+ * the cookie. Called from `finishLogin` AND `finishEnrollment` (and
+ * `finishAddDevice`) after a successful WebAuthn verification.
+ *
+ * The optional `credentialId` records which passkey was used to establish
+ * this session. Populating it enables two features:
+ *   - identifying the "current device" row in the devices management UI
+ *   - targeted session invalidation when a credential is removed (see
+ *     `removeDevice` in `devices.ts`)
  */
 export async function signIn(
   _provider: 'webauthn',
-  opts: { email: string; redirect?: boolean },
+  opts: { email: string; redirect?: boolean; credentialId?: string },
 ): Promise<{ ok: true }> {
   const email = opts.email.toLowerCase();
   const user = getOrCreateUserByEmail(email);
@@ -136,7 +149,12 @@ export async function signIn(
 
   getDb()
     .insert(sessions)
-    .values({ sessionToken: token, userId: user.id, expires })
+    .values({
+      sessionToken: token,
+      userId: user.id,
+      expires,
+      credentialId: opts.credentialId ?? null,
+    })
     .run();
 
   const jar = await cookies();

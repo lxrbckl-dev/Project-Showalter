@@ -134,9 +134,15 @@ export async function finishLogin(
     .where(eq(credentials.id, credRow.id))
     .run();
 
-  // Establish a DB-backed session.
+  // Establish a DB-backed session, recording which credential was used so
+  // the devices-management feature can identify "this device" and invalidate
+  // this session cleanly if the credential is later removed.
   try {
-    await signIn('webauthn', { email: normalized, redirect: false });
+    await signIn('webauthn', {
+      email: normalized,
+      redirect: false,
+      credentialId: credRow.credentialId,
+    });
   } catch (err) {
     logAuthFailure('signin_failed', {
       scope: 'login:finish',

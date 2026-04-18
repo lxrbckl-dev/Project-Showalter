@@ -13,6 +13,12 @@ export const credentials = sqliteTable('credentials', {
   publicKey: text('public_key').notNull(),
   counter: integer('counter').notNull().default(0),
   deviceType: text('device_type'),
+  /**
+   * Human-friendly device label, e.g. "iPhone 15" or "Work laptop". Set by
+   * the admin during add-device / rename flows; falls back to `deviceType`
+   * in the UI when null. Added in migration 0011.
+   */
+  label: text('label'),
   createdAt: text('created_at').notNull(),
 });
 
