@@ -17,7 +17,7 @@ test('GET /robots.txt returns valid robots output', async ({ request }) => {
   expect(contentType).toMatch(/text\/plain/);
 
   const body = await response.text();
-  expect(body).toContain('User-agent: *');
+  expect(body).toMatch(/User-[Aa]gent: \*/); // Next.js renders "User-Agent" (capital A)
   expect(body).toContain('Allow: /');
   expect(body).toMatch(/Sitemap:/);
   expect(body).toContain('sitemap.xml');
