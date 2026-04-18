@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { href: '/admin/schedule', label: 'Schedule' },
   { href: '/admin/services', label: 'Services' },
   { href: '/admin/content', label: 'Content' },
+  { href: '/admin/gallery', label: 'Gallery' },
   { href: '/admin/index-book', label: 'Index Book' },
   { href: '/admin/reviews', label: 'Reviews' },
   { href: '/admin/settings', label: 'Settings' },

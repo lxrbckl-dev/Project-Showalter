@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getDb } from '@/db';
 import { siteConfig } from '@/db/schema/site-config';
+import { upload } from '@/features/uploads/upload';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -261,6 +262,58 @@ export async function updateSettings(
 
   const db = getDb();
   db.update(siteConfig).set(parsed.data).run();
+  revalidatePath('/');
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Hero image tab (Phase 3C)
+// ---------------------------------------------------------------------------
+
+export type HeroActionResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/**
+ * Upload a new hero image. Validates, strips EXIF, writes to
+ * /data/uploads/site/hero/<uuid>.jpg, and updates site_config.hero_image_path.
+ *
+ * The previous hero file is NOT deleted from disk (no hard deletions).
+ */
+export async function uploadHeroImage(
+  _prev: HeroActionResult,
+  data: FormData,
+): Promise<HeroActionResult> {
+  const file = data.get('file');
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: 'No file provided.' };
+  }
+
+  let result: Awaited<ReturnType<typeof upload>>;
+  try {
+    result = await upload(file, { subdir: 'site/hero', maxBytes: 10_485_760 });
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Upload failed.' };
+  }
+
+  const db = getDb();
+  db.update(siteConfig).set({ heroImagePath: `/uploads/${result.filePath}` }).run();
+  revalidatePath('/');
+  return { ok: true };
+}
+
+/**
+ * Remove the current hero image. Sets hero_image_path = NULL in site_config.
+ * The file is kept on disk (no hard deletions).
+ */
+export async function removeHeroImage(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _prev: HeroActionResult,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _data: FormData,
+): Promise<HeroActionResult> {
+  const db = getDb();
+  db.update(siteConfig).set({ heroImagePath: null }).run();
   revalidatePath('/');
   return { ok: true };
 }
