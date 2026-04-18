@@ -87,7 +87,8 @@ docker exec showalter sqlite3 /data/sqlite.db \
 **Admin dashboard widget.** The admin home view surfaces last-run timestamp + status per task by reading the same table — no need to SSH for a glance.
 
 **Expected cadence:**
-- `reminders_sweep` — every 15 minutes
+- `reminders_sweep` — every 15 minutes (24h/48h pending-booking reminders)
+- `auto_expire_sweep` — every 15 minutes (72h auto-expire of pending bookings)
 - `nightly_backup` — once at 03:00 local time
 - `photo_cleanup` — once at 03:00 local time (runs alongside `nightly_backup`)
 

@@ -35,3 +35,4 @@ export * from './bookings';
 export * from './booking-attachments';
 export * from './notifications';
 export * from './push-subscriptions';
+export * from './cron-runs';
