@@ -10,6 +10,7 @@ For intent, design, and operations see:
 - [BRIEF.md](./docs/BRIEF.md) — project brief (client, scope, design direction)
 - [STACK.md](./docs/STACK.md) — tech stack, data model, flows
 - [PHASES.md](./docs/PHASES.md) — phased delivery plan (lands alongside Phase 0)
+- [ARCHITECTURE.md](./docs/ARCHITECTURE.md) — file-structure conventions + per-directory intent
 - [RUNBOOK.md](./docs/RUNBOOK.md) — operations / deploy / backup / recovery
 
 ## Quickstart

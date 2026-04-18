@@ -10,7 +10,7 @@ function resolveDbPath(): string {
 }
 
 export default {
-  schema: './src/db/schema.ts',
+  schema: './src/db/schema/index.ts',
   out: './drizzle',
   dialect: 'sqlite',
   dbCredentials: {
