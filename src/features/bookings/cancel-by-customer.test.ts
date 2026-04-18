@@ -27,14 +27,16 @@ function makeDb(): { sqlite: Database.Database; db: Db } {
       customer_phone TEXT NOT NULL, customer_email TEXT,
       service_id INTEGER NOT NULL, start_at TEXT NOT NULL,
       notes TEXT, status TEXT NOT NULL,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL, decided_at TEXT
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL, decided_at TEXT,
+      rescheduled_to_id INTEGER
     );
     CREATE UNIQUE INDEX bookings_active_start
       ON bookings(start_at) WHERE status IN ('pending', 'accepted');
     CREATE TABLE notifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
       kind TEXT NOT NULL, payload_json TEXT NOT NULL,
-      read INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+      read INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+      booking_id INTEGER
     );
   `);
   const db = drizzle(sqlite, { schema }) as Db;

@@ -73,6 +73,9 @@ export function cancelByCustomerCore(
     tx.insert(notifications)
       .values({
         kind: 'booking_canceled_by_customer',
+        // Promoted in 0007_admin_mgmt.sql — kept in payload as well for
+        // backwards compatibility with older rows that predate the column.
+        bookingId: row.id,
         payloadJson: JSON.stringify({
           bookingId: row.id,
           token: row.token,

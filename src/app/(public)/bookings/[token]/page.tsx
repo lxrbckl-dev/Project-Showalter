@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
+import { bookings } from '@/db/schema/bookings';
 import { siteConfig as siteConfigTable } from '@/db/schema/site-config';
 import { getBookingByToken } from '@/features/bookings/queries';
 import { formatUSPhone } from '@/lib/formatters/phone';
@@ -99,6 +101,23 @@ export default async function BookingPage({
 
   const copy = STATUS_COPY[booking.status];
 
+  // Reschedule forward pointer — Phase 6.
+  // If this booking was canceled via the reschedule flow, show a banner linking
+  // to the replacement `/bookings/<new-token>`. Populated by the admin
+  // reschedule server action; stays NULL for plain cancellations.
+  let rescheduledTo:
+    | { token: string; startAt: string }
+    | null = null;
+  if (booking.rescheduledToId) {
+    const next = db
+      .select({ token: bookings.token, startAt: bookings.startAt })
+      .from(bookings)
+      .where(eq(bookings.id, booking.rescheduledToId))
+      .limit(1)
+      .all()[0];
+    if (next) rescheduledTo = next;
+  }
+
   return (
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-2xl px-6 py-12">
@@ -107,6 +126,28 @@ export default async function BookingPage({
             &larr; Showalter Services
           </Link>
         </div>
+
+        {rescheduledTo && (
+          <div
+            data-testid="rescheduled-to"
+            className="mb-6 rounded-lg border border-yellow-700 bg-yellow-950/40 p-6"
+          >
+            <h2 className="mb-2 text-lg font-semibold text-yellow-100">
+              This appointment was rescheduled
+            </h2>
+            <p className="text-yellow-200">
+              Your updated confirmation is at{' '}
+              <Link
+                href={`/bookings/${rescheduledTo.token}`}
+                className="underline"
+                data-testid="rescheduled-to-link"
+              >
+                {formatStartAt(rescheduledTo.startAt, tz)}
+              </Link>
+              . See your updated confirmation.
+            </p>
+          </div>
+        )}
 
         <div
           data-testid="booking-status"
