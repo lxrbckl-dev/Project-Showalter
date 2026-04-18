@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
   // instrumentation.ts is loaded automatically in Next.js 15 — no flag needed.
   // Location: `src/instrumentation.ts` (required when using the `src/` layout;
   // the repo-root location is silently skipped in standalone output).
+  // Disable the floating dev-tools indicator in the bottom-left corner.
+  devIndicators: false,
 };
 
 export default nextConfig;
