@@ -18,7 +18,10 @@ import {
   type ConfirmationHref,
 } from './_components/ConfirmationButtons';
 import { RescheduleControls } from './_components/RescheduleControls';
+import { ReviewRequestControls } from './_components/ReviewRequestControls';
 import { bookings } from '@/db/schema/bookings';
+import { findPendingReviewForBooking } from '@/features/reviews/queries';
+import { composeReviewRequest } from '@/features/reviews/compose';
 
 /**
  * Admin booking detail page — Phase 6.
@@ -86,6 +89,51 @@ export default async function AdminBookingDetailPage({
     .all();
 
   const actions = availableAdminActions(row.status, row.startAt);
+
+  // Phase 9: for completed bookings, surface the "Request review" flow. If a
+  // pending review already exists we render direct mailto/sms buttons (built
+  // from the shared template helper); otherwise the control below generates
+  // a new review row on click and then the page re-renders into the
+  // mailto/sms branch on next pass.
+  let pendingReviewId: number | null = null;
+  let pendingReviewToken: string | null = null;
+  const reviewHrefs: ConfirmationHref[] = [];
+  if (row.status === 'completed') {
+    const existing = findPendingReviewForBooking(db, row.id);
+    if (existing) {
+      pendingReviewId = existing.id;
+      pendingReviewToken = existing.token;
+
+      const emailCompose = composeReviewRequest(existing.id, 'review_request_email');
+      if (emailCompose.ok && emailCompose.email) {
+        reviewHrefs.push({
+          label: 'Send email review request',
+          href: emailCompose.email.href,
+          kind: 'email',
+          testid: 'send-review-email',
+        });
+      } else if (!emailCompose.ok && emailCompose.reason === 'missing_email') {
+        reviewHrefs.push({
+          label: 'Send email review request',
+          href: '#',
+          kind: 'email',
+          testid: 'send-review-email',
+          disabled: true,
+          disabledReason: 'No email on file for this customer',
+        });
+      }
+
+      const smsCompose = composeReviewRequest(existing.id, 'review_request_sms');
+      if (smsCompose.ok && smsCompose.sms) {
+        reviewHrefs.push({
+          label: 'Send text review request',
+          href: smsCompose.sms.href,
+          kind: 'sms',
+          testid: 'send-review-sms',
+        });
+      }
+    }
+  }
 
   // Phase 7: mailto/sms confirmation buttons. Only shown when the booking is
   // accepted or declined — these are the two states where Sawyer has a
@@ -291,6 +339,52 @@ export default async function AdminBookingDetailPage({
             Tap send.
           </p>
           <ConfirmationButtons hrefs={confirmationHrefs} />
+        </section>
+      )}
+
+      {row.status === 'completed' && (
+        <section
+          className="space-y-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6"
+          data-testid="detail-review-request"
+          data-has-pending={pendingReviewId !== null}
+        >
+          <h2 className="text-lg font-semibold">Request review</h2>
+          {pendingReviewId && pendingReviewToken ? (
+            <>
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                A review request was generated. Tap below to open your mail
+                or messages app with the body prefilled, then tap send.
+              </p>
+              {reviewHrefs.length > 0 ? (
+                <ConfirmationButtons hrefs={reviewHrefs} />
+              ) : (
+                <p className="text-sm text-red-300">
+                  No email or phone on file for this customer — share the
+                  link manually:{' '}
+                  <code className="rounded bg-[hsl(var(--muted))] px-1 py-0.5">
+                    /review/{pendingReviewToken}
+                  </code>
+                </p>
+              )}
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Link:{' '}
+                <Link
+                  href={`/review/${pendingReviewToken}`}
+                  className="underline"
+                  data-testid="review-link"
+                >
+                  /review/{pendingReviewToken}
+                </Link>
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                Generate a tokenized review link for this completed booking.
+              </p>
+              <ReviewRequestControls bookingId={row.id} />
+            </>
+          )}
         </section>
       )}
 

@@ -8,6 +8,7 @@ import {
 } from '@/features/bookings/admin-queries';
 import { Badge } from '@/components/ui/badge';
 import { formatUSPhone } from '@/lib/formatters/phone';
+import { StandaloneReviewWidget } from './_components/StandaloneReviewWidget';
 
 /**
  * Admin inbox — Phase 6.
@@ -88,7 +89,10 @@ export default async function AdminInboxPage({
       </header>
 
       {view === 'queue' ? (
-        <QueueView tz={tz} />
+        <>
+          <StandaloneReviewWidget />
+          <QueueView tz={tz} />
+        </>
       ) : (
         <HistoryView tz={tz} page={page} />
       )}
