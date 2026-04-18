@@ -20,7 +20,11 @@ export function Footer({ siteConfig }: FooterProps) {
     <footer className="border-t border-gray-200 bg-gray-50 px-6 py-8 text-center text-sm text-gray-500">
       {smsHref && (
         <p className="mb-3">
-          <a href={smsHref} className="text-green-700 underline hover:text-green-600">
+          <a
+            href={smsHref}
+            className="text-green-700 underline hover:text-green-600"
+            data-umami-event="text_sawyer_click"
+          >
             Have a question? Text Sawyer directly →
           </a>
         </p>

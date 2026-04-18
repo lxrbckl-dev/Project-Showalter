@@ -199,7 +199,80 @@ Do the same for Umami (`ghcr.io/umami-software/umami:postgresql-latest`) — its
 
 ---
 
-## 7. Accessibility test checklist
+## 7. Setting up Umami (one-time)
+
+Umami runs as two containers (`umami` and `umami-db`) alongside the main `showalter` container. Perform this setup once on a fresh homelab deploy.
+
+**Prerequisites.** Fill in the three Umami secrets in `/srv/showalter/.env` before bringing the containers up:
+
+```bash
+# Generate strong secrets — one per command, paste each into .env
+openssl rand -base64 32   # → UMAMI_APP_SECRET
+openssl rand -base64 32   # → UMAMI_DB_PASSWORD
+
+# UMAMI_DATABASE_URL format (use the same password as UMAMI_DB_PASSWORD):
+# postgresql://umami:<UMAMI_DB_PASSWORD>@umami-db:5432/umami
+```
+
+**Steps:**
+
+1. Bring up the Umami containers:
+
+   ```bash
+   cd /srv/showalter
+   docker compose up -d umami-db umami
+   ```
+
+   Wait ~10 seconds for the DB to initialise, then verify:
+
+   ```bash
+   docker logs umami --tail 50
+   # should show "server started on port 3000" (or similar)
+   ```
+
+2. Visit `https://analytics.showalter.business` in your browser.
+   - Log in with the default credentials: **username** `admin`, **password** `umami`.
+   - **Change the password immediately** (Settings → Profile → Change password).
+
+3. Add a website entry in Umami:
+   - Settings → Websites → Add website.
+   - Name: `Showalter Services`, domain: `showalter.business`.
+   - Copy the generated **Website ID**.
+
+4. Set the tracking vars in `/srv/showalter/.env`:
+
+   ```bash
+   NEXT_PUBLIC_UMAMI_SRC=https://analytics.showalter.business/script.js
+   NEXT_PUBLIC_UMAMI_WEBSITE_ID=<paste website ID here>
+   ```
+
+5. Rebuild and redeploy the main app so it picks up the new env vars:
+
+   ```bash
+   docker compose pull showalter
+   docker compose up -d showalter
+   ```
+
+6. Verify tracking is working:
+   - Open `https://showalter.business` in a private/incognito window.
+   - Return to `https://analytics.showalter.business` → the dashboard should record the page view within a few seconds.
+
+**Caddyfile block for `analytics.showalter.business`.** Add this block to the homelab Caddyfile alongside the existing `showalter.business` block:
+
+```caddy
+analytics.showalter.business {
+    encode zstd gzip
+    reverse_proxy localhost:3001
+}
+```
+
+Reload Caddy after saving: `caddy reload --config /etc/caddy/Caddyfile` (or `systemctl reload caddy`).
+
+**Umami is non-critical.** If Umami or `umami-db` goes down, the main site is unaffected. See section 9 (Incident response) for restart steps.
+
+---
+
+## 9. Accessibility test checklist
 
 Target: WCAG 2.1 AA on a best-effort basis. Every PR that touches public or admin UI runs the automated pass; manual passes happen on release candidates.
 
@@ -222,7 +295,7 @@ Ship blockers: any Level-A failure, or any Level-AA failure on the booking form 
 
 ---
 
-## 8. Incident response
+## 9. Incident response
 
 A short decision tree for the most-likely failure modes.
 
