@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import './globals.css';
 
@@ -7,6 +7,12 @@ const BASE_URL = process.env.BASE_URL ?? 'https://showalter.business';
 const SITE_TITLE = 'Showalter Services — Lawn Care in Kansas City';
 const SITE_DESCRIPTION =
   'Showalter Services offers affordable lawn care, trash can cleaning, and snow removal in Kansas City. Run by a local teen entrepreneur.';
+
+export const viewport: Viewport = {
+  themeColor: '#0F3D2E',
+  width: 'device-width',
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
