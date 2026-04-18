@@ -1,6 +1,7 @@
 import { migrate } from '@/db/migrate';
 import { getDb, resolveDatabasePath } from '@/db';
 import { reconcileAdmins } from '@/features/auth/reconcile';
+import { seedFromBrief } from '@/features/site-config/seed';
 
 let booted = false;
 
@@ -32,6 +33,10 @@ export async function boot(): Promise<void> {
         skipped,
       }),
     );
+
+    // Overlay Sawyer's personal data from the brief when the env flag is set.
+    // Idempotent: guards on phone IS NULL and empty services table.
+    seedFromBrief(getDb());
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : undefined;

@@ -6,7 +6,8 @@
  * One file per domain, added as phases land:
  *   Phase 0: site-config.ts
  *   Phase 1: admins.ts, credentials.ts, recovery-codes.ts
- *   Phase 3: services.ts, site-photos.ts, uploads.ts
+ *   Phase 2: services.ts
+ *   Phase 3: site-photos.ts, uploads.ts
  *   Phase 4: availability.ts
  *   Phase 5: customers.ts, bookings.ts, booking-attachments.ts
  *   Phase 6: notifications.ts
@@ -24,3 +25,4 @@ export * from './site-config';
 export * from './admins';
 export * from './credentials';
 export * from './recovery-codes';
+export * from './services';
