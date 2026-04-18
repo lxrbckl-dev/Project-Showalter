@@ -6,9 +6,17 @@ import { bookingAttachments } from '@/db/schema/booking-attachments';
 import { siteConfig as siteConfigTable } from '@/db/schema/site-config';
 import { getAdminBookingById } from '@/features/bookings/admin-queries';
 import { availableAdminActions } from '@/features/bookings/state';
+import {
+  composeConfirmationForBooking,
+  type ConfirmationTemplateKind,
+} from '@/features/confirmations/compose';
 import { formatUSPhone } from '@/lib/formatters/phone';
 import { Badge } from '@/components/ui/badge';
 import { BookingDecideControls } from './_components/BookingDecideControls';
+import {
+  ConfirmationButtons,
+  type ConfirmationHref,
+} from './_components/ConfirmationButtons';
 import { RescheduleControls } from './_components/RescheduleControls';
 import { bookings } from '@/db/schema/bookings';
 
@@ -78,6 +86,80 @@ export default async function AdminBookingDetailPage({
     .all();
 
   const actions = availableAdminActions(row.status, row.startAt);
+
+  // Phase 7: mailto/sms confirmation buttons. Only shown when the booking is
+  // accepted or declined — these are the two states where Sawyer has a
+  // pre-canned message to send the customer.
+  const confirmationHrefs: ConfirmationHref[] = [];
+  let confirmationSection: 'accepted' | 'declined' | null = null;
+  if (row.status === 'accepted') confirmationSection = 'accepted';
+  else if (row.status === 'declined') confirmationSection = 'declined';
+
+  if (confirmationSection) {
+    const kinds: Array<{
+      kind: ConfirmationTemplateKind;
+      label: string;
+      channel: 'email' | 'sms';
+      testid: string;
+    }> =
+      confirmationSection === 'accepted'
+        ? [
+            {
+              kind: 'confirmation_email',
+              label: 'Send email confirmation',
+              channel: 'email',
+              testid: 'send-confirmation-email',
+            },
+            {
+              kind: 'confirmation_sms',
+              label: 'Send text confirmation',
+              channel: 'sms',
+              testid: 'send-confirmation-sms',
+            },
+          ]
+        : [
+            {
+              kind: 'decline_email',
+              label: 'Send email decline',
+              channel: 'email',
+              testid: 'send-decline-email',
+            },
+            {
+              kind: 'decline_sms',
+              label: 'Send text decline',
+              channel: 'sms',
+              testid: 'send-decline-sms',
+            },
+          ];
+
+    for (const entry of kinds) {
+      const result = composeConfirmationForBooking(row.id, entry.kind);
+      if (result.ok) {
+        const href =
+          entry.channel === 'email' ? result.email?.href : result.sms?.href;
+        if (href) {
+          confirmationHrefs.push({
+            label: entry.label,
+            href,
+            kind: entry.channel,
+            testid: entry.testid,
+          });
+        }
+      } else if (
+        entry.channel === 'email' &&
+        result.reason === 'missing_email'
+      ) {
+        confirmationHrefs.push({
+          label: entry.label,
+          href: '#',
+          kind: 'email',
+          testid: entry.testid,
+          disabled: true,
+          disabledReason: 'No email on file for this customer',
+        });
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -190,6 +272,25 @@ export default async function AdminBookingDetailPage({
               </a>
             ))}
           </div>
+        </section>
+      )}
+
+      {confirmationSection && confirmationHrefs.length > 0 && (
+        <section
+          className="space-y-3"
+          data-testid="detail-confirmations"
+          data-confirmation-kind={confirmationSection}
+        >
+          <h2 className="text-lg font-semibold">
+            {confirmationSection === 'accepted'
+              ? 'Send confirmation'
+              : 'Send decline'}
+          </h2>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            Opens your native mail/messages app with the body pre-filled.
+            Tap send.
+          </p>
+          <ConfirmationButtons hrefs={confirmationHrefs} />
         </section>
       )}
 
