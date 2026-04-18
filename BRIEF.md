@@ -91,7 +91,6 @@ Hi [name], this is Sawyer — you're confirmed for [service] on [date] at [time]
 - [ ] Receive hi-res logo file from Sawyer (vector preferred: SVG / AI / PDF — otherwise highest-res PNG possible)
 - [ ] Sample exact dark-green hex from the logo once received
 - [ ] Receive lawn-stripe photos from Sawyer for the hero / site imagery
-- [ ] Receive 2–3 repeat-client testimonials from Sawyer
 - [ ] Confirm snow-removal pricing
 
 ## Scope and Approach
@@ -101,8 +100,19 @@ The site is a self-hosted full-stack web app at `showalter.business`. It has two
 ### Public site
 - Single long-scroll landing page (no separate `/services` route — all content is on `/`)
 - Landing page with a prominent **Request service** CTA
-- Bio, price table, TikTok link, email link, hero photo, (later) testimonials
+- Bio, price table, TikTok link, email link, hero photo, photo gallery, landing stats band
 - Sawyer's phone number (913-309-7340), email, and TikTok are displayed openly in a Contact section on the page — the buried "Text Sawyer directly" fallback link remains separately at the very bottom
+
+#### Landing-page section order (top → bottom)
+
+1. **Hero** — photo + "15-year-old entrepreneur" tagline + primary **Request service** CTA
+2. **Landing stats band** — aggregate only (avg rating + review count, total completed jobs, distinct customers served, years in business); hidden until `min_reviews_for_landing_stats` is met — see STACK.md
+3. **About / bio**
+4. **Photo gallery** — admin-uploaded photos plus photos auto-promoted from top reviews
+5. **Services + price table**
+6. **Request service** — repeat CTA
+7. **Contact** — phone (plain text), email, TikTok
+8. **Footer** — includes the buried "Text Sawyer directly" fallback link
 - Booking flow when "Request service" is tapped:
   1. Customer picks a day from the visible booking horizon (admin-configurable, default 4 weeks)
   2. Customer sees Sawyer's **open windows** for that day and picks an **ideal start time** within one of them (30-minute granularity by default, admin-configurable)
@@ -138,7 +148,14 @@ Admin-editable areas:
 - **Per-date overrides** (override the template for specific dates — open with custom windows, or close entirely)
 - **Booking horizon** (how many weeks ahead customers can book, e.g. 4)
 - **Bookings inbox** — review submitted requests, accept or decline, send confirmations via `mailto:` / `sms:` buttons
-- **Testimonials** — moderate / add / hide
+- **Needs attention queue** — dashboard surface listing accepted bookings whose `start_at` has passed; Sawyer marks each `completed` or `no_show`
+- **Admin-initiated bookings** — Sawyer creates a booking manually for walk-in or phone-call requests; status starts at `accepted`; advance-notice and spacing rules are soft warnings only
+- **Reschedule** — cancel-old + create-new; old booking page renders a "rescheduled to …" message
+- **INDEX book** — master customer directory (customers + customer_addresses) with address history, bookings, reviews, photos; admin notes per customer
+- **Reviews moderation + generation** — moderate reviews, generate review-request links from a completed booking OR standalone from a customer's INDEX page
+- **Photo gallery** — landing-page photos: upload, reorder, soft-archive, source tracking (admin-uploaded vs auto-promoted from top reviews)
+- **Message templates** — six editable templates (confirmation email/SMS, decline email/SMS, review-request email/SMS) with variable interpolation
+- **Settings** — timezone, business-founded year, landing stats toggle + threshold, review auto-publish rules, photo caps, retention, horizon
 - **Hero image upload**
 
 ### Notifications
