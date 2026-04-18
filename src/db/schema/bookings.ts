@@ -71,6 +71,12 @@ export const bookings = sqliteTable(
     updatedAt: text('updated_at').notNull(),
     /** Set when status transitions to accepted / declined / canceled / completed / no_show. */
     decidedAt: text('decided_at'),
+    /**
+     * When this booking was canceled via the reschedule flow, this points at
+     * the `bookings.id` of its replacement. Nullable (vast majority of bookings
+     * are not reschedules). Added in 0007_admin_mgmt.sql.
+     */
+    rescheduledToId: integer('rescheduled_to_id'),
   },
   (table) => ({
     statusStartIdx: index('bookings_status_start_idx').on(
@@ -78,6 +84,9 @@ export const bookings = sqliteTable(
       table.startAt,
     ),
     customerIdx: index('bookings_customer_idx').on(table.customerId),
+    rescheduledToIdx: index('bookings_rescheduled_to_idx').on(
+      table.rescheduledToId,
+    ),
   }),
 );
 

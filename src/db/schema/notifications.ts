@@ -23,12 +23,20 @@ export const notifications = sqliteTable(
     /** 0 = unread, 1 = read. */
     read: integer('read').notNull().default(0),
     createdAt: text('created_at').notNull(),
+    /**
+     * Optional FK → `bookings.id`. Promoted from the Phase 5 `payload_json`
+     * blob in migration 0007 so the admin inbox can JOIN / filter by booking
+     * without parsing JSON per row. Nullable — general-purpose notifications
+     * (cron failures, etc.) don't have to reference a booking.
+     */
+    bookingId: integer('booking_id'),
   },
   (table) => ({
     readCreatedIdx: index('notifications_read_created_idx').on(
       table.read,
       table.createdAt,
     ),
+    bookingIdx: index('notifications_booking_idx').on(table.bookingId),
   }),
 );
 

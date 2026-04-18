@@ -1,42 +1,143 @@
+import Link from 'next/link';
+import { auth } from '@/features/auth/auth';
+import { getDb } from '@/db';
+import { siteConfig as siteConfigTable } from '@/db/schema/site-config';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  getHeaderStats,
+  getInboxQueue,
+} from '@/features/bookings/admin-queries';
+import { formatUSPhone } from '@/lib/formatters/phone';
+
 /**
- * Admin dashboard — minimal Phase 1B landing after auth.
+ * Admin dashboard — Phase 6.
  *
- * Real dashboard content (Needs-attention queue, cron health, etc.) lands
- * in Phase 6.
+ * Now that the Phase 6 surface is live, the dashboard shows the two "needs
+ * eyes now" queues directly:
+ *   - Pending count + list header link
+ *   - Needs-attention list (confirmed-in-the-past) with inline action links
+ *
+ * Header stats (pending + confirmed-this-week) are rendered in the shell
+ * layout; we don't duplicate them here.
  */
 
-import { auth } from '@/features/auth/auth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
-  // `auth()` is already enforced by the layout, but we re-read so the page
-  // has a typed email for the welcome line without prop-drilling.
   const session = await auth();
   const email = session?.user.email ?? '';
+
+  const db = getDb();
+  const stats = getHeaderStats(db);
+  const queue = getInboxQueue(db);
+  const cfg = db
+    .select({ timezone: siteConfigTable.timezone })
+    .from(siteConfigTable)
+    .limit(1)
+    .all()[0];
+  const tz = cfg?.timezone ?? 'America/Chicago';
 
   return (
     <div className="space-y-6">
       <section>
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome, {email}.</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Welcome, {email}.
+        </h1>
         <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-          Your admin dashboard. The rest of this surface fills in over
-          subsequent phases.
+          Quick look at what needs your attention. Full inbox is under{' '}
+          <Link href="/admin/inbox" className="underline">
+            Inbox
+          </Link>
+          .
         </p>
       </section>
 
-      <Card className="max-w-sm">
-        <CardHeader>
-          <CardTitle>Pending bookings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-semibold" data-testid="pending-count">
-            0
-          </div>
-          <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-            Real data wires up in Phase 5.
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Pending bookings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              className="text-3xl font-semibold"
+              data-testid="pending-count"
+            >
+              {stats.pending}
+            </div>
+            <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+              <Link href="/admin/inbox" className="underline">
+                Open inbox →
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Confirmed this week</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              className="text-3xl font-semibold"
+              data-testid="confirmed-week-count"
+            >
+              {stats.confirmedThisWeek}
+            </div>
+            <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+              Next 7 days
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">
+          Needs attention ({queue.needsAttention.length})
+        </h2>
+        <p className="mb-3 text-xs text-[hsl(var(--muted-foreground))]">
+          Confirmed bookings whose start time has passed — close them out.
+        </p>
+        {queue.needsAttention.length === 0 ? (
+          <p className="rounded-md border border-dashed border-[hsl(var(--border))] p-4 text-sm text-[hsl(var(--muted-foreground))]">
+            Nothing waiting to be closed out.
           </p>
-        </CardContent>
-      </Card>
+        ) : (
+          <ul className="divide-y divide-[hsl(var(--border))] rounded-md border border-[hsl(var(--border))]">
+            {queue.needsAttention.map((b) => (
+              <li key={b.id}>
+                <Link
+                  href={`/admin/inbox/${b.id}`}
+                  className="flex items-center justify-between px-4 py-3 text-sm hover:bg-[hsl(var(--accent))]"
+                  data-testid={`dashboard-needs-attention-${b.id}`}
+                >
+                  <div>
+                    <div className="font-medium">{b.customerName}</div>
+                    <div className="text-xs text-[hsl(var(--muted-foreground))]">
+                      {formatUSPhone(b.customerPhone)} ·{' '}
+                      {b.serviceName ?? 'Service'} ·{' '}
+                      {formatStartAt(b.startAt, tz)}
+                    </div>
+                  </div>
+                  <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                    Close out →
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
+}
+
+function formatStartAt(iso: string, tz: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(iso));
 }
