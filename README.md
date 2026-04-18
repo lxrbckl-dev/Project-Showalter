@@ -7,10 +7,10 @@ console, backed by SQLite on a host volume.
 
 For intent, design, and operations see:
 
-- [BRIEF.md](./BRIEF.md) — project brief (client, scope, design direction)
-- [STACK.md](./STACK.md) — tech stack, data model, flows
-- PHASES.md — phased delivery plan (lands alongside Phase 0)
-- [RUNBOOK.md](./RUNBOOK.md) — operations / deploy / backup / recovery
+- [BRIEF.md](./docs/BRIEF.md) — project brief (client, scope, design direction)
+- [STACK.md](./docs/STACK.md) — tech stack, data model, flows
+- [PHASES.md](./docs/PHASES.md) — phased delivery plan (lands alongside Phase 0)
+- [RUNBOOK.md](./docs/RUNBOOK.md) — operations / deploy / backup / recovery
 
 ## Quickstart
 
