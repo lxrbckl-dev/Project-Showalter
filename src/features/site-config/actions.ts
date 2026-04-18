@@ -76,6 +76,34 @@ function fieldErrors(err: z.ZodError): Record<string, string[]> {
 // Contact tab
 // ---------------------------------------------------------------------------
 
+// ISO-8601 calendar date (YYYY-MM-DD). Used for Sawyer's DOB — see
+// `src/lib/age.ts` for the consuming side. Validated as a real calendar date
+// (rejects things like 2010-02-30) and required not to be in the future.
+const isoDate = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'Use YYYY-MM-DD format')
+  .refine((v) => {
+    const [y, m, d] = v.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return (
+      dt.getUTCFullYear() === y &&
+      dt.getUTCMonth() === m - 1 &&
+      dt.getUTCDate() === d
+    );
+  }, 'Must be a valid calendar date')
+  .refine((v) => {
+    const [y, m, d] = v.split('-').map(Number);
+    // Compare at UTC midnight — DOB is a calendar date, timezone precision
+    // isn't needed for "is this in the future". A DOB of today is fine.
+    const dob = Date.UTC(y, m - 1, d);
+    const todayUtc = (() => {
+      const now = new Date();
+      return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    })();
+    return dob <= todayUtc;
+  }, 'Date of birth cannot be in the future');
+
 const ContactSchema = z.object({
   phone: e164.optional().or(z.literal('')),
   email: rfc5321Email.optional().or(z.literal('')),
@@ -86,6 +114,7 @@ const ContactSchema = z.object({
     .max(2000, 'Bio must be ≤ 2000 characters')
     .optional()
     .or(z.literal('')),
+  dateOfBirth: isoDate.optional().or(z.literal('')),
 });
 
 export async function updateContact(
@@ -97,6 +126,7 @@ export async function updateContact(
     email: data.get('email') as string,
     tiktokUrl: data.get('tiktokUrl') as string,
     bio: data.get('bio') as string,
+    dateOfBirth: (data.get('dateOfBirth') as string) ?? '',
   };
 
   const parsed = ContactSchema.safeParse(raw);
@@ -109,6 +139,7 @@ export async function updateContact(
       email: parsed.data.email || null,
       tiktokUrl: parsed.data.tiktokUrl || null,
       bio: parsed.data.bio || null,
+      dateOfBirth: parsed.data.dateOfBirth || null,
     })
     .run();
 
@@ -177,8 +208,18 @@ export async function updateTemplates(
 // Settings tab
 // ---------------------------------------------------------------------------
 
+// Public business name shown in the Hero eyebrow, SEO metadata, OG image,
+// back-links, and email subjects. Trimmed, non-empty, capped at 60 chars so
+// it still fits in SEO `<title>` / OG card layouts without wrapping.
+const siteTitle = z
+  .string()
+  .trim()
+  .min(1, 'Site title is required')
+  .max(60, 'Site title must be ≤ 60 characters');
+
 const SettingsSchema = z
   .object({
+    siteTitle,
     businessFoundedYear: z
       .coerce
       .number()
@@ -242,6 +283,7 @@ export async function updateSettings(
 ): Promise<ActionResult> {
   // Boolean switches send the string 'on' when checked, or are absent when unchecked.
   const raw = {
+    siteTitle: data.get('siteTitle') as string,
     businessFoundedYear: data.get('businessFoundedYear') as string,
     bookingHorizonWeeks: data.get('bookingHorizonWeeks') as string,
     startTimeIncrementMinutes: data.get('startTimeIncrementMinutes') as string,

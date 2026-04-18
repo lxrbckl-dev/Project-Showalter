@@ -1,8 +1,12 @@
 import Image from 'next/image';
 import type { SiteConfigRow } from '@/db/schema/site-config';
+import { interpolateAge } from '@/lib/age';
 
 interface HeroProps {
-  siteConfig: Pick<SiteConfigRow, 'heroImagePath' | 'bio'>;
+  siteConfig: Pick<
+    SiteConfigRow,
+    'heroImagePath' | 'bio' | 'dateOfBirth' | 'timezone' | 'siteTitle'
+  >;
 }
 
 /**
@@ -13,13 +17,25 @@ interface HeroProps {
  * border — no stripe patterns.
  */
 export function Hero({ siteConfig }: HeroProps) {
+  // Interpolate [age] in the bio against site_config.date_of_birth. Falls back
+  // to stripping the placeholder if DOB is unset (see src/lib/age.ts).
+  const bio = interpolateAge(siteConfig.bio, siteConfig.dateOfBirth, {
+    timezone: siteConfig.timezone,
+  });
+
+  // Headline age — falls back to "Lawn Care" tagline alone if DOB is unset
+  // (we avoid hardcoding "15" here now that the bio is DOB-driven).
+  const age = siteConfig.dateOfBirth
+    ? interpolateAge('[age]', siteConfig.dateOfBirth, { timezone: siteConfig.timezone })
+    : null;
+
   return (
     <section className="relative flex min-h-[60vh] flex-col items-center justify-center overflow-hidden bg-white px-6 py-20 text-center border-t-4 border-[#0F3D2E]">
       {/* Background: hero image only (no fallback pattern) */}
       {siteConfig.heroImagePath && (
         <Image
           src={siteConfig.heroImagePath}
-          alt="Showalter Services — lawn care hero image"
+          alt={`${siteConfig.siteTitle} — lawn care hero image`}
           fill
           className="object-cover object-center opacity-60"
           priority
@@ -28,20 +44,26 @@ export function Hero({ siteConfig }: HeroProps) {
 
       {/* Content overlay */}
       <div className="relative z-10 mx-auto max-w-2xl">
+        {/* Hero eyebrow — uppercased via Tailwind, so the stored mixed-case
+            value still reads naturally in SEO titles / OG cards elsewhere. */}
         <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[#0F3D2E]">
-          Showalter Services
+          {siteConfig.siteTitle}
         </p>
         <h1 className="mb-4 text-4xl font-bold leading-tight tracking-tight text-gray-900 md:text-6xl">
-          15-Year-Old Entrepreneur.
-          <br />
-          Trusted Lawn Care.
+          {age ? (
+            <>
+              {age}-Year-Old Entrepreneur.
+              <br />
+              Trusted Lawn Care.
+            </>
+          ) : (
+            <>Trusted Lawn Care.</>
+          )}
         </h1>
 
-        {siteConfig.bio && (
-          <p className="mb-8 text-lg leading-relaxed text-gray-600">{siteConfig.bio}</p>
-        )}
+        {bio && <p className="mb-8 text-lg leading-relaxed text-gray-600">{bio}</p>}
 
-        {!siteConfig.bio && (
+        {!bio && (
           <p className="mb-8 text-lg leading-relaxed text-gray-600">
             Affordable, high quality services you can trust every time.
           </p>

@@ -33,6 +33,26 @@ export function SettingsForm({ config }: SettingsFormProps) {
         </h3>
 
         <div className="space-y-2">
+          <label htmlFor="siteTitle" className="block text-sm font-medium">
+            Site title
+          </label>
+          <Input
+            id="siteTitle"
+            name="siteTitle"
+            type="text"
+            defaultValue={config.siteTitle}
+            placeholder="Sawyer Showalter Service"
+            maxLength={60}
+            data-testid="settings-site-title"
+          />
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            Shown on the landing page hero, page titles, and social-share cards.
+            1–60 characters.
+          </p>
+          <FieldError errors={err('siteTitle')} />
+        </div>
+
+        <div className="space-y-2">
           <label htmlFor="businessFoundedYear" className="block text-sm font-medium">
             Year founded
           </label>

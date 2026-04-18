@@ -1,8 +1,13 @@
 import { ImageResponse } from 'next/og';
+import { getSiteConfig } from '@/features/site-config/queries';
 
-export const runtime = 'edge';
+// Node runtime (not edge) — we read `site_config.site_title` via
+// better-sqlite3, a native addon incompatible with the edge runtime. The
+// extra cold-start cost is negligible for an OG image route that's rarely
+// hit cold in production.
+export const runtime = 'nodejs';
 
-export const alt = 'Showalter Services — Lawn Care in Kansas City';
+export const alt = 'Sawyer Showalter Service — Lawn Care in Kansas City';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -10,8 +15,13 @@ export const contentType = 'image/png';
  * Dynamic Open Graph image — Next 15 file-convention route.
  * Renders a 1200×630 dark-green card with the business name and tagline.
  * No external fonts or static assets required; uses system sans-serif.
+ *
+ * The business name is pulled from `site_config.site_title` so admin edits
+ * flow through to social-share cards on next crawl.
  */
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+  const config = await getSiteConfig();
+  const siteTitle = config?.siteTitle ?? 'Sawyer Showalter Service';
   return new ImageResponse(
     (
       <div
@@ -48,7 +58,7 @@ export default function OpengraphImage() {
             letterSpacing: '-1px',
           }}
         >
-          Showalter Services
+          {siteTitle}
         </div>
 
         {/* Tagline */}

@@ -62,6 +62,8 @@ test('home page about section shows bio when seeded', async ({ page }) => {
   await page.goto('/');
   const aboutSection = page.locator('section#about');
   await expect(aboutSection.getByRole('heading', { name: /about sawyer/i })).toBeVisible();
-  // Scope to #about to avoid matching the Hero h1 "15-Year-Old Entrepreneur."
-  await expect(aboutSection.getByText(/15 year old entrepreneur/i)).toBeVisible();
+  // Scope to #about to avoid matching the Hero h1 "N-Year-Old Entrepreneur."
+  // Age is DOB-derived now (see src/lib/age.ts), so match any 1-3 digit age
+  // rather than a fixed "15" — keeps the test stable as Sawyer gets older.
+  await expect(aboutSection.getByText(/\d{1,3}\s+year\s+old\s+entrepreneur/i)).toBeVisible();
 });
