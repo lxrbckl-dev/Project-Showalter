@@ -29,3 +29,8 @@ export * from './auth-sessions';
 export * from './services';
 export * from './availability';
 export * from './site-photos';
+export * from './customers';
+export * from './customer-addresses';
+export * from './bookings';
+export * from './booking-attachments';
+export * from './notifications';

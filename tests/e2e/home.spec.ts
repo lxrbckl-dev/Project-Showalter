@@ -16,12 +16,12 @@ test('home page hero heading renders', async ({ page }) => {
   await expect(page.getByText('Showalter Services').first()).toBeVisible();
 });
 
-test('home page hero has "Request service" CTA linking to #request', async ({ page }) => {
+test('home page hero has "Request service" CTA linking to /book', async ({ page }) => {
   await page.goto('/');
   const ctaLink = page.getByRole('link', { name: /request service/i }).first();
   await expect(ctaLink).toBeVisible();
   const href = await ctaLink.getAttribute('href');
-  expect(href).toBe('#request');
+  expect(href).toBe('/book');
 });
 
 test('home page services section renders when seeded', async ({ page }) => {

@@ -106,17 +106,28 @@ export default function HomePage() {
       {/* 6. Repeat CTA */}
       <RepeatCTA />
 
-      {/* 7. #request anchor — Phase 5 booking flow. Placeholder for now. */}
+      {/*
+        7. #request anchor — Phase 5 booking flow. The full multi-step form
+        lives at /book (dedicated route); this section is a compact visual
+        anchor + CTA on the landing page so the "Request service" links at
+        the top and in the hero still have somewhere meaningful to scroll to
+        for users who landed on the page with #request in the URL.
+      */}
       <section
         id="request"
         className="bg-green-950 px-6 py-16 text-center text-white"
         aria-label="Request service"
       >
         <h2 className="mb-3 text-2xl font-bold">Request a Service</h2>
-        <p className="text-green-300">Booking coming soon (Phase 5).</p>
-        <p className="mt-2 text-sm text-green-400">
-          In the meantime, text or email Sawyer directly — see contact info below.
+        <p className="mb-6 text-green-300">
+          Pick a day and time, tell Sawyer about the job.
         </p>
+        <a
+          href="/book"
+          className="inline-block rounded-md bg-green-600 px-8 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400"
+        >
+          Start booking
+        </a>
       </section>
 
       {/* 8. Contact */}
