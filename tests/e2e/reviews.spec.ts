@@ -190,8 +190,20 @@ test.describe('Phase 9 reviews', () => {
         const imgs = await publicPage.locator('img').evaluateAll((els) =>
           (els as HTMLImageElement[]).map((e) => e.getAttribute('src') ?? ''),
         );
-        const matched = imgs.some((src) => src.endsWith(sample));
-        expect(matched, `expected <img> with src ending in ${sample}`).toBe(true);
+        // Next/Image rewrites src to /_next/image?url=<encoded-path>&w=...&q=...
+        // so we must decode the `url` query param rather than checking endsWith.
+        const matched = imgs.some((src) => {
+          try {
+            const imgUrlParam = new URL(src, BASE_URL).searchParams.get('url');
+            if (!imgUrlParam) return false;
+            return decodeURIComponent(imgUrlParam).includes('reviews/');
+          } catch {
+            return false;
+          }
+        });
+        expect(matched, `expected <img> with decoded url containing 'reviews/' (sample: ${sample})`).toBe(true);
+        // Belt-and-suspenders: at least one gallery-photo-* testid is present.
+        await expect(publicPage.locator('[data-testid^="gallery-photo-"]').first()).toBeVisible();
       } finally {
         sqlite.close();
       }

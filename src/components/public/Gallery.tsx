@@ -25,7 +25,11 @@ export function Gallery({ photos }: GalleryProps) {
         <h2 className="mb-8 text-2xl font-bold tracking-tight text-gray-900">Photo Gallery</h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {photos.map((photo) => (
-            <div key={photo.id} className="relative aspect-square overflow-hidden rounded-lg">
+            <div
+              key={photo.id}
+              className="relative aspect-square overflow-hidden rounded-lg"
+              data-testid={`gallery-photo-${photo.id}`}
+            >
               <Image
                 src={photo.path}
                 alt={photo.caption ?? 'Showalter Services work photo'}
