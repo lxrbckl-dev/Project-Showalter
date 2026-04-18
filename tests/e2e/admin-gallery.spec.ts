@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -12,46 +13,56 @@ import * as os from 'node:os';
  *  3. Uploaded image renders on the public landing page /
  *  4. Admin can archive the photo, it disappears from /
  *
- * Reuses the virtual-authenticator login pattern from other admin specs.
+ * Auth: uses the session-minting approach (schedule-session.ts) to avoid
+ * cross-spec ordering failure where admin-auth.spec.ts enrolls alex@test.com
+ * first, leaving this spec unable to re-enroll in a new virtual-authenticator
+ * context (the admin is already enrolled).
  */
+
+const BASE_URL = process.env.BASE_URL ?? `http://localhost:${process.env.PORT ?? 5827}`;
 
 /**
- * Enroll + log in via virtual authenticator.
+ * Mint a session token for the test admin and inject it as a cookie.
+ * Mirrors the pattern in admin-schedule.spec.ts.
  */
-async function enrollAndLogin(
+async function loginWithSession(
   context: import('@playwright/test').BrowserContext,
-  page: import('@playwright/test').Page,
-) {
-  const client = await context.newCDPSession(page);
-  await client.send('WebAuthn.enable');
-  await client.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
+  email = 'alex@test.com',
+): Promise<void> {
+  const out = execSync('pnpm exec tsx tests/e2e/schedule-session.ts', {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      DATABASE_URL: process.env.DATABASE_URL ?? 'file:./dev.db',
+      ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? email,
+      TEST_ADMIN_EMAIL: email,
     },
-  });
+  }).toString('utf-8');
 
-  await page.goto('/admin/login');
-  await page.getByTestId('email-input').fill('alex@test.com');
-  await page.getByTestId('submit-button').click();
+  const lines = out.trim().split('\n');
+  const parsed = JSON.parse(lines[lines.length - 1]) as {
+    token: string;
+    expires: string;
+  };
 
-  // Recovery-code modal
-  await expect(page.getByTestId('recovery-modal')).toBeVisible({ timeout: 10_000 });
-  await page.getByTestId('confirm-saved-checkbox').check();
-  await page.getByTestId('dismiss-modal-button').click();
-
-  // Should be on dashboard
-  await expect(page).toHaveURL(/\/admin$/);
+  const url = new URL(BASE_URL);
+  await context.addCookies([
+    {
+      name: 'swt-session',
+      value: parsed.token,
+      domain: url.hostname,
+      path: '/',
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: false,
+    },
+  ]);
 }
 
 /** Build a minimal valid PNG file on disk for Playwright file upload. */
 function createTestPng(): string {
   const tmpDir = os.tmpdir();
-  const filePath = path.join(tmpDir, `swe1-test-gallery-${Date.now()}.png`);
+  const filePath = path.join(tmpDir, `swe2-test-gallery-${Date.now()}.png`);
 
   // PNG magic bytes + minimal IHDR chunk
   const png = Buffer.from([
@@ -78,14 +89,14 @@ function createTestPng(): string {
 
 test.describe('admin gallery — Phase 3C', () => {
   test('Gallery nav link is visible in admin shell', async ({ context, page }) => {
-    await enrollAndLogin(context, page);
+    await loginWithSession(context);
     await page.goto('/admin/gallery');
     await expect(page).toHaveURL(/\/admin\/gallery$/);
     await expect(page.getByRole('heading', { name: /gallery/i })).toBeVisible();
   });
 
   test('gallery page renders upload form', async ({ context, page }) => {
-    await enrollAndLogin(context, page);
+    await loginWithSession(context);
     await page.goto('/admin/gallery');
 
     await expect(page.getByTestId('gallery-upload-form')).toBeVisible();
@@ -94,7 +105,7 @@ test.describe('admin gallery — Phase 3C', () => {
   });
 
   test('upload image → appears in active grid → renders on /', async ({ context, page }) => {
-    await enrollAndLogin(context, page);
+    await loginWithSession(context);
 
     const testPngPath = createTestPng();
 
@@ -127,29 +138,41 @@ test.describe('admin gallery — Phase 3C', () => {
   });
 
   test('archive photo → disappears from public /', async ({ context, page }) => {
-    await enrollAndLogin(context, page);
+    await loginWithSession(context);
 
     const testPngPath = createTestPng();
 
     try {
-      // Upload first
+      // Upload a new test photo
       await page.goto('/admin/gallery');
       await page.getByTestId('gallery-file-input').setInputFiles(testPngPath);
       await page.getByTestId('gallery-upload-button').click();
 
-      // Wait for card to appear
+      // Wait for at least one card to appear
       await expect(page.locator('[data-testid^="gallery-photo-card-"]').first()).toBeVisible({
         timeout: 10_000,
       });
 
-      // Get the first photo card's archive button
-      const card = page.locator('[data-testid^="gallery-photo-card-"]').first();
-      const archiveBtn = card.locator('[data-testid^="gallery-archive-"]');
-      await archiveBtn.click();
+      // Archive ALL active photo cards so the gallery section disappears from
+      // the public page. Previous tests in this suite may have left active
+      // photos in the DB — we need to drain them all to get a clean assertion.
+      // Click archive on each card while any archive buttons remain visible.
+      let iterations = 0;
+      while (iterations < 20) {
+        const archiveBtns = page.locator('[data-testid^="gallery-archive-"]');
+        const count = await archiveBtns.count();
+        if (count === 0) break;
+        await archiveBtns.first().click();
+        // Wait for the card count to decrease before trying again
+        await page.waitForTimeout(300);
+        iterations++;
+      }
 
-      // After archive, public page should not show gallery (no active photos)
+      // After all cards are archived, the active grid should be gone
+      await expect(page.getByTestId('gallery-active-grid')).not.toBeVisible({ timeout: 5_000 });
+
+      // Public page should not show gallery section (Gallery returns null when no photos)
       await page.goto('/');
-      // Gallery section should be absent (Gallery component returns null when no photos)
       await expect(page.locator('#gallery')).not.toBeVisible({ timeout: 5_000 });
     } finally {
       try {

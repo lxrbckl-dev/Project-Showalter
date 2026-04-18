@@ -2,52 +2,67 @@
  * services.spec.ts — E2E spec for the admin services CRUD UI.
  *
  * Requires a running dev server with at least one enrolled admin.
- * The virtual authenticator pattern mirrors admin-auth.spec.ts.
  *
- * Flow: enroll → login → /admin/services → create → edit → archive → restore → reorder
+ * Auth: uses the same session-minting approach as admin-schedule.spec.ts —
+ * invokes `schedule-session.ts` to inject a valid session cookie directly,
+ * bypassing WebAuthn enrollment. This avoids a cross-spec race where
+ * admin-auth.spec.ts enrolls alex@test.com in a virtual-authenticator context
+ * that services.spec.ts cannot access, leaving the admin "enrolled but
+ * credentials unknown" to the new test context.
+ *
+ * Flow: mint session → plant cookie → /admin/services → create → edit → archive → restore → reorder
  */
 
+import { execSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
 
+const BASE_URL = process.env.BASE_URL ?? `http://localhost:${process.env.PORT ?? 5827}`;
+
 /**
- * Helper: enroll and log in with the virtual WebAuthn authenticator.
- * Returns after landing on /admin.
+ * Mint a session token for the test admin and inject it as a cookie.
+ * Mirrors the pattern in admin-schedule.spec.ts.
  */
-async function enrollAndLogin(context: import('@playwright/test').BrowserContext, page: import('@playwright/test').Page, email = 'alex@test.com') {
-  const client = await context.newCDPSession(page);
-  await client.send('WebAuthn.enable');
-  await client.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
+async function loginWithSession(
+  context: import('@playwright/test').BrowserContext,
+  email = 'alex@test.com',
+): Promise<void> {
+  const out = execSync('pnpm exec tsx tests/e2e/schedule-session.ts', {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      DATABASE_URL: process.env.DATABASE_URL ?? 'file:./dev.db',
+      ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? email,
+      TEST_ADMIN_EMAIL: email,
     },
-  });
+  }).toString('utf-8');
 
-  await page.goto('/admin/login');
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('submit-button').click();
+  const lines = out.trim().split('\n');
+  const parsed = JSON.parse(lines[lines.length - 1]) as {
+    token: string;
+    expires: string;
+  };
 
-  // Recovery-code modal (first enrollment)
-  const modal = page.getByTestId('recovery-modal');
-  if (await modal.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await page.getByTestId('confirm-saved-checkbox').check();
-    await page.getByTestId('dismiss-modal-button').click();
-  }
-
-  await expect(page).toHaveURL(/\/admin$/, { timeout: 10_000 });
+  const url = new URL(BASE_URL);
+  await context.addCookies([
+    {
+      name: 'swt-session',
+      value: parsed.token,
+      domain: url.hostname,
+      path: '/',
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: false,
+    },
+  ]);
 }
 
 test.describe('admin services CRUD', () => {
   test('full CRUD flow: create, edit, archive, restore', async ({ context, page }) => {
-    await enrollAndLogin(context, page);
+    await loginWithSession(context);
 
     // Navigate to /admin/services
     await page.goto('/admin/services');
-    await expect(page.getByRole('heading', { name: /services/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Services', exact: true })).toBeVisible();
 
     // --- Create ---
     await page.getByTestId('new-service-button').click();
@@ -95,7 +110,7 @@ test.describe('admin services CRUD', () => {
   });
 
   test('reorder via drag (smoke: list renders, drag handle present)', async ({ context, page }) => {
-    await enrollAndLogin(context, page);
+    await loginWithSession(context);
     await page.goto('/admin/services');
 
     // If there are active services, the sortable list should render

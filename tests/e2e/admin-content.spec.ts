@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
 
 /**
@@ -6,49 +7,58 @@ import { expect, test } from '@playwright/test';
  * Covers the Contact tab: log in as admin, navigate to /admin/content,
  * update the bio field, save, reload, verify the value persisted.
  *
- * Reuses the global-setup virtual-authenticator pattern from admin-auth.spec.ts:
- *   - global-setup wipes dev.db + runs migrations + reconcile on every run
- *   - ADMIN_EMAILS=alex@test.com, BOOTSTRAP_ENABLED=true (from playwright.config.ts)
+ * Auth: uses the session-minting approach from admin-schedule.spec.ts to
+ * avoid a cross-spec ordering issue where admin-auth.spec.ts enrolls
+ * alex@test.com first, leaving this spec unable to re-enroll in a new
+ * virtual-authenticator context (the admin is already enrolled).
  *
- * The SEED_FROM_BRIEF env var is NOT set in the playwright.config.ts webServer,
- * so the site_config row exists (created by migration) but contact fields are
- * NULL. The spec writes a bio, saves, reloads, and checks the new value.
+ * The SEED_FROM_BRIEF env var ensures site_config is populated, but the
+ * Contact tab tests write their own values so seed state doesn't matter.
  */
+
+const BASE_URL = process.env.BASE_URL ?? `http://localhost:${process.env.PORT ?? 5827}`;
 
 /**
- * Enroll + log in via virtual authenticator and return to the admin shell.
- * Extracted so individual tests can call it without repeating CDP boilerplate.
+ * Mint a session token for the test admin and inject it as a cookie.
+ * Mirrors the pattern in admin-schedule.spec.ts.
  */
-async function enrollAndLogin(context: import('@playwright/test').BrowserContext, page: import('@playwright/test').Page) {
-  const client = await context.newCDPSession(page);
-  await client.send('WebAuthn.enable');
-  await client.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
+async function loginWithSession(
+  context: import('@playwright/test').BrowserContext,
+  email = 'alex@test.com',
+): Promise<void> {
+  const out = execSync('pnpm exec tsx tests/e2e/schedule-session.ts', {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      DATABASE_URL: process.env.DATABASE_URL ?? 'file:./dev.db',
+      ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? email,
+      TEST_ADMIN_EMAIL: email,
     },
-  });
+  }).toString('utf-8');
 
-  await page.goto('/admin/login');
-  await page.getByTestId('email-input').fill('alex@test.com');
-  await page.getByTestId('submit-button').click();
+  const lines = out.trim().split('\n');
+  const parsed = JSON.parse(lines[lines.length - 1]) as {
+    token: string;
+    expires: string;
+  };
 
-  // Recovery-code modal
-  await expect(page.getByTestId('recovery-modal')).toBeVisible({ timeout: 10_000 });
-  await page.getByTestId('confirm-saved-checkbox').check();
-  await page.getByTestId('dismiss-modal-button').click();
-
-  // Should be on dashboard
-  await expect(page).toHaveURL(/\/admin$/);
+  const url = new URL(BASE_URL);
+  await context.addCookies([
+    {
+      name: 'swt-session',
+      value: parsed.token,
+      domain: url.hostname,
+      path: '/',
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: false,
+    },
+  ]);
 }
 
 test.describe('admin content CMS — Contact tab', () => {
   test('navigate to /admin/content and all 4 tabs render', async ({ context, page }) => {
-    await enrollAndLogin(context, page);
+    await loginWithSession(context);
 
     await page.goto('/admin/content');
     await expect(page).toHaveURL(/\/admin\/content$/);
@@ -64,14 +74,18 @@ test.describe('admin content CMS — Contact tab', () => {
   });
 
   test('edit bio on Contact tab, save, reload, see new value', async ({ context, page }) => {
-    await enrollAndLogin(context, page);
+    await loginWithSession(context);
 
     await page.goto('/admin/content');
 
     // The Contact tab is default; confirm we're on it
     await expect(page.getByTestId('contact-form')).toBeVisible();
 
-    const newBio = `SWE-1 test bio — ${Date.now()}`;
+    // Read the original bio so we can restore it after the test (the shared DB
+    // persists across specs, and home.spec checks for the seeded bio text).
+    const originalBio = await page.getByTestId('contact-bio').inputValue();
+
+    const newBio = `admin-content test bio — ${Date.now()}`;
 
     // Clear and fill bio
     await page.getByTestId('contact-bio').fill(newBio);
@@ -85,10 +99,15 @@ test.describe('admin content CMS — Contact tab', () => {
     // Reload and check value persisted
     await page.reload();
     await expect(page.getByTestId('contact-bio')).toHaveValue(newBio);
+
+    // Restore original bio so subsequent specs (home.spec) see the seeded value.
+    await page.getByTestId('contact-bio').fill(originalBio);
+    await page.getByTestId('contact-save').click();
+    await expect(page.getByTestId('contact-saved-indicator')).toBeVisible({ timeout: 5_000 });
   });
 
   test('shows validation error for invalid phone', async ({ context, page }) => {
-    await enrollAndLogin(context, page);
+    await loginWithSession(context);
     await page.goto('/admin/content');
 
     await page.getByTestId('contact-phone').fill('not-a-phone');
@@ -96,7 +115,8 @@ test.describe('admin content CMS — Contact tab', () => {
 
     // Should show error, not saved indicator
     await expect(page.getByTestId('contact-saved-indicator')).not.toBeVisible({ timeout: 3_000 });
-    // Error text visible somewhere on the form
-    await expect(page.locator('text=E.164')).toBeVisible();
+    // Error message visible (scoped to the destructive/error style to avoid
+    // matching the label which also mentions E.164)
+    await expect(page.getByText('Phone must be in E.164 format')).toBeVisible();
   });
 });
