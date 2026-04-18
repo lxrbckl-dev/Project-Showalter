@@ -16,13 +16,25 @@ This document captures the tech-stack decision for the Showalter Services site. 
 | Container          | **Single Docker image**                   | Multi-stage build, runs on internal port **5827**. |
 | Calendar integration | **Public `.ics` endpoint + Google render URL** | `.ics` served from `/bookings/<token>/ics`; Google via `calendar.google.com/calendar/render?...`. Both links embedded in the prefilled email body. |
 | Data persistence   | **Host bind-mount** at `/data`            | SQLite DB file, uploaded images, and nightly backups all persist outside the container. |
-| Backups            | **In-container cron**                     | Nightly `sqlite3 .backup` dump into `/data/backups/YYYY-MM-DD.db`, 14-day retention; same cron also purges expired booking attachments. |
+| Backups            | **In-container cron**                     | Nightly `sqlite3 .backup` dump at 03:00 local time into `/data/backups/YYYY-MM-DD.db`, 14-day retention; nightly batch also purges expired booking attachments. Separate 15-min sweep handles booking reminders + auto-expire. |
 | CI/CD              | **GitHub Actions → GHCR**                 | On merge to `main`, build and push `ghcr.io/lxrbckl-dev/project-showalter:{latest,<sha>}`. Alex pulls on the homelab. |
 | Reverse proxy      | **Caddy** (on host)                       | TLS auto-provisioned via Let's Encrypt. Fronts `showalter.business`. |
 
-### Nightly cron
+### Scheduled jobs
 
-The nightly cron container runs two tasks: (1) SQLite `.backup` dump into `/data/backups/YYYY-MM-DD.db` with 14-day retention; (2) booking-photo retention cleanup per `photo_retention_days_after_resolve`.
+Two distinct schedules run inside the container — a frequent sweep and a nightly batch. All cron invocations log to the `cron_runs` table (see Data model) so the admin dashboard can surface last-run timestamp + status per task.
+
+- **15-minute sweep (`*/15 * * * *`)** — handles time-sensitive transitions:
+  - Pending-booking reminders at the **24-hour** mark (in-app inbox + Web Push)
+  - Pending-booking reminders at the **48-hour** mark (in-app inbox + Web Push)
+  - Auto-expire of pending bookings past the **72-hour** threshold (`status='expired'`, start-time hold released)
+  - Each fire queries for due-but-unprocessed notifications / expirations; idempotent.
+
+- **Nightly batch at 03:00 local time (`0 3 * * *`)** — low-priority housekeeping:
+  - SQLite `.backup` dump into `/data/backups/YYYY-MM-DD.db` with 14-day retention
+  - Booking-photo retention cleanup per `photo_retention_days_after_resolve` (files + `booking_attachments` rows for bookings terminal for longer than the retention window)
+
+The old "nightly or more frequent" hedging is retired; the two schedules above are the committed contract. Admin dashboard surfaces last-run timestamp + status per task by reading from `cron_runs`.
 
 ## Data model (sketch)
 
@@ -55,6 +67,17 @@ Single-row table.
 - `template_decline_sms` TEXT — decline SMS body
 - `template_review_request_email` TEXT — review-request email body
 - `template_review_request_sms` TEXT — review-request SMS body
+
+**Validation rules (enforced at save).** The admin settings form rejects invalid values before writing:
+
+- `booking_horizon_weeks >= 1`
+- `start_time_increment_minutes` must divide 60 evenly — supported values: `15`, `20`, `30`, `60`
+- `booking_spacing_minutes >= 0` and `<= 240`
+- `min_advance_notice_hours >= 0`
+- `business_founded_year <= <current_year>` (evaluated against the host clock at save time)
+- `timezone` must be a member of `Intl.supportedValuesOf('timeZone')`
+
+Invalid input returns a field-level error and the prior value is preserved.
 
 ### `services`
 - `id` INTEGER PK
@@ -123,7 +146,8 @@ Exactly one active recovery code per admin (enforced by UNIQUE on `admin_id` whe
 - `id` INTEGER PK
 - `token` TEXT UNIQUE    — random unguessable token used in `/bookings/<token>/ics` URL
 - `customer_id` INTEGER FK → customers.id
-- `address_id` INTEGER FK → customer_addresses.id
+- `address_id` INTEGER FK → customer_addresses.id — deduped master address
+- `address_text` TEXT NOT NULL — historical snapshot of exactly what the customer typed at booking time
 - `customer_name` TEXT   — historical snapshot of what was entered at booking time (denormalized, preserved even if the customer record is later edited)
 - `customer_phone` TEXT  — historical snapshot
 - `customer_email` TEXT  — historical snapshot
@@ -132,7 +156,10 @@ Exactly one active recovery code per admin (enforced by UNIQUE on `admin_id` whe
 - `notes` TEXT (optional) — customer-provided notes at submission
 - `status` TEXT          — one of: `pending` | `accepted` | `declined` | `completed` | `no_show` | `expired` | `canceled`
 - `created_at` TEXT
+- `updated_at` TEXT      — bumped on every write; used for optimistic-locking checks on accept/decline
 - `decided_at` TEXT (nullable)
+
+**Why both `address_text` and `address_id`?** `address_text` is a NOT NULL snapshot of exactly what the customer typed at the moment they submitted the booking — preserving the historical record even if the customer (or Sawyer) later corrects / normalizes the master address. `address_id` is a FK into the deduped `customer_addresses` master table — the "current" canonical address for that booking. Both coexist: the snapshot guarantees historical preservation, the FK enables INDEX-book address accumulation and search.
 
 ### `booking_attachments`
 Customer-uploaded photos attached to a booking submission.
@@ -212,6 +239,15 @@ One row per device Sawyer has subscribed for Web Push.
 - `auth` TEXT — auth secret (base64url)
 - `created_at` TEXT
 
+### `cron_runs`
+Audit trail for every scheduled-job invocation. Drives the admin dashboard's "cron health" widget and the RUNBOOK's inspection query.
+- `id` INTEGER PK
+- `task` TEXT — job identifier (e.g. `reminders_sweep`, `nightly_backup`, `photo_cleanup`)
+- `started_at` TEXT — ISO timestamp when the run began
+- `ended_at` TEXT (nullable) — NULL while the run is in progress; set at completion (success or failure)
+- `status` TEXT — one of: `running` | `ok` | `error`
+- `error_message` TEXT (nullable) — stack trace / error context when `status='error'`
+
 ## Deployment topology
 
 The admin is served at `showalter.business/admin` (same-origin path, not a subdomain) — one Next.js app handles both public and admin routes behind a single Caddy upstream.
@@ -275,6 +311,44 @@ services:
       BOOTSTRAP_ENABLED: ${BOOTSTRAP_ENABLED:-false}
       SEED_FROM_BRIEF: ${SEED_FROM_BRIEF:-false}
       BOOKING_RATE_LIMIT_PER_HOUR: ${BOOKING_RATE_LIMIT_PER_HOUR:-30}
+    networks:
+      - showalter-net
+
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    container_name: umami
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URL: ${UMAMI_DATABASE_URL}
+      APP_SECRET: ${UMAMI_APP_SECRET}
+    depends_on:
+      - umami-db
+
+  umami-db:
+    image: postgres:16-alpine
+    container_name: umami-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD}
+    volumes:
+      - /srv/showalter/umami-db:/var/lib/postgresql/data
+
+networks:
+  showalter-net:
+    driver: bridge
+```
+
+A separate Caddyfile block reverse-proxies `analytics.showalter.business` to `localhost:3001` for admin-only access to the Umami dashboard:
+
+```caddy
+analytics.showalter.business {
+    encode zstd gzip
+    reverse_proxy localhost:3001
+}
 ```
 
 ## Environment variables
@@ -373,16 +447,18 @@ Customer                                        Sawyer (admin)
      pending ───▶ declined ───▶ (slot released)
         │
         ▼
-     accepted ───▶ completed
+     accepted ───▶ completed   (TERMINAL — no cancel)
         │
-        └──────▶ no_show
+        └──────▶ no_show       (TERMINAL)
         │
-        └──────▶ canceled
+        └──────▶ canceled      (from accepted only; slot released)
 
-     (pending for > X days with no decision) ──▶ expired
+     (pending for > 72h with no decision) ──▶ expired
 ```
 
-Auto-expiration: a booking in `pending` for more than **3 days** automatically transitions to `expired` via the nightly cron. The start-time hold releases at that moment.
+Auto-expiration: a booking in `pending` for more than **72 hours** (3 days) automatically transitions to `expired` via the 15-minute sweep cron. The start-time hold releases at that moment.
+
+**`completed` is terminal for cancellation.** Once Sawyer marks a booking `completed`, neither he nor the customer can cancel it. The admin inbox hides the accept/decline/reschedule controls on completed rows, and the customer booking page hides the cancel button. If a completed booking needs "undoing" (e.g. marked complete in error), the only remediation paths are Sawyer's INDEX book notes or soft communication — never a state rollback.
 
 ## Calendar integration
 
@@ -543,6 +619,7 @@ The admin dashboard surfaces a **"Needs attention"** section listing every `acce
 - **Mark completed** transitions `status` to `completed` and unlocks a **"Request review"** button on the same row (and on the booking detail view). Tapping it generates a `pending` `reviews` row tied to this booking + customer, allocates a token, and opens the same `mailto:` / `sms:` buttons with the review-request templates populating the body.
 - **Mark no-show** transitions `status` to `no_show`. No review prompt.
 - Both transitions are terminal; the booking drops out of the queue once set.
+- Admin inbox controls (accept, decline, reschedule) hide entirely once a booking is `completed` — there is no path back to `pending` or `accepted`, and no cancel button. The completed row surfaces only the "Request review" action (plus read-only detail view).
 
 ## Reviews
 
@@ -729,7 +806,7 @@ If a booking remains in `pending` state, Sawyer receives two reminder notificati
 - At the **48-hour mark** — in-app inbox entry + Web Push.
 - At the **72-hour mark** the nightly cron transitions the booking to `expired` (no reminder — it's terminal).
 
-Reminder dispatch is handled by the same scheduling mechanism that runs auto-expire (the nightly cron, or a more frequent scheduler if needed — implementation detail).
+Reminder dispatch is handled by the **15-minute sweep** cron (see "Scheduled jobs"): each fire checks for pending bookings crossing the 24h/48h marks and for any due for auto-expiration at 72h.
 
 No third-party service is required (Apple / Google / Mozilla provide the push gateways for free; VAPID is a free W3C standard). This is not equivalent to Twilio / FCM / Resend — no account, no cost, no signup.
 
@@ -753,7 +830,7 @@ Files are written to `/data/uploads/bookings/<booking_id>/<random>.<ext>` on the
 
 ### Retention
 
-A photo is auto-purged `photo_retention_days_after_resolve` days (default 30) after its booking reaches a terminal state (`completed`, `no_show`, `declined`, `expired`, `canceled`). Cleanup runs in the same nightly in-container cron that handles SQLite backups — it deletes both the file on disk and the `booking_attachments` row.
+A photo is auto-purged `photo_retention_days_after_resolve` days (default 30) after its booking reaches a terminal state (`completed`, `no_show`, `declined`, `expired`, `canceled`). Cleanup runs in the **nightly 03:00 batch** (see "Scheduled jobs") alongside the SQLite backup — it deletes both the file on disk and the `booking_attachments` row.
 
 Photos attached to `pending` or `accepted` bookings are never auto-purged; they live as long as the booking does.
 
@@ -784,7 +861,7 @@ The page renders differently based on the current booking `status`:
 | `declined`   | "Sawyer couldn't take this one — feel free to submit another request." No calendar, no cancel. |
 | `canceled`   | "This appointment was cancelled." No actions. |
 | `expired`    | "This request expired without a response — feel free to submit a new one." No actions. |
-| `completed`  | "Thanks — see you next time!" Cancel hidden; calendar download still available if they want it. |
+| `completed`  | "Thanks — see you next time!" No cancel button (terminal state); calendar download still available if they want it. |
 | `no_show`    | Same as completed (terminal state, no actions). |
 
 ### Security
@@ -822,12 +899,57 @@ A catch-all for cross-cutting defaults that apply across the app.
 - **Admin nav pattern** — bottom tab bar on mobile, sidebar on desktop. Same routes, different chrome.
 - **Retroactive settings policy** — changes to `site_config` (horizon, spacing, photo caps, template bodies, etc.) apply to **new** bookings and new messages only. Existing bookings preserve the state they were created with; they're not retroactively mutated.
 - **Migrations on boot** — DB schema migrations run automatically at container startup, before the HTTP server accepts traffic. A failed migration aborts the boot instead of serving a half-migrated DB.
-- **Friendly error pages** — branded 404 / 500 / invalid-token pages instead of raw stack traces. The invalid-token page (for `/bookings/<bad-token>` and `/review/<bad-token>`) is intentionally vague to avoid leaking enumeration signal.
+- **Friendly error pages** — branded 404 / 500 / invalid-token pages instead of raw stack traces. Refinements:
+  - **Invalid token** → renders the same vague "not found" body as 404 (no distinction that would enable enumeration). Same HTTP status.
+  - **500 error page** does NOT leak stack traces in production. Stack traces go to structured logs only.
+  - **Form submission during deploy** — the container catches Docker `SIGTERM` and enters graceful shutdown: in-flight requests drain with a 30-second deadline before the process exits. New connections in that window are routed to the freshly pulled container.
+- **Upload validation (booking_attachments + review_photos)** —
+  - **MIME type detected by file magic bytes**, not by file extension or client-supplied `Content-Type`. Rejected files return HTTP 400.
+  - **EXIF stripping wrapped in try/catch**; on stripping failure, the server rejects the upload with HTTP 400 and a friendly error ("couldn't process that image — try re-exporting or try a different file") rather than saving a potentially-leaky original.
+  - **Size check enforced server-side** against `booking_photo_max_bytes` even when the client pre-validates. Client-side checks are UX only.
 - **SEO basics** — `robots.txt`, `sitemap.xml`, meta title / description on every public page, OG + Twitter card tags on `/`. The admin is `noindex`.
 - **Calendar `.ics` reminder** — the served `.ics` includes a `VALARM` set to 24 hours before `start_at`, so the customer gets a day-before reminder automatically.
 - **Phone number normalization** — phone numbers are stripped to digits and prepended with `+1` before storage (E.164). The display layer re-formats to US style for humans.
 - **Accessibility target** — WCAG 2.1 AA on a best-effort basis. Focus-visible rings, alt text on images, sufficient color contrast, keyboard-navigable flows.
 - **Admin dashboard header strip** — a tiny stat strip at the top of the admin home view surfacing counts of pending bookings and confirmed bookings this week. At-a-glance signal without opening any tab.
+
+## Concurrency and integrity
+
+Small-operator traffic is low, but the booking surface is a shared resource — two customers tapping submit inside the same millisecond would otherwise both succeed. Three defenses:
+
+- **Booking race (DB-enforced).** A partial UNIQUE index prevents millisecond double-booking at the storage layer:
+
+  ```sql
+  CREATE UNIQUE INDEX bookings_active_start
+    ON bookings(start_at)
+    WHERE status IN ('pending', 'accepted');
+  ```
+
+  Even if two concurrent INSERTs pass the availability check in application code, exactly one survives the DB write; the loser retries or surfaces a "that slot was just taken" error.
+
+- **Optimistic locking on accept/decline.** `bookings.updated_at` is bumped on every write. Accept/decline mutations carry the client-observed `updated_at` as a conditional predicate (`WHERE id = ? AND updated_at = ?`); the DB rejects the write if the row has moved. Prevents concurrent accept/decline races when Sawyer has the admin open on two devices.
+
+- **Soft-archive only — no cascading deletes.** `customers` and `customer_addresses` rows persist even when every referencing booking is in a terminal state. Nothing is ever deleted by the app; status flips and `active` toggles are the only removal mechanisms. Preserves historical reference and matches the platform-wide no-destructive-actions principle.
+
+## Observability
+
+Operational visibility without an external log sink. The goal is "if something breaks, Sawyer or Alex can figure out what happened from `docker logs` alone."
+
+- **Structured JSON logging to stdout.** Every log line is a one-line JSON object with `level`, `timestamp`, `msg`, and contextual fields. Docker captures stdout; `docker logs showalter` + `jq` is the query surface.
+- **Request logging.** Each HTTP request logs method, path, status, duration (ms), and a correlation ID (UUID) so a single request can be traced through all downstream log lines.
+- **Error logging.** Stack trace + relevant context (user-facing error ID, request path, correlation ID). Never includes credentials, passkey material, session tokens, or customer PII in error bodies — scrubbed at the logger boundary.
+- **`cron_runs` table** is the authoritative source for scheduled-job health. The admin dashboard surfaces last-run + status per task; the RUNBOOK documents the inspection query.
+- **No external log sink in MVP.** Datadog, Loki, Grafana, etc. are future considerations — stdout + SQLite is enough for one-operator scale.
+
+## Sessions and auth hardening
+
+Auth.js handles sessions and CSRF; the items below lock down the details that matter for a single-admin production deployment.
+
+- **DB-backed sessions.** Sessions are persisted via the Auth.js session adapter (not in-memory), so they survive container restarts and deploys.
+- **Session TTL: 30 days sliding.** Every authenticated request refreshes the expiry; an idle session auto-expires after 30 days.
+- **`/admin/login` rate limit.** 5 attempts per 10 minutes per IP, using the same middleware that throttles the public booking form. Exceeding the limit returns the same generic "couldn't sign in" message (see below) rather than a rate-limit-specific error.
+- **No admin-email enumeration.** Responses for unknown-email and wrong-credential login attempts are **byte-identical**: same status code, same body ("couldn't sign in — try again or use your recovery code"). Prevents an attacker from probing which emails are real admins.
+- **WebAuthn on localhost.** WebAuthn spec allows localhost without TLS, so `http://localhost:3000` "just works" for dev enrollment and login — no self-signed certs needed.
 
 ## Out of scope for this document
 
