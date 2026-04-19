@@ -160,7 +160,7 @@ export function CreateReviewLinkForm({ customers }: CreateReviewLinkFormProps) {
               href="/admin/index-book"
               className="underline hover:text-[hsl(var(--foreground))]"
             >
-              Index Book
+              Rolodex
             </a>
             .
           </p>

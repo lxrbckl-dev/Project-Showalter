@@ -16,7 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/services', label: 'Services' },
   { href: '/admin/content', label: 'Content' },
   { href: '/admin/gallery', label: 'Gallery' },
-  { href: '/admin/index-book', label: 'Index Book' },
+  { href: '/admin/index-book', label: 'Rolodex' },
   { href: '/admin/reviews', label: 'Reviews' },
   { href: '/admin/wiki', label: 'Wiki' },
   { href: '/admin/settings', label: 'Settings' },

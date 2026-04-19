@@ -228,3 +228,24 @@ export function findPendingReviewForBooking(
     .all()[0];
   return row ?? null;
 }
+
+/**
+ * Returns the submitted review for this booking, if one exists. Used by the
+ * admin booking detail page to suppress the "Generate review request" CTA
+ * once the customer has actually submitted — there's a partial UNIQUE on
+ * (booking_id) so at most one such row can exist.
+ */
+export function findSubmittedReviewForBooking(
+  db: Db,
+  bookingId: number,
+): ReviewRow | null {
+  const row = db
+    .select()
+    .from(reviews)
+    .where(
+      and(eq(reviews.bookingId, bookingId), eq(reviews.status, 'submitted')),
+    )
+    .limit(1)
+    .all()[0];
+  return row ?? null;
+}

@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { getDb } from '@/db';
-import { searchCustomers } from '@/features/customers/queries';
+import {
+  searchCustomers,
+  type CustomerSort,
+} from '@/features/customers/queries';
 import { formatUSPhone } from '@/lib/formatters/phone';
 
 /**
@@ -20,7 +23,13 @@ const PAGE_SIZE = 25;
 type SearchParams = Promise<{
   q?: string;
   page?: string;
+  sort?: string;
 }>;
+
+function parseSort(raw: string | undefined): CustomerSort {
+  if (raw === 'bookings_desc' || raw === 'bookings_asc') return raw;
+  return 'recent';
+}
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
@@ -40,10 +49,11 @@ export default async function AdminIndexBookPage({
   const sp = await searchParams;
   const q = sp.q?.trim() ?? '';
   const page = Math.max(1, Number.parseInt(sp.page ?? '1', 10) || 1);
+  const sort = parseSort(sp.sort);
   const offset = (page - 1) * PAGE_SIZE;
 
   const db = getDb();
-  const results = searchCustomers(db, q, PAGE_SIZE + 1, offset);
+  const results = searchCustomers(db, q, PAGE_SIZE + 1, offset, sort);
   const hasNext = results.length > PAGE_SIZE;
   const visible = results.slice(0, PAGE_SIZE);
 
@@ -54,15 +64,34 @@ export default async function AdminIndexBookPage({
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (p > 1) params.set('page', String(p));
+    if (sort !== 'recent') params.set('sort', sort);
     const qs = params.toString();
     return `/admin/index-book${qs ? `?${qs}` : ''}`;
   }
+
+  // Header link cycles desc → asc → off (recent). Always resets to page 1
+  // since the sorted slice on page N is no longer comparable to the prior view.
+  const nextSort: CustomerSort =
+    sort === 'recent'
+      ? 'bookings_desc'
+      : sort === 'bookings_desc'
+        ? 'bookings_asc'
+        : 'recent';
+  const sortHref = (() => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (nextSort !== 'recent') params.set('sort', nextSort);
+    const qs = params.toString();
+    return `/admin/index-book${qs ? `?${qs}` : ''}`;
+  })();
+  const sortIndicator =
+    sort === 'bookings_desc' ? ' ↓' : sort === 'bookings_asc' ? ' ↑' : '';
 
   return (
     <div className="space-y-6" data-testid="index-book-list">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Index Book</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Rolodex</h1>
           <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
             Customer directory — search by name, phone, email, or address.
           </p>
@@ -130,7 +159,20 @@ export default async function AdminIndexBookPage({
                   Email
                 </th>
                 <th className="px-4 py-3 text-right font-medium text-[hsl(var(--muted-foreground))]">
-                  Bookings
+                  <Link
+                    href={sortHref}
+                    aria-sort={
+                      sort === 'bookings_desc'
+                        ? 'descending'
+                        : sort === 'bookings_asc'
+                          ? 'ascending'
+                          : 'none'
+                    }
+                    data-testid="sort-bookings"
+                    className="inline-flex items-center gap-1 hover:text-[hsl(var(--foreground))]"
+                  >
+                    Bookings{sortIndicator}
+                  </Link>
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-[hsl(var(--muted-foreground))]">
                   Last booking

@@ -22,7 +22,7 @@ export default function AdminNewCustomerPage() {
           className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
           data-testid="back-to-index-book"
         >
-          &larr; Index Book
+          &larr; Rolodex
         </Link>
       </div>
 

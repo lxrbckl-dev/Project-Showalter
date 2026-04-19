@@ -35,9 +35,18 @@ export interface CustomerSearchResult {
 }
 
 /**
+ * Sort modes for the Rolodex list. `recent` (default) keeps the original
+ * "most recent booking first" behavior; the `bookings_*` modes order by
+ * total booking count so the admin can find their busiest customers fast.
+ * Sorting is done in SQL (correlated subquery) so it's correct across the
+ * paginated window, not just the current page.
+ */
+export type CustomerSort = 'recent' | 'bookings_desc' | 'bookings_asc';
+
+/**
  * Search customers by name / phone / email / address.
  *
- * - Empty query returns all customers ordered by `last_booking_at DESC`.
+ * - Empty query returns all customers ordered by `sort` (default: most recent).
  * - Non-empty query runs LIKE on name, phone, email, and any stored address.
  * - Supports pagination via `limit` + `offset`.
  */
@@ -46,8 +55,23 @@ export function searchCustomers(
   q: string,
   limit = 25,
   offset = 0,
+  sort: CustomerSort = 'recent',
 ): CustomerSearchResult[] {
   const trimmed = q.trim();
+
+  // Correlated subquery used by the bookings_* sort modes — counts every
+  // booking row pointing at this customer at ORDER BY time. Tied customers
+  // fall back to last_booking_at so the order is stable.
+  const bookingCountExpr = sql`(
+    SELECT COUNT(*) FROM ${bookings}
+    WHERE ${bookings.customerId} = ${customers.id}
+  )`;
+  const orderByClause =
+    sort === 'bookings_desc'
+      ? [desc(bookingCountExpr), desc(customers.lastBookingAt)]
+      : sort === 'bookings_asc'
+        ? [asc(bookingCountExpr), desc(customers.lastBookingAt)]
+        : [desc(customers.lastBookingAt)];
 
   let rows: CustomerRow[];
 
@@ -55,7 +79,7 @@ export function searchCustomers(
     rows = db
       .select()
       .from(customers)
-      .orderBy(desc(customers.lastBookingAt))
+      .orderBy(...orderByClause)
       .limit(limit)
       .offset(offset)
       .all();
@@ -81,7 +105,7 @@ export function searchCustomers(
           )`,
         ),
       )
-      .orderBy(desc(customers.lastBookingAt))
+      .orderBy(...orderByClause)
       .limit(limit)
       .offset(offset)
       .all();

@@ -35,7 +35,7 @@ export function About({ siteConfig }: AboutProps) {
   return (
     <section id="about" className="bg-gray-50 px-6 py-8">
       <div className="mx-auto max-w-2xl">
-        <div className="mb-2">
+        <div className="mb-6">
           <HostFactsMarquee hostFacts={siteConfig.hostFacts} />
         </div>
         <h2 className="mb-4 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">About {siteConfig.ownerFirstName || 'Sawyer'}</h2>

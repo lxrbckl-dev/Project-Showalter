@@ -21,7 +21,10 @@ import {
 import { RescheduleControls } from './_components/RescheduleControls';
 import { ReviewRequestControls } from './_components/ReviewRequestControls';
 import { bookings } from '@/db/schema/bookings';
-import { findPendingReviewForBooking } from '@/features/reviews/queries';
+import {
+  findPendingReviewForBooking,
+  findSubmittedReviewForBooking,
+} from '@/features/reviews/queries';
 import { composeReviewRequest } from '@/features/reviews/compose';
 
 /**
@@ -98,9 +101,12 @@ export default async function AdminBookingDetailPage({
   // mailto/sms branch on next pass.
   let pendingReviewId: number | null = null;
   let pendingReviewToken: string | null = null;
+  let submittedReviewId: number | null = null;
   const reviewHrefs: ConfirmationHref[] = [];
   if (row.status === 'completed') {
-    const existing = findPendingReviewForBooking(db, row.id);
+    const submitted = findSubmittedReviewForBooking(db, row.id);
+    if (submitted) submittedReviewId = submitted.id;
+    const existing = !submitted ? findPendingReviewForBooking(db, row.id) : null;
     if (existing) {
       pendingReviewId = existing.id;
       pendingReviewToken = existing.token;
@@ -348,9 +354,22 @@ export default async function AdminBookingDetailPage({
           className="space-y-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6"
           data-testid="detail-review-request"
           data-has-pending={pendingReviewId !== null}
+          data-has-submitted={submittedReviewId !== null}
         >
           <h2 className="text-lg font-semibold">Request review</h2>
-          {pendingReviewId && pendingReviewToken ? (
+          {submittedReviewId ? (
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              The customer has already left a review for this booking.{' '}
+              <Link
+                href={`/admin/reviews/${submittedReviewId}`}
+                className="underline"
+                data-testid="submitted-review-link"
+              >
+                View review
+              </Link>
+              .
+            </p>
+          ) : pendingReviewId && pendingReviewToken ? (
             <>
               <p className="text-sm text-[hsl(var(--muted-foreground))]">
                 A review request was generated. Tap below to open your mail
