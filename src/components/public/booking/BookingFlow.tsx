@@ -395,7 +395,7 @@ function BookingForm({
         />
 
         <Field
-          label="Email (optional)"
+          label="Email"
           name="email"
           error={err('email')}
           render={(id) => (
@@ -410,7 +410,7 @@ function BookingForm({
         />
 
         <Field
-          label="Service address"
+          label="Address"
           name="address"
           required
           error={err('address')}
