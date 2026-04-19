@@ -57,7 +57,10 @@ describe('seedFromBrief()', () => {
         template_review_request_sms TEXT,
         owner_first_name TEXT,
         email_template_subject TEXT,
-        email_template_body TEXT
+        email_template_body TEXT,
+        stats_jobs_completed_override INTEGER,
+        stats_customers_served_override INTEGER,
+        business_start_date TEXT
       );
       CREATE TABLE services (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -75,6 +78,7 @@ describe('seedFromBrief()', () => {
         sort_order INTEGER NOT NULL DEFAULT 0,
         active INTEGER NOT NULL DEFAULT 1,
         source_review_id INTEGER,
+        source_review_rating INTEGER,
         created_at TEXT NOT NULL
       );
       INSERT INTO site_config (timezone) VALUES ('America/Chicago');
@@ -127,7 +131,10 @@ describe('seedFromBrief()', () => {
         template_review_request_sms TEXT,
         owner_first_name TEXT,
         email_template_subject TEXT,
-        email_template_body TEXT
+        email_template_body TEXT,
+        stats_jobs_completed_override INTEGER,
+        stats_customers_served_override INTEGER,
+        business_start_date TEXT
       );
       CREATE TABLE services (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -145,7 +152,55 @@ describe('seedFromBrief()', () => {
         sort_order INTEGER NOT NULL DEFAULT 0,
         active INTEGER NOT NULL DEFAULT 1,
         source_review_id INTEGER,
+        source_review_rating INTEGER,
         created_at TEXT NOT NULL
+      );
+      CREATE TABLE customers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL UNIQUE,
+        email TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        last_booking_at TEXT
+      );
+      CREATE UNIQUE INDEX customers_email_unique ON customers(email) WHERE email IS NOT NULL;
+      CREATE TABLE customer_addresses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        customer_id INTEGER NOT NULL,
+        address TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        last_used_at TEXT NOT NULL
+      );
+      CREATE TABLE bookings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        customer_id INTEGER NOT NULL,
+        address_id INTEGER NOT NULL,
+        address_text TEXT NOT NULL,
+        customer_name TEXT NOT NULL,
+        customer_phone TEXT NOT NULL,
+        customer_email TEXT,
+        service_id INTEGER NOT NULL,
+        start_at TEXT NOT NULL,
+        notes TEXT,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        decided_at TEXT,
+        rescheduled_to_id INTEGER
+      );
+      CREATE TABLE reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        booking_id INTEGER,
+        customer_id INTEGER NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL DEFAULT 'pending',
+        rating INTEGER,
+        review_text TEXT,
+        requested_at TEXT NOT NULL,
+        submitted_at TEXT
       );
       INSERT INTO site_config (timezone) VALUES ('America/Chicago');
     `);
@@ -213,7 +268,10 @@ describe('seedFromBrief()', () => {
         template_review_request_sms TEXT,
         owner_first_name TEXT,
         email_template_subject TEXT,
-        email_template_body TEXT
+        email_template_body TEXT,
+        stats_jobs_completed_override INTEGER,
+        stats_customers_served_override INTEGER,
+        business_start_date TEXT
       );
       CREATE TABLE services (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -231,7 +289,55 @@ describe('seedFromBrief()', () => {
         sort_order INTEGER NOT NULL DEFAULT 0,
         active INTEGER NOT NULL DEFAULT 1,
         source_review_id INTEGER,
+        source_review_rating INTEGER,
         created_at TEXT NOT NULL
+      );
+      CREATE TABLE customers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL UNIQUE,
+        email TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        last_booking_at TEXT
+      );
+      CREATE UNIQUE INDEX customers_email_unique ON customers(email) WHERE email IS NOT NULL;
+      CREATE TABLE customer_addresses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        customer_id INTEGER NOT NULL,
+        address TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        last_used_at TEXT NOT NULL
+      );
+      CREATE TABLE bookings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        customer_id INTEGER NOT NULL,
+        address_id INTEGER NOT NULL,
+        address_text TEXT NOT NULL,
+        customer_name TEXT NOT NULL,
+        customer_phone TEXT NOT NULL,
+        customer_email TEXT,
+        service_id INTEGER NOT NULL,
+        start_at TEXT NOT NULL,
+        notes TEXT,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        decided_at TEXT,
+        rescheduled_to_id INTEGER
+      );
+      CREATE TABLE reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        booking_id INTEGER,
+        customer_id INTEGER NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL DEFAULT 'pending',
+        rating INTEGER,
+        review_text TEXT,
+        requested_at TEXT NOT NULL,
+        submitted_at TEXT
       );
       INSERT INTO site_config (timezone) VALUES ('America/Chicago');
     `);

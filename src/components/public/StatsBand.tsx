@@ -29,9 +29,11 @@ interface StatCardProps {
 
 function StatCard({ value, label, subtitle }: StatCardProps) {
   return (
-    <div className="flex flex-col items-center px-4 py-6 text-center">
-      <span className="text-4xl font-extrabold tracking-tight text-[#6C9630]">{value}</span>
-      <span className="mt-1 text-sm font-semibold uppercase tracking-widest text-gray-500">
+    <div className="flex flex-col items-center justify-center px-4 py-6 text-center">
+      <span className="flex h-10 items-center text-4xl font-extrabold leading-none tracking-tight text-[#6C9630]">
+        {value}
+      </span>
+      <span className="mt-2 text-sm font-semibold uppercase tracking-widest text-gray-500">
         {label}
       </span>
       {subtitle && (
@@ -49,37 +51,30 @@ export function StatsBand() {
   const avgRatingDisplay =
     stats.avgRating !== null ? stats.avgRating.toFixed(1) : '—';
 
-  const reviewsSubtitle =
-    stats.reviewCount === 1 ? '1 review' : `${stats.reviewCount} reviews`;
-
   const yearsLabel =
     stats.yearsInBusiness === 1 ? 'Year in Business' : 'Years in Business';
 
   return (
-    <section
-      id="stats"
+    <div
       aria-label="At a glance"
-      className="border-y border-gray-200 bg-gray-50 px-6 py-2"
+      className="mx-auto grid max-w-4xl grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4 sm:gap-y-0"
     >
-      <div className="mx-auto grid max-w-4xl grid-cols-2 gap-y-0 sm:grid-cols-4">
-        <StatCard
-          value={`⭐ ${avgRatingDisplay}`}
-          label="Avg Rating"
-          subtitle={reviewsSubtitle}
-        />
-        <StatCard
-          value={String(stats.completedCount)}
-          label="Jobs Completed"
-        />
-        <StatCard
-          value={String(stats.customersServed)}
-          label="Customers Served"
-        />
-        <StatCard
-          value={String(stats.yearsInBusiness)}
-          label={yearsLabel}
-        />
-      </div>
-    </section>
+      <StatCard
+        value={`⭐ ${avgRatingDisplay}`}
+        label="Avg Rating"
+      />
+      <StatCard
+        value={String(stats.completedCount)}
+        label="Jobs Completed"
+      />
+      <StatCard
+        value={String(stats.customersServed)}
+        label="Customers Served"
+      />
+      <StatCard
+        value={String(stats.yearsInBusiness)}
+        label={yearsLabel}
+      />
+    </div>
   );
 }

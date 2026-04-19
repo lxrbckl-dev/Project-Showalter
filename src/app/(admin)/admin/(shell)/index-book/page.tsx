@@ -60,11 +60,20 @@ export default async function AdminIndexBookPage({
 
   return (
     <div className="space-y-6" data-testid="index-book-list">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Index Book</h1>
-        <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-          Customer directory — search by name, phone, email, or address.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Index Book</h1>
+          <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
+            Customer directory — search by name, phone, email, or address.
+          </p>
+        </div>
+        <Link
+          href="/admin/index-book/new"
+          data-testid="add-customer-btn"
+          className="shrink-0 rounded-md bg-[hsl(var(--primary))] px-4 py-2 text-sm font-medium text-[hsl(var(--primary-foreground))] hover:opacity-90"
+        >
+          Add customer
+        </Link>
       </header>
 
       {/* Search form */}

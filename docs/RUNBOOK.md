@@ -107,38 +107,71 @@ If the cron process is dead but the app is otherwise healthy, a `docker restart 
 
 Passkeys are the only login mechanism. Loss-of-device scenarios must be recoverable.
 
-### Happy path: admin still has their recovery code
+### Important: recovery-code login is NOT implemented
 
-Admin enters their email at `/admin/login`, taps "use recovery code instead," pastes the one-time code. On success, a new code is generated and displayed once; the old passkey remains until they re-enroll from the new device.
+Recovery codes are generated and shown once during enrollment (good — keep them somewhere safe), but there is **no login UI today that consumes one**. `useRecoveryCode()` exists server-side as a primitive, but no form on `/admin/login` calls it. Treat the recovery code as future-proofing only; for any actual recovery, use the CLI paths below.
 
-### Admin lost device AND recovery code
+### Admin lost device (or recovery code)
 
-This is the escape hatch. The `admin:reset` CLI is the **single recovery path** — do not bolt additional recovery mechanisms onto the system.
+The `admin:reset` CLI is the **single recovery path** — do not bolt additional recovery mechanisms (email reset links, SMS codes, etc.) onto the system.
 
 ```bash
-docker exec showalter pnpm admin:reset sshowalterservices@gmail.com
+# Production (inside Docker container):
+docker exec showalter pnpm admin:reset <email>
+
+# Local dev (the migrate script and CLIs default to ./dev.db; the app reads
+# ./database/dev.db from .env.local — the two are different files. Always
+# pass DATABASE_URL when invoking dev CLIs, or you'll mutate the wrong DB):
+DATABASE_URL=file:./database/dev.db pnpm admin:reset <email>
 ```
 
-This clears the admin's `credentials` and `recovery_codes` rows and leaves the `admins` row with `enrolled_at=NULL` (pending enrollment).
+This clears the admin's `credentials` and `recovery_codes` rows and leaves the `admins` row with `enrolled_at=NULL`.
 
-**Then:**
+**If at least one OTHER admin is still enrolled** — they invite the reset admin back:
 
-1. A currently-enrolled admin (the other operator) visits `/admin/settings/admins`, creates an invite for the reset admin's email, and copies the URL.
+1. The other enrolled admin visits `/admin/settings/admins`, creates an invite for the reset admin's email, and copies the URL.
 2. The reset admin opens the invite URL on their new device, confirms the pre-filled email, and enrolls a fresh passkey.
-3. The server generates a new recovery code and shows it once — the admin saves it somewhere safe (password manager).
+3. The server generates a new recovery code and shows it once — save it to a password manager.
 4. The invite is single-use and auto-consumes; no further cleanup required.
 
-If the reset admin is the **only** admin (last-one-locked-out), Alex can run `admin:reset <email>` and then `admin:list` to confirm the admin is pending. Visiting `/admin/login` will then render the regular login form (the admins table isn't empty, so the founding form isn't shown) — but since their credentials are now gone, the canonical "can't sign in" failure fires. In that case, also delete the admin row directly via `sqlite3` or reset the DB from the latest nightly backup, then follow §6a's first-visit founding-admin flow.
+### Last admin locked out (no one can issue an invite)
 
-### All admins locked out
+`admin:reset` alone is **not sufficient** in this case. The admins table is non-empty, so `/admin/login` still renders the standard `LoginForm` (which refuses you because `enrolled_at IS NULL`). The founding-admin flow only triggers when the table is fully empty.
 
-Alex still has SSH access to the homelab. He runs the same `admin:reset` for himself (or for Sawyer), then follows the steps above. The homelab's SSH key is the ultimate recovery root — protect it accordingly.
+**Recipe:**
+
+```bash
+# 1. (Optional but tidy) clear credentials + recovery codes first.
+DATABASE_URL=file:./database/dev.db pnpm admin:reset <email>
+
+# 2. Delete the admin row so the table is empty.
+#    Production: sqlite3 /data/sqlite.db "DELETE FROM admins WHERE email='<email>';"
+#    Local dev:
+sqlite3 ./database/dev.db "DELETE FROM admins WHERE email='<email>';"
+
+# 3. Verify zero admins remain.
+DATABASE_URL=file:./database/dev.db pnpm admin:list
+# → "No admins found."
+```
+
+Then refresh `/admin/login` — you'll see "Create the first admin", Touch ID will fire, and you'll get a fresh passkey + a one-time recovery code. **Save the new recovery code immediately** — there is no UI to retrieve it later.
+
+The page is `force-dynamic`, so a normal refresh works; if it sticks, hard-refresh (Cmd+Shift+R).
+
+### Why no DELETE CLI
+
+There's no `admin:delete` script by design — agent rules forbid destructive operations, and the row preservation in `admin:reset` matches that posture. Deleting the row is a manual SQL escape hatch reserved for the genuine last-admin-locked-out case; it requires explicit operator action (running `sqlite3` directly), not a memorable command.
+
+### All admins locked out (production)
+
+Alex still has SSH access to the homelab. He uses the recipe above, substituting `docker exec showalter sqlite3 /data/sqlite.db ...` for the local sqlite3 invocation. The homelab's SSH key is the ultimate recovery root — protect it accordingly.
 
 ### What NOT to do
 
 - Don't add a password-reset-via-email path. Email is not an authentication factor in this app.
 - Don't share recovery codes over chat / email — read them once, save them to a password manager, move on.
 - Don't share invite URLs any more widely than you have to. Even though invites are email-bound, the URL itself is the proof-of-invitation; anyone who can read the URL AND knows the invitee's email can complete signup.
+- Don't migrate or seed the project-root `dev.db` thinking it's the dev DB — Next.js reads `./database/dev.db` per `.env.local`. Always pass `DATABASE_URL=file:./database/dev.db` to dev CLIs.
 
 ---
 

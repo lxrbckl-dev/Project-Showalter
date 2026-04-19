@@ -143,6 +143,7 @@ export function SortableGalleryList({ photos: initialPhotos }: SortableGalleryLi
         <p className="text-xs text-[hsl(var(--muted-foreground))]">Saving order…</p>
       )}
       <DndContext
+        id="admin-gallery-sortable"
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}

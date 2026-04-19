@@ -236,6 +236,84 @@ export function SettingsForm({ config }: SettingsFormProps) {
           />
           <FieldError errors={err('minReviewsForLandingStats')} />
         </div>
+
+        <div className="space-y-2">
+          <label htmlFor="statsJobsCompletedOverride" className="block text-sm font-medium">
+            Jobs completed (override)
+          </label>
+          <Input
+            id="statsJobsCompletedOverride"
+            name="statsJobsCompletedOverride"
+            type="number"
+            defaultValue={config.statsJobsCompletedOverride ?? ''}
+            min={0}
+            max={100000}
+            placeholder="Leave blank to auto-compute from bookings"
+          />
+          <FieldError errors={err('statsJobsCompletedOverride')} />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="statsCustomersServedOverride" className="block text-sm font-medium">
+            Customers served (override)
+          </label>
+          <Input
+            id="statsCustomersServedOverride"
+            name="statsCustomersServedOverride"
+            type="number"
+            defaultValue={config.statsCustomersServedOverride ?? ''}
+            min={0}
+            max={100000}
+            placeholder="Leave blank to auto-compute from bookings"
+          />
+          <FieldError errors={err('statsCustomersServedOverride')} />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="businessStartDate" className="block text-sm font-medium">
+            Business start date
+          </label>
+          <Input
+            id="businessStartDate"
+            name="businessStartDate"
+            type="date"
+            defaultValue={config.businessStartDate ?? ''}
+            placeholder="Leave blank to use founding year"
+          />
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            When set, "Years in Business" is computed from this date (month/day precise).
+            Leave blank to fall back to Year Founded.
+          </p>
+          <FieldError errors={err('businessStartDate')} />
+        </div>
+      </section>
+
+      {/* --- Host facts marquee --- */}
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+          Host facts marquee
+        </h3>
+
+        <div className="space-y-2">
+          <label htmlFor="hostFacts" className="block text-sm font-medium">
+            Host facts (one per line)
+          </label>
+          <textarea
+            id="hostFacts"
+            name="hostFacts"
+            defaultValue={config.hostFacts ?? ''}
+            rows={8}
+            maxLength={12_000}
+            placeholder={'Born and raised in Kansas City\nEagle Scout\nMowing since age 12\nHonor roll student'}
+            className="w-full rounded-md border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2 text-sm focus:border-[hsl(var(--ring))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]"
+          />
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            One fact per line. Up to 50 lines, 200 characters each. Order is
+            randomized on each page load and items scroll continuously across
+            the landing page below the hero.
+          </p>
+          <FieldError errors={err('hostFacts')} />
+        </div>
       </section>
 
       {/* --- Reviews --- */}

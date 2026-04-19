@@ -187,6 +187,10 @@ export function submitReviewCore(
             sortOrder: nextSort,
             active: 1,
             sourceReviewId: row.id,
+            // Snapshot the star rating so the gallery can display it without
+            // a join. Rating is always non-null at submit time (Zod enforces
+            // min 1 max 5), but the column is nullable for historical rows.
+            sourceReviewRating: rating,
             createdAt: nowIso,
           })
           .run();

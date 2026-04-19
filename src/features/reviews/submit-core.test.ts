@@ -55,6 +55,7 @@ function makeDb(): { sqlite: Database.Database; db: Db } {
       sort_order INTEGER NOT NULL DEFAULT 0,
       active INTEGER NOT NULL DEFAULT 1,
       source_review_id INTEGER,
+      source_review_rating INTEGER,
       created_at TEXT NOT NULL
     );
     CREATE TABLE site_config (
@@ -81,7 +82,10 @@ function makeDb(): { sqlite: Database.Database; db: Db } {
       auto_publish_top_review_photos INTEGER NOT NULL DEFAULT 1,
       template_confirmation_email TEXT, template_confirmation_sms TEXT,
       template_decline_email TEXT, template_decline_sms TEXT,
-      template_review_request_email TEXT, template_review_request_sms TEXT
+      template_review_request_email TEXT, template_review_request_sms TEXT,
+      stats_jobs_completed_override INTEGER,
+      stats_customers_served_override INTEGER,
+      business_start_date TEXT
     );
     INSERT INTO site_config (id) VALUES (1);
   `);

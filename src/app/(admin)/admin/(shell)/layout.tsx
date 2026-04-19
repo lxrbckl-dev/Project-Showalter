@@ -17,26 +17,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { auth } from '@/features/auth/auth';
 import { getDb } from '@/db';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { unreadCount } from '@/features/notifications/queries';
 import { getHeaderStats } from '@/features/bookings/admin-queries';
+import { AdminNav } from './_components/AdminNav';
 import { logoutAction } from './actions';
 
 export const dynamic = 'force-dynamic';
-
-const NAV_ITEMS = [
-  { href: '/admin', label: 'Dashboard' },
-  { href: '/admin/inbox', label: 'Inbox' },
-  { href: '/admin/bookings/new', label: 'New booking' },
-  { href: '/admin/schedule', label: 'Schedule' },
-  { href: '/admin/services', label: 'Services' },
-  { href: '/admin/content', label: 'Content' },
-  { href: '/admin/gallery', label: 'Gallery' },
-  { href: '/admin/index-book', label: 'Index Book' },
-  { href: '/admin/reviews', label: 'Reviews' },
-  { href: '/admin/settings', label: 'Settings' },
-];
 
 export default async function AdminLayout({
   children,
@@ -44,7 +31,6 @@ export default async function AdminLayout({
   const session = await auth();
   if (!session) redirect('/admin/login');
 
-  const email = session.user.email;
   const db = getDb();
 
   // Header surface reads are cheap — two count queries + a join-lite fetch.
@@ -73,30 +59,11 @@ export default async function AdminLayout({
                 priority
               />
             </Link>
-            <Link
-              href="/admin/notifications"
-              aria-label={`${unread} unread notifications`}
-              data-testid="unread-badge-link"
-            >
-              <Badge
-                variant={unread > 0 ? 'default' : 'secondary'}
-                data-testid="unread-badge"
-                data-unread={unread}
-              >
-                {unread}
-              </Badge>
-            </Link>
           </div>
           <div className="flex items-center gap-3">
-            <span
-              className="text-sm text-[hsl(var(--muted-foreground))]"
-              data-testid="signed-in-email"
-            >
-              {email}
-            </span>
             <form action={logoutAction}>
               <Button type="submit" size="sm" variant="outline">
-                Log out
+                Logout
               </Button>
             </form>
           </div>
@@ -104,18 +71,7 @@ export default async function AdminLayout({
       </header>
 
       <nav className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-        <ul className="mx-auto flex max-w-6xl gap-4 overflow-x-auto px-6 py-2">
-          {NAV_ITEMS.map((item) => (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className="block whitespace-nowrap px-3 py-1 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
-              >
-                {item.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <AdminNav unread={unread} />
       </nav>
 
       <div

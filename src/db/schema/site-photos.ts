@@ -37,6 +37,14 @@ export const sitePhotos = sqliteTable('site_photos', {
    */
   sourceReviewId: integer('source_review_id'),
 
+  /**
+   * Star rating snapshot (1-5) from the source review, for display next to
+   * the caption on the public Reviews marquee. Nullable — only set when the
+   * photo was auto-published from a review (source_review_id IS NOT NULL).
+   * Admin-uploaded photos keep this NULL and render no rating.
+   */
+  sourceReviewRating: integer('source_review_rating'),
+
   createdAt: text('created_at').notNull(),
 });
 

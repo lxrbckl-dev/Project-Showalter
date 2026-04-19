@@ -87,7 +87,7 @@ export function RecoveryCodeModal({ code, onDismiss, busy = false }: Props) {
             disabled={!confirmed || busy}
             data-testid="dismiss-modal-button"
           >
-            {busy ? 'Signing in…' : 'Continue to dashboard'}
+            {busy ? 'Signing in…' : 'Continue'}
           </Button>
         </div>
       </div>

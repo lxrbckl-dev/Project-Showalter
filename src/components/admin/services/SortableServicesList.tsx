@@ -131,7 +131,7 @@ export function SortableServicesList({ services: initialServices }: SortableServ
       {isPending && (
         <p className="text-xs text-[hsl(var(--muted-foreground))]">Saving order…</p>
       )}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext id="admin-services-sortable" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map((s) => s.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2" data-testid="sortable-services-list">
             {items.map((service) => (

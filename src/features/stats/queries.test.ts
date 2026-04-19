@@ -68,7 +68,10 @@ function setupSchema(db: Database.Database): void {
       template_review_request_sms TEXT,
       owner_first_name TEXT,
       email_template_subject TEXT,
-      email_template_body TEXT
+      email_template_body TEXT,
+      stats_jobs_completed_override INTEGER,
+      stats_customers_served_override INTEGER,
+      business_start_date TEXT
     );
 
     CREATE TABLE IF NOT EXISTS reviews (

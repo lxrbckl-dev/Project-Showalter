@@ -1,7 +1,10 @@
+import { StatsBand } from './StatsBand';
+
 interface SitePhoto {
   id: number;
   path: string;
   caption: string | null;
+  rating: number | null;
 }
 
 interface GalleryProps {
@@ -48,10 +51,15 @@ export function Gallery({ photos, siteTitle }: GalleryProps) {
         className="h-full w-auto object-contain"
         loading="lazy"
       />
-      {photo.caption && (
-        <p className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-xs text-white">
-          {photo.caption}
-        </p>
+      {(photo.rating != null || photo.caption) && (
+        <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-xs text-white">
+          {photo.rating != null && (
+            <div className="mb-0.5 text-yellow-400" aria-label={`${photo.rating} out of 5 stars`}>
+              {'★'.repeat(photo.rating)}{'☆'.repeat(5 - photo.rating)}
+            </div>
+          )}
+          {photo.caption && <p>{photo.caption}</p>}
+        </div>
       )}
     </div>
   ));
@@ -59,9 +67,14 @@ export function Gallery({ photos, siteTitle }: GalleryProps) {
   return (
     <section id="reviews" className="bg-gray-50 px-6 py-8">
       <div className="mx-auto max-w-2xl">
-        <h2 className="mb-8 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
+        <h2 className="mb-6 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
           Reviews
         </h2>
+      </div>
+
+      {/* Aggregate stats — review-derived, sits between heading and photo marquee */}
+      <div className="mb-8">
+        <StatsBand />
       </div>
 
       {/* Marquee band — full bleed so photos extend past the padded heading */}
@@ -90,10 +103,15 @@ export function Gallery({ photos, siteTitle }: GalleryProps) {
                   className="h-full w-auto object-contain"
                   loading="lazy"
                 />
-                {photo.caption && (
-                  <p className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-xs text-white">
-                    {photo.caption}
-                  </p>
+                {(photo.rating != null || photo.caption) && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-xs text-white">
+                    {photo.rating != null && (
+                      <div className="mb-0.5 text-yellow-400">
+                        {'★'.repeat(photo.rating)}{'☆'.repeat(5 - photo.rating)}
+                      </div>
+                    )}
+                    {photo.caption && <p>{photo.caption}</p>}
+                  </div>
                 )}
               </div>
             ))}

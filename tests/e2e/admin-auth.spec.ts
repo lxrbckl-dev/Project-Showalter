@@ -61,11 +61,10 @@ test.describe('admin auth flow (virtual authenticator)', () => {
     // 5. Dismiss → lands on /admin dashboard.
     await page.getByTestId('dismiss-modal-button').click();
     await expect(page).toHaveURL(/\/admin$/);
-    await expect(page.getByTestId('signed-in-email')).toContainText('alex@test.com');
     await expect(page.getByTestId('pending-count')).toHaveText('0');
 
     // 6. Log out.
-    await page.getByRole('button', { name: /log out/i }).click();
+    await page.getByRole('button', { name: /logout/i }).click();
     await expect(page).toHaveURL(/\/admin\/login$/);
 
     // 7. Log back in. Now that an admin exists, /admin/login renders the
@@ -74,6 +73,5 @@ test.describe('admin auth flow (virtual authenticator)', () => {
     await page.getByTestId('email-input').fill('alex@test.com');
     await page.getByTestId('submit-button').click();
     await expect(page).toHaveURL(/\/admin$/);
-    await expect(page.getByTestId('signed-in-email')).toContainText('alex@test.com');
   });
 });

@@ -98,7 +98,7 @@ test.describe('admin services CRUD', () => {
 
     // --- Archive ---
     await editedRow.getByTestId('archive-button').click();
-    await expect(editedRow.getByTestId('service-status')).toHaveText('Archived', { timeout: 5_000 });
+    await expect(editedRow.getByTestId('service-status')).toHaveText('Hidden', { timeout: 5_000 });
 
     // Row still exists (no hard delete)
     await expect(editedRow).toBeVisible();

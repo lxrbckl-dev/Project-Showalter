@@ -320,6 +320,65 @@ const SettingsSchema = z
       .max(5, 'Must be ≤ 5'),
     autoPublishTopReviewPhotos: z.coerce.number().int().min(0).max(1),
     timezone,
+    // Landing stats overrides — optional; empty string coerces to null.
+    statsJobsCompletedOverride: z
+      .string()
+      .trim()
+      .transform((v) => (v === '' ? null : Number(v)))
+      .pipe(z.number().int().min(0).max(100_000).nullable())
+      .optional(),
+    statsCustomersServedOverride: z
+      .string()
+      .trim()
+      .transform((v) => (v === '' ? null : Number(v)))
+      .pipe(z.number().int().min(0).max(100_000).nullable())
+      .optional(),
+    // Business start date — ISO YYYY-MM-DD or empty (→ null).
+    businessStartDate: z
+      .string()
+      .trim()
+      .transform((v) => (v === '' ? null : v))
+      .pipe(
+        z.string()
+          .regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'Use YYYY-MM-DD format')
+          .refine((v) => {
+            const [y, m, d] = v.split('-').map(Number);
+            const dt = new Date(Date.UTC(y, m - 1, d));
+            return (
+              dt.getUTCFullYear() === y &&
+              dt.getUTCMonth() === m - 1 &&
+              dt.getUTCDate() === d
+            );
+          }, 'Must be a valid calendar date')
+          .nullable(),
+      )
+      .optional(),
+    // Host facts — free-text, one fact per line. Empty/whitespace lines
+    // dropped on save, individual facts capped at 200 chars, max 50 lines.
+    // Empty input stores NULL (marquee then renders nothing).
+    hostFacts: z
+      .string()
+      .transform((raw) => {
+        const lines = raw
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0);
+        return lines.length === 0 ? null : lines.join('\n');
+      })
+      .pipe(
+        z
+          .string()
+          .nullable()
+          .refine(
+            (v) => v === null || v.split('\n').every((l) => l.length <= 200),
+            'Each fact must be 200 characters or fewer',
+          )
+          .refine(
+            (v) => v === null || v.split('\n').length <= 50,
+            'At most 50 facts allowed',
+          ),
+      )
+      .optional(),
   });
 
 export async function updateSettings(
@@ -342,6 +401,10 @@ export async function updateSettings(
     minRatingForAutoPublish: data.get('minRatingForAutoPublish') as string,
     autoPublishTopReviewPhotos: data.get('autoPublishTopReviewPhotos') === 'on' ? '1' : '0',
     timezone: data.get('timezone') as string,
+    statsJobsCompletedOverride: (data.get('statsJobsCompletedOverride') as string) ?? '',
+    statsCustomersServedOverride: (data.get('statsCustomersServedOverride') as string) ?? '',
+    businessStartDate: (data.get('businessStartDate') as string) ?? '',
+    hostFacts: (data.get('hostFacts') as string) ?? '',
   };
 
   const parsed = SettingsSchema.safeParse(raw);

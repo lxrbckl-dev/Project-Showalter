@@ -72,6 +72,37 @@ export const siteConfig = sqliteTable('site_config', {
   businessFoundedYear: integer('business_founded_year').notNull().default(2023),
 
   /**
+   * Admin override for the "Jobs Completed" stat on the landing page.
+   * When set, overrides the auto-computed count of completed bookings.
+   * Nullable — when unset, the public site falls back to the computed value.
+   */
+  statsJobsCompletedOverride: integer('stats_jobs_completed_override'),
+
+  /**
+   * Admin override for the "Customers Served" stat on the landing page.
+   * When set, overrides the auto-computed distinct-customer count.
+   * Nullable — when unset, the public site falls back to the computed value.
+   */
+  statsCustomersServedOverride: integer('stats_customers_served_override'),
+
+  /**
+   * Admin-configurable business start date (ISO YYYY-MM-DD).
+   * When set, "Years in Business" is derived from this date (more precise
+   * than `businessFoundedYear` alone — accounts for the month/day of start).
+   * Nullable — when unset, falls back to `businessFoundedYear` for the calc.
+   */
+  businessStartDate: text('business_start_date'),
+
+  /**
+   * Newline-delimited list of short, free-text facts about the host (e.g.
+   * "Eagle Scout", "Born in Kansas City", "Mowing since age 12"). Rendered as
+   * a continuously scrolling marquee on the public landing page, items
+   * separated by a `•` bullet. Order is randomized on each request.
+   * Nullable / empty → marquee renders nothing.
+   */
+  hostFacts: text('host_facts'),
+
+  /**
    * Site title / business name shown in the public-facing UI (Hero eyebrow,
    * back-links, image alt text), SEO metadata (<title>, OG title, Twitter
    * card), and the dynamic Open Graph image. Admin-editable from Content →

@@ -49,7 +49,14 @@ export function Services({ services }: ServicesProps) {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {services.map((service, idx) => (
-                <tr key={service.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <tr
+                  key={service.id}
+                  className={
+                    idx % 2 === 0
+                      ? 'bg-white'
+                      : 'bg-gray-50'
+                  }
+                >
                   <td className="px-4 py-3 font-medium text-gray-900">{service.name}</td>
                   <td className="px-4 py-3 text-gray-600">{service.description}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-[#6C9630]">

@@ -412,8 +412,8 @@ function OverridesPanel({ overrides }: { overrides: OverrideItem[] }) {
                   <span
                     className={
                       o.mode === 'closed'
-                        ? 'rounded bg-red-100 px-2 py-0.5 text-xs text-red-900 dark:bg-red-900/40 dark:text-red-200'
-                        : 'rounded bg-green-100 px-2 py-0.5 text-xs text-green-900 dark:bg-green-900/40 dark:text-green-200'
+                        ? 'rounded bg-red-100 px-2 py-0.5 text-xs text-red-900'
+                        : 'rounded bg-green-100 px-2 py-0.5 text-xs text-green-900'
                     }
                   >
                     {o.mode}

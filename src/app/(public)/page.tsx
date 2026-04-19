@@ -10,18 +10,17 @@ import { About } from '@/components/public/About';
 import { Gallery } from '@/components/public/Gallery';
 import { Services } from '@/components/public/Services';
 import { Contact } from '@/components/public/Contact';
-import { StatsBand } from '@/components/public/StatsBand';
 
 /**
  * Public landing page — server component.
  *
  * Reads live from the database. Section order:
  *   1. Hero
- *   2. Stats widget (Phase 11)
- *   3. About
- *   4. Services
- *   5. Request (booking CTA)
- *   6. Contact
+ *   2. About
+ *   3. Services
+ *   4. Request (booking CTA)
+ *   5. Contact
+ *   6. Stats widget (Phase 11)
  *   7. Reviews / Gallery (gracefully absent until Phase 3 adds site_photos)
  *
  * Gallery queries `site_photos` — the table doesn't exist until Phase 3.
@@ -32,6 +31,7 @@ interface SitePhoto {
   id: number;
   path: string;
   caption: string | null;
+  rating: number | null;
 }
 
 function fetchGalleryPhotos(): SitePhoto[] {
@@ -46,7 +46,7 @@ function fetchGalleryPhotos(): SitePhoto[] {
 
     const rows = sqlite
       .prepare(
-        'SELECT id, file_path AS path, caption FROM site_photos WHERE active = 1 ORDER BY sort_order ASC',
+        'SELECT id, file_path AS path, caption, source_review_rating AS rating FROM site_photos WHERE active = 1 ORDER BY sort_order ASC',
       )
       .all() as SitePhoto[];
 
@@ -89,16 +89,13 @@ export default function HomePage() {
       {/* 1. Hero */}
       <Hero siteConfig={config} />
 
-      {/* 2. Stats widget — Phase 11 */}
-      <StatsBand />
-
-      {/* 3. About */}
+      {/* 2. About — includes the host-facts marquee in the eyebrow slot */}
       <About siteConfig={config} />
 
-      {/* 4. Services */}
+      {/* 3. Services */}
       <Services services={activeServices} />
 
-      {/* 5. #request anchor — booking CTA */}
+      {/* 4. #request anchor — booking CTA */}
       <section
         id="request"
         className="bg-gray-50 px-6 py-8 text-center"
@@ -112,14 +109,14 @@ export default function HomePage() {
           href="/book"
           className="inline-block rounded-md bg-[#6C9630] px-8 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-[#567826] focus:outline-none focus:ring-2 focus:ring-[#6C9630]"
         >
-          Start booking
+          Start Booking
         </a>
       </section>
 
-      {/* 6. Contact */}
+      {/* 5. Contact */}
       <Contact siteConfig={config} />
 
-      {/* 7. Reviews — gracefully absent until Phase 3 */}
+      {/* 6. Reviews — gallery + review-derived stats live together */}
       <Gallery photos={photos} siteTitle={config.siteTitle} />
     </main>
   );

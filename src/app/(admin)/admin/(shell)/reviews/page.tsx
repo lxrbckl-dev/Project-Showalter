@@ -65,18 +65,27 @@ export default async function AdminReviewsPage({
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Reviews</h1>
-        <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-          Submitted customer reviews — search, filter, or open a detail view.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Reviews</h1>
+          <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
+            Submitted customer reviews — search, filter, or open a detail view.
+          </p>
+        </div>
+        <Link
+          href="/admin/reviews/new"
+          data-testid="create-review-link-btn"
+          className="shrink-0 rounded-md bg-[hsl(var(--primary))] px-4 py-2 text-sm font-medium text-[hsl(var(--primary-foreground))] hover:opacity-90"
+        >
+          Create review link
+        </Link>
       </header>
 
       <form
         method="get"
         action="/admin/reviews"
         data-testid="reviews-filter-form"
-        className="grid grid-cols-1 gap-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 sm:grid-cols-4"
+        className="grid grid-cols-1 gap-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 sm:grid-cols-5"
       >
         <div className="sm:col-span-2">
           <label
@@ -116,41 +125,39 @@ export default async function AdminReviewsPage({
             ))}
           </select>
         </div>
-        <div className="flex gap-2 sm:col-span-1">
-          <div className="flex-1">
-            <label
-              htmlFor="from"
-              className="mb-1 block text-xs uppercase text-[hsl(var(--muted-foreground))]"
-            >
-              From
-            </label>
-            <input
-              id="from"
-              name="from"
-              type="date"
-              defaultValue={from ?? ''}
-              data-testid="reviews-filter-from"
-              className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex-1">
-            <label
-              htmlFor="to"
-              className="mb-1 block text-xs uppercase text-[hsl(var(--muted-foreground))]"
-            >
-              To
-            </label>
-            <input
-              id="to"
-              name="to"
-              type="date"
-              defaultValue={to ?? ''}
-              data-testid="reviews-filter-to"
-              className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
-            />
-          </div>
+        <div>
+          <label
+            htmlFor="from"
+            className="mb-1 block text-xs uppercase text-[hsl(var(--muted-foreground))]"
+          >
+            From
+          </label>
+          <input
+            id="from"
+            name="from"
+            type="date"
+            defaultValue={from ?? ''}
+            data-testid="reviews-filter-from"
+            className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
+          />
         </div>
-        <div className="sm:col-span-4">
+        <div>
+          <label
+            htmlFor="to"
+            className="mb-1 block text-xs uppercase text-[hsl(var(--muted-foreground))]"
+          >
+            To
+          </label>
+          <input
+            id="to"
+            name="to"
+            type="date"
+            defaultValue={to ?? ''}
+            data-testid="reviews-filter-to"
+            className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
+          />
+        </div>
+        <div className="sm:col-span-5">
           <button
             type="submit"
             data-testid="reviews-filter-apply"
