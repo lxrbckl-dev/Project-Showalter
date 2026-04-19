@@ -225,6 +225,8 @@ const TemplatesSchema = z.object({
   templateDeclineSms: z.string().trim().min(1, 'Template is required'),
   templateReviewRequestEmail: z.string().trim().min(1, 'Template is required'),
   templateReviewRequestSms: z.string().trim().min(1, 'Template is required'),
+  templateRescheduleEmail: z.string().trim().min(1, 'Template is required'),
+  templateRescheduleSms: z.string().trim().min(1, 'Template is required'),
 });
 
 export async function updateTemplates(
@@ -238,6 +240,8 @@ export async function updateTemplates(
     templateDeclineSms: data.get('templateDeclineSms') as string,
     templateReviewRequestEmail: data.get('templateReviewRequestEmail') as string,
     templateReviewRequestSms: data.get('templateReviewRequestSms') as string,
+    templateRescheduleEmail: data.get('templateRescheduleEmail') as string,
+    templateRescheduleSms: data.get('templateRescheduleSms') as string,
   };
 
   const parsed = TemplatesSchema.safeParse(raw);

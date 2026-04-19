@@ -145,10 +145,18 @@ export default async function AdminBookingDetailPage({
   // Phase 7: mailto/sms confirmation buttons. Only shown when the booking is
   // accepted or declined — these are the two states where Sawyer has a
   // pre-canned message to send the customer.
+  //
+  // Special case: an accepted booking that REPLACES an earlier one (i.e. it
+  // was created via reschedule — `predecessors.length > 0`) swaps the
+  // confirmation templates for the reschedule templates, so the message body
+  // mentions the move instead of acting like a fresh confirmation.
   const confirmationHrefs: ConfirmationHref[] = [];
-  let confirmationSection: 'accepted' | 'declined' | null = null;
-  if (row.status === 'accepted') confirmationSection = 'accepted';
-  else if (row.status === 'declined') confirmationSection = 'declined';
+  let confirmationSection: 'accepted' | 'declined' | 'reschedule' | null = null;
+  if (row.status === 'accepted') {
+    confirmationSection = predecessors.length > 0 ? 'reschedule' : 'accepted';
+  } else if (row.status === 'declined') {
+    confirmationSection = 'declined';
+  }
 
   if (confirmationSection) {
     const kinds: Array<{
@@ -172,20 +180,35 @@ export default async function AdminBookingDetailPage({
               testid: 'send-confirmation-sms',
             },
           ]
-        : [
-            {
-              kind: 'decline_email',
-              label: 'Send email decline',
-              channel: 'email',
-              testid: 'send-decline-email',
-            },
-            {
-              kind: 'decline_sms',
-              label: 'Send text decline',
-              channel: 'sms',
-              testid: 'send-decline-sms',
-            },
-          ];
+        : confirmationSection === 'reschedule'
+          ? [
+              {
+                kind: 'reschedule_email',
+                label: 'Send email reschedule notice',
+                channel: 'email',
+                testid: 'send-reschedule-email',
+              },
+              {
+                kind: 'reschedule_sms',
+                label: 'Send text reschedule notice',
+                channel: 'sms',
+                testid: 'send-reschedule-sms',
+              },
+            ]
+          : [
+              {
+                kind: 'decline_email',
+                label: 'Send email decline',
+                channel: 'email',
+                testid: 'send-decline-email',
+              },
+              {
+                kind: 'decline_sms',
+                label: 'Send text decline',
+                channel: 'sms',
+                testid: 'send-decline-sms',
+              },
+            ];
 
     for (const entry of kinds) {
       const result = composeConfirmationForBooking(row.id, entry.kind);
@@ -339,7 +362,9 @@ export default async function AdminBookingDetailPage({
           <h2 className="text-lg font-semibold">
             {confirmationSection === 'accepted'
               ? 'Send confirmation'
-              : 'Send decline'}
+              : confirmationSection === 'reschedule'
+                ? 'Notify customer of reschedule'
+                : 'Send decline'}
           </h2>
           <p className="text-sm text-[hsl(var(--muted-foreground))]">
             Opens your native mail/messages app with the body pre-filled.

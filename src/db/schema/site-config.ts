@@ -127,6 +127,8 @@ export const siteConfig = sqliteTable('site_config', {
   templateDeclineSms: text('template_decline_sms'),
   templateReviewRequestEmail: text('template_review_request_email'),
   templateReviewRequestSms: text('template_review_request_sms'),
+  templateRescheduleEmail: text('template_reschedule_email'),
+  templateRescheduleSms: text('template_reschedule_sms'),
 });
 
 export type SiteConfigRow = typeof siteConfig.$inferSelect;

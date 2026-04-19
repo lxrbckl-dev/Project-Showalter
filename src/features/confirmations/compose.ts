@@ -25,7 +25,9 @@ export type ConfirmationTemplateKind =
   | 'decline_email'
   | 'decline_sms'
   | 'review_request_email'
-  | 'review_request_sms';
+  | 'review_request_sms'
+  | 'reschedule_email'
+  | 'reschedule_sms';
 
 /** Shipped default bodies, used when the admin hasn't overridden the column. */
 const DEFAULT_BODIES: Record<ConfirmationTemplateKind, string> = {
@@ -61,6 +63,23 @@ Thanks for letting me work on your [service] today! If you have a quick moment, 
 — Sawyer
 913-309-7340`,
   review_request_sms: `Hi [name], thanks for the job today! If you have a sec, a quick review would mean a lot: [link] — Sawyer`,
+  reschedule_email: `Hi [name],
+
+Quick update — I've rescheduled your [service] appointment.
+
+New date and time:
+• [date] at [time]
+• Address: [address]
+
+Add to calendar:
+• Google: [google_link]
+• Apple:  [ics_link]
+
+Sorry for any inconvenience!
+
+— Sawyer
+913-309-7340`,
+  reschedule_sms: `Hi [name], Sawyer here — heads up your [service] has been rescheduled to [date] at [time]. Add to calendar: [shortlink]`,
 };
 
 /**
@@ -72,11 +91,12 @@ Thanks for letting me work on your [service] today! If you have a quick moment, 
  */
 function buildDefaultSubjects(
   siteTitle: string,
-): Record<'email' | 'decline' | 'review', string> {
+): Record<'email' | 'decline' | 'review' | 'reschedule', string> {
   return {
     email: `Your appointment is confirmed — ${siteTitle}`,
     decline: `About your service request — ${siteTitle}`,
     review: 'Quick favor — leave a review?',
+    reschedule: `Your appointment has been rescheduled — ${siteTitle}`,
   };
 }
 
@@ -85,6 +105,7 @@ function subjectForKind(kind: ConfirmationTemplateKind, siteTitle: string): stri
   if (kind === 'confirmation_email') return subjects.email;
   if (kind === 'decline_email') return subjects.decline;
   if (kind === 'review_request_email') return subjects.review;
+  if (kind === 'reschedule_email') return subjects.reschedule;
   // SMS kinds don't use a subject.
   return '';
 }
@@ -139,7 +160,9 @@ function templateFieldFor(kind: ConfirmationTemplateKind):
   | 'templateDeclineEmail'
   | 'templateDeclineSms'
   | 'templateReviewRequestEmail'
-  | 'templateReviewRequestSms' {
+  | 'templateReviewRequestSms'
+  | 'templateRescheduleEmail'
+  | 'templateRescheduleSms' {
   switch (kind) {
     case 'confirmation_email':
       return 'templateConfirmationEmail';
@@ -153,6 +176,10 @@ function templateFieldFor(kind: ConfirmationTemplateKind):
       return 'templateReviewRequestEmail';
     case 'review_request_sms':
       return 'templateReviewRequestSms';
+    case 'reschedule_email':
+      return 'templateRescheduleEmail';
+    case 'reschedule_sms':
+      return 'templateRescheduleSms';
   }
 }
 

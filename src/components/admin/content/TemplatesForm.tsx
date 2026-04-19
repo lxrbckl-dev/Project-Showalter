@@ -26,6 +26,8 @@ const FIELD_MAP: Record<TemplateKey, keyof SiteConfigRow> = {
   decline_sms: 'templateDeclineSms',
   review_request_email: 'templateReviewRequestEmail',
   review_request_sms: 'templateReviewRequestSms',
+  reschedule_email: 'templateRescheduleEmail',
+  reschedule_sms: 'templateRescheduleSms',
 };
 
 /** Maps TemplateKey to the form field name (camelCase, matching actions.ts) */
@@ -36,6 +38,8 @@ const FORM_FIELD_MAP: Record<TemplateKey, string> = {
   decline_sms: 'templateDeclineSms',
   review_request_email: 'templateReviewRequestEmail',
   review_request_sms: 'templateReviewRequestSms',
+  reschedule_email: 'templateRescheduleEmail',
+  reschedule_sms: 'templateRescheduleSms',
 };
 
 export function TemplatesForm({ config }: TemplatesFormProps) {

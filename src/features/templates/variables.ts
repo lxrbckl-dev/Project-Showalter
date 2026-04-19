@@ -15,7 +15,9 @@ export type TemplateKey =
   | 'decline_email'
   | 'decline_sms'
   | 'review_request_email'
-  | 'review_request_sms';
+  | 'review_request_sms'
+  | 'reschedule_email'
+  | 'reschedule_sms';
 
 export interface TemplateVariable {
   /** The placeholder text as it appears in the template, e.g. `[name]` */
@@ -62,6 +64,12 @@ const SUPPORT_MAP: Record<TemplateKey, Set<string>> = {
   review_request_sms: new Set([
     '[name]', '[link]',
   ]),
+  reschedule_email: new Set([
+    '[name]', '[service]', '[date]', '[time]', '[address]', '[google_link]', '[ics_link]',
+  ]),
+  reschedule_sms: new Set([
+    '[name]', '[service]', '[date]', '[time]', '[shortlink]',
+  ]),
 };
 
 /**
@@ -83,6 +91,8 @@ export const TEMPLATE_KEYS: TemplateKey[] = [
   'decline_sms',
   'review_request_email',
   'review_request_sms',
+  'reschedule_email',
+  'reschedule_sms',
 ];
 
 /**
@@ -95,4 +105,6 @@ export const TEMPLATE_LABELS: Record<TemplateKey, string> = {
   decline_sms: 'Decline — SMS',
   review_request_email: 'Review Request — Email',
   review_request_sms: 'Review Request — SMS',
+  reschedule_email: 'Reschedule — Email',
+  reschedule_sms: 'Reschedule — SMS',
 };

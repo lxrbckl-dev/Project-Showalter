@@ -144,7 +144,7 @@ All three are icon-only with screen-reader labels ("Call Sawyer", "Email Sawyer"
 
 **The site does not send SMS or email automatically.** When you accept or decline a booking in the admin panel, the booking detail page shows pre-composed message buttons. Tapping a button opens your phone's messages or email app with the body and the customer's contact pre-filled. You hit send manually.
 
-The wording of those messages comes from the admin Templates tab — six templates (confirmation email, confirmation SMS, decline email, decline SMS, review-request email, review-request SMS), all editable, all using placeholders like `[name]`, `[service]`, `[date]`, `[time]`, `[address]` that get filled in per booking when you tap the message button.
+The wording of those messages comes from the admin Templates tab — eight templates (confirmation email, confirmation SMS, decline email, decline SMS, review-request email, review-request SMS, reschedule email, reschedule SMS), all editable, all using placeholders like `[name]`, `[service]`, `[date]`, `[time]`, `[address]` that get filled in per booking when you tap the message button.
 
 When a new booking is submitted, a push notification arrives on whichever devices you've turned push on for. That part is automatic; the customer never sees it.
 
@@ -303,7 +303,7 @@ Single textarea. This text pre-fills the SMS body when a visitor taps the "Text 
 
 #### Templates sub-tab
 
-Six message templates in one form. Each has a list of valid placeholders shown as badges above the text area. All six are required.
+Eight message templates in one form. Each has a list of valid placeholders shown as badges above the text area. All eight are required.
 
 | Template | When it fires | Valid placeholders |
 |---|---|---|
@@ -313,6 +313,8 @@ Six message templates in one form. Each has a list of valid placeholders shown a
 | Decline — SMS | You decline a booking | `[name]`, `[service]`, `[date]` |
 | Review request — Email | You request a review on a completed booking | `[name]`, `[service]`, `[link]` |
 | Review request — SMS | You request a review on a completed booking | `[name]`, `[link]` |
+| Reschedule — Email | You reschedule a booking (sent from the new booking's detail page) | `[name]`, `[service]`, `[date]`, `[time]`, `[address]`, `[google_link]`, `[ics_link]` |
+| Reschedule — SMS | You reschedule a booking (sent from the new booking's detail page) | `[name]`, `[service]`, `[date]`, `[time]`, `[shortlink]` |
 
 Placeholders are bracketed lowercase tokens. Spaces and case inside the brackets are tolerated (`[ name ]` matches). Typos in placeholder names are left as literal text rather than crashing — visible garbage tells you to fix the template.
 
@@ -512,6 +514,8 @@ Terminal statuses: Completed, No show, Declined, Canceled, Expired.
 
 **Reschedule** — opens an inline form with a date/time picker. The original booking is canceled and a new one is created at the new time, automatically Accepted. You're taken to the new booking's detail page; the old one shows "Rescheduled to…" and the new one shows "This booking replaces…". Errors out if another booking already occupies the new slot.
 
+The customer is **not** notified automatically. Because the new booking is the result of a reschedule, the usual "Send confirmation" buttons are swapped for **Send email reschedule notice** / **Send text reschedule notice**, both pre-filled from the Reschedule templates and ready to send with one tap. The customer can also self-rescue: their old `/bookings/[token]` URL keeps working and shows a yellow "rescheduled" banner that links to the new booking. Note that customers can't reschedule themselves — only you can, from the admin panel.
+
 **Cancel** — admin-initiated cancellation of an accepted booking. Frees the time slot. No automatic notification to the customer.
 
 **Mark completed** — confirms with a prompt, sets the booking terminal. The **Request review** panel then appears (see below).
@@ -646,7 +650,7 @@ Push notifications work on most modern desktop and mobile browsers, but specific
 
 ### Message Templates
 
-Six template slots, edited in the Templates sub-tab of `/admin/content`. The system sends nothing automatically — these populate the body of a `mailto:` or `sms:` link that opens your phone's email or messages app, where you hit send manually.
+Eight template slots, edited in the Templates sub-tab of `/admin/content`. The system sends nothing automatically — these populate the body of a `mailto:` or `sms:` link that opens your phone's email or messages app, where you hit send manually.
 
 | Slot | When it fires | Channel | Audience | Available placeholders |
 |---|---|---|---|---|
@@ -656,6 +660,8 @@ Six template slots, edited in the Templates sub-tab of `/admin/content`. The sys
 | Decline — SMS | You decline a booking | SMS | Customer | Same as above |
 | Review request — Email | You request a review on a completed booking or standalone | Email | Customer | `[name]`, `[service]`, `[date]`, `[time]`, `[address]`, `[link]`, `[google_link]`, `[ics_link]`, `[shortlink]` |
 | Review request — SMS | Same | SMS | Customer | Same as above |
+| Reschedule — Email | You reschedule an existing booking; sent from the new booking's detail page | Email | Customer | `[name]`, `[service]`, `[date]`, `[time]`, `[address]`, `[google_link]`, `[ics_link]`, `[shortlink]` |
+| Reschedule — SMS | Same | SMS | Customer | Same as above |
 
 What each placeholder fills in:
 
