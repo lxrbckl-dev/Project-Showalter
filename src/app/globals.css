@@ -1,8 +1,18 @@
 @import 'tailwindcss';
 
 /*
- * shadcn/ui CSS variables — light + dark. Placeholder dark-green / black /
- * white palette; will be replaced when Sawyer's logo lands.
+ * Brand palette — sampled from public/logo_primary.png and public/logo_secondary.png
+ * (pixel-sampled 2026-04-18).
+ *
+ * Logo dominant greens:
+ *   logo_primary:   #78A03C (120,160,60) — 25 760 px  olive-mid green
+ *   logo_secondary: #78B428 (120,180,40) — 94 185 px  vivid grass green
+ *
+ * Brand green selected by Alex: #6C9630 — same olive-lime hue family as the logos,
+ * darkened to ~39% lightness so white text passes WCAG AA (4.5:1) on buttons.
+ * Hover: #567826 (~80% RGB of primary, same hue, consistently darker for feedback).
+ *
+ * shadcn/ui CSS variables — light + dark.
  */
 @layer base {
   :root {
@@ -15,7 +25,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
 
-    --primary: 152 61% 15%;         /* dark green #0F3D2E */
+    --primary: 85 52% 39%;          /* brand green #6C9630 — selected by Alex */
     --primary-foreground: 0 0% 98%;
 
     --secondary: 0 0% 96.1%;
@@ -24,15 +34,15 @@
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
 
-    --accent: 152 30% 92%;
-    --accent-foreground: 152 61% 15%;
+    --accent: 83 40% 92%;
+    --accent-foreground: 85 52% 39%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 152 61% 15%;
+    --ring: 85 52% 39%;
 
     --radius: 0.5rem;
   }
@@ -47,7 +57,7 @@
     --popover: 0 0% 3.9%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 152 61% 30%;
+    --primary: 85 52% 57%;          /* brand green #6C9630 lighter for dark mode */
     --primary-foreground: 0 0% 98%;
 
     --secondary: 0 0% 14.9%;
@@ -56,7 +66,7 @@
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
 
-    --accent: 152 30% 18%;
+    --accent: 83 40% 18%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -64,7 +74,7 @@
 
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
-    --ring: 152 61% 30%;
+    --ring: 85 52% 57%;
   }
 }
 
@@ -78,5 +88,27 @@
     color: hsl(var(--foreground));
     font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
       'Helvetica Neue', Arial, sans-serif;
+  }
+}
+
+/* ── Gallery marquee ─────────────────────────────────────────────────────── */
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.gallery-marquee-track {
+  animation: marquee 40s linear infinite reverse;
+  will-change: transform;
+}
+
+.gallery-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-marquee-track {
+    animation: none;
   }
 }

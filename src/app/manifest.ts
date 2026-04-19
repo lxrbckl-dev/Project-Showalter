@@ -16,7 +16,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     start_url: '/',
     display: 'standalone',
     background_color: '#000000',
-    theme_color: '#0F3D2E',
+    theme_color: '#6C9630',
     // icons intentionally omitted — PWA icon assets are being regenerated.
     // Browsers fall back to favicon/apple-icon routes until new maskable
     // variants are added.

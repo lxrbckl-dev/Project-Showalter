@@ -23,6 +23,28 @@ export function ContactForm({ config }: ContactFormProps) {
       )}
 
       <div className="space-y-2">
+        <label htmlFor="ownerFirstName" className="block text-sm font-medium">
+          Your first name{' '}
+          <span className="text-[hsl(var(--muted-foreground))]">
+            (drives the &ldquo;About {'{name}'}&rdquo; heading on the public page)
+          </span>
+        </label>
+        <Input
+          id="ownerFirstName"
+          name="ownerFirstName"
+          type="text"
+          defaultValue={config.ownerFirstName ?? ''}
+          placeholder="Sawyer"
+          data-testid="contact-owner-first-name"
+        />
+        {state.ok === false && state.errors.ownerFirstName && (
+          <p className="text-xs text-[hsl(var(--destructive))]">
+            {state.errors.ownerFirstName.join(', ')}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-2">
         <label htmlFor="phone" className="block text-sm font-medium">
           Phone (E.164, e.g. +19133097340)
         </label>
@@ -70,6 +92,50 @@ export function ContactForm({ config }: ContactFormProps) {
         />
         {state.ok === false && state.errors.tiktokUrl && (
           <p className="text-xs text-[hsl(var(--destructive))]">{state.errors.tiktokUrl.join(', ')}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <label htmlFor="emailTemplateSubject" className="block text-sm font-medium">
+          Email template subject
+        </label>
+        <Input
+          id="emailTemplateSubject"
+          name="emailTemplateSubject"
+          type="text"
+          defaultValue={config.emailTemplateSubject ?? ''}
+          placeholder="Service inquiry — Sawyer Showalter Services"
+          data-testid="contact-email-template-subject"
+        />
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+          Pre-fills the subject when a visitor clicks Email on your Contact section.
+        </p>
+        {state.ok === false && state.errors.emailTemplateSubject && (
+          <p className="text-xs text-[hsl(var(--destructive))]">
+            {state.errors.emailTemplateSubject.join(', ')}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <label htmlFor="emailTemplateBody" className="block text-sm font-medium">
+          Email template body
+        </label>
+        <Textarea
+          id="emailTemplateBody"
+          name="emailTemplateBody"
+          defaultValue={config.emailTemplateBody ?? ''}
+          rows={6}
+          placeholder={"Hi Sawyer,\n\nI'd like to inquire about a service for my home.\n\nDetails:\n\n\nThanks!"}
+          data-testid="contact-email-template-body"
+        />
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+          Pre-fills the message body when a visitor clicks Email on your Contact section.
+        </p>
+        {state.ok === false && state.errors.emailTemplateBody && (
+          <p className="text-xs text-[hsl(var(--destructive))]">
+            {state.errors.emailTemplateBody.join(', ')}
+          </p>
         )}
       </div>
 

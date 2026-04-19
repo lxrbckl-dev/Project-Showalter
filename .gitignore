@@ -44,3 +44,4 @@ playwright/.cache/
 # Misc
 *.tsbuildinfo
 .e2e-uploads/
+uploads/

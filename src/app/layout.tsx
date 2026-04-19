@@ -12,7 +12,7 @@ const SITE_DESCRIPTION_FALLBACK =
   'Affordable lawn care, trash can cleaning, and snow removal in Kansas City. Run by a local teen entrepreneur.';
 
 export const viewport: Viewport = {
-  themeColor: '#0F3D2E',
+  themeColor: '#6C9630',
   width: 'device-width',
   initialScale: 1,
 };

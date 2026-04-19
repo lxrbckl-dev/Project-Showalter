@@ -1,0 +1,32 @@
+[
+  {
+    "file": "lawn-autumn-leaves.jpg",
+    "caption": "Fall cleanup — leaves cleared from a lush green lawn",
+    "unsplash_url": "https://unsplash.com/photos/wet-autumn-leaves-scattered-on-green-grass-Z1m3ExmvYpA",
+    "photographer": "Robert Visual Diary"
+  },
+  {
+    "file": "manicured-garden-trees.jpg",
+    "caption": "Precision trimming — a beautifully shaped garden after a full service",
+    "unsplash_url": "https://unsplash.com/photos/a-beautiful-green-garden-with-manicured-trees-Hb0VT_XTv-Y",
+    "photographer": "Tommao Wang"
+  },
+  {
+    "file": "manicured-hedges-house.jpg",
+    "caption": "Curb appeal — neat hedges and tidy landscaping around a modern home",
+    "unsplash_url": "https://unsplash.com/photos/modern-house-with-manicured-hedges-and-gate-4b25Ic2VjiQ",
+    "photographer": "Ubeyonroad"
+  },
+  {
+    "file": "mowed-lawn-01.jpg",
+    "caption": "Fresh cut — weekly mow, weed-eat, and edge service",
+    "unsplash_url": "https://unsplash.com/photos/a-man-is-mowing-the-grass-in-the-yard-5H0swzTVzrY",
+    "photographer": "Maxim Tolchinskiy"
+  },
+  {
+    "file": "raked-leaves-01.jpg",
+    "caption": "Raking and bagging — leaves cleared and hauled away",
+    "unsplash_url": "https://unsplash.com/photos/a-pile-of-fallen-autumn-leaves-on-the-ground-rPgkwnUEpjQ",
+    "photographer": "Eugene Golovesov"
+  }
+]

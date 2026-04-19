@@ -181,7 +181,9 @@ export function submitReviewCore(
         tx.insert(sitePhotos)
           .values({
             filePath: p.filePath,
-            caption: null,
+            // Carry the customer's review text as the gallery caption so
+            // visitors see the written feedback alongside each promoted photo.
+            caption: reviewText ?? null,
             sortOrder: nextSort,
             active: 1,
             sourceReviewId: row.id,

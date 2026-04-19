@@ -172,7 +172,7 @@ export function BookingFlow({ availability, services }: BookingFlowProps) {
   return (
     <button
       type="button"
-      className="text-green-300 underline"
+      className="text-green-700 underline"
       onClick={backToDay}
     >
       Start over
@@ -197,12 +197,12 @@ function DayPicker({
       {bannerError && (
         <div
           role="alert"
-          className="mb-4 rounded-md border border-red-600 bg-red-950/60 px-4 py-3 text-sm text-red-100"
+          className="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
         >
           {bannerError}
         </div>
       )}
-      <h2 className="mb-4 text-lg font-semibold">Pick a day</h2>
+      <h2 className="mb-4 text-lg font-semibold text-gray-900">Pick a day</h2>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
         {availability.map((day) => {
           const open = day.candidates.length > 0;
@@ -216,8 +216,8 @@ function DayPicker({
               data-open={open ? '1' : '0'}
               className={
                 open
-                  ? 'rounded-md border border-green-700 bg-green-950/40 px-3 py-3 text-center text-sm font-medium text-green-100 transition hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-400'
-                  : 'cursor-not-allowed rounded-md border border-gray-800 bg-gray-950/40 px-3 py-3 text-center text-sm text-gray-600'
+                  ? 'rounded-md border border-green-300 bg-green-50 px-3 py-3 text-center text-sm font-medium text-green-800 transition hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-400'
+                  : 'cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-3 text-center text-sm text-gray-400'
               }
             >
               <span className="block">{formatDateLabel(day.date)}</span>
@@ -249,11 +249,11 @@ function SlotPicker({
       <button
         type="button"
         onClick={onBack}
-        className="mb-4 text-sm text-green-300 hover:text-green-100"
+        className="mb-4 text-sm text-green-700 hover:text-green-600"
       >
         &larr; Back to days
       </button>
-      <h2 className="mb-4 text-lg font-semibold">
+      <h2 className="mb-4 text-lg font-semibold text-gray-900">
         Pick a start time — {formatDateLabel(day.date)}
       </h2>
       <ul className="space-y-2">
@@ -263,7 +263,7 @@ function SlotPicker({
               type="button"
               onClick={() => onPick(c.startAt)}
               data-testid={`slot-${c.startAt}`}
-              className="w-full rounded-md border border-green-700 bg-green-950/40 px-4 py-3 text-left font-medium text-green-100 transition hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-400"
+              className="w-full rounded-md border border-green-300 bg-green-50 px-4 py-3 text-left font-medium text-green-800 transition hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-400"
             >
               {c.label}
             </button>
@@ -307,19 +307,19 @@ function BookingForm({
       <button
         type="button"
         onClick={onBack}
-        className="mb-4 text-sm text-green-300 hover:text-green-100"
+        className="mb-4 text-sm text-green-700 hover:text-green-600"
       >
         &larr; Back to times
       </button>
-      <h2 className="mb-1 text-lg font-semibold">Your details</h2>
-      <p className="mb-4 text-sm text-gray-400">
+      <h2 className="mb-1 text-lg font-semibold text-gray-900">Your details</h2>
+      <p className="mb-4 text-sm text-gray-500">
         {formatDateLabel(date)} &middot; {slotLabel}
       </p>
 
       {submitError && (
         <div
           role="alert"
-          className="mb-4 rounded-md border border-red-600 bg-red-950/60 px-4 py-3 text-sm text-red-100"
+          className="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
         >
           {submitError}
         </div>
@@ -343,7 +343,7 @@ function BookingForm({
               name="serviceId"
               required
               defaultValue=""
-              className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-white focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
             >
               <option value="" disabled>
                 — choose one —
@@ -369,7 +369,7 @@ function BookingForm({
               required
               maxLength={100}
               autoComplete="name"
-              className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-white focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
             />
           )}
         />
@@ -386,7 +386,7 @@ function BookingForm({
               required
               autoComplete="tel"
               placeholder="(913) 309-7340"
-              className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-white focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
             />
           )}
         />
@@ -401,7 +401,7 @@ function BookingForm({
               name="email"
               type="email"
               autoComplete="email"
-              className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-white focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
             />
           )}
         />
@@ -418,7 +418,7 @@ function BookingForm({
               required
               maxLength={500}
               autoComplete="street-address"
-              className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-white focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
             />
           )}
         />
@@ -434,7 +434,7 @@ function BookingForm({
               rows={3}
               maxLength={2000}
               placeholder="Gate code, yard size, anything else Sawyer should know"
-              className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-white focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
             />
           )}
         />
@@ -450,7 +450,7 @@ function BookingForm({
               type="file"
               accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
               multiple
-              className="block w-full text-sm text-gray-300 file:mr-3 file:rounded-md file:border-0 file:bg-green-700 file:px-3 file:py-2 file:text-white hover:file:bg-green-600"
+              className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-green-700 file:px-3 file:py-2 file:text-white hover:file:bg-green-600"
             />
           )}
         />
@@ -512,7 +512,7 @@ function Field({
   const id = `booking-${name}`;
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-200">
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-700">
         {label}
       </label>
       {render(id)}
@@ -520,7 +520,7 @@ function Field({
         <p
           role="alert"
           data-testid={`error-${name}`}
-          className="mt-1 text-sm text-red-300"
+          className="mt-1 text-sm text-red-600"
         >
           {error}
         </p>

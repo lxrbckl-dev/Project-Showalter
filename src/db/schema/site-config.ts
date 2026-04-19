@@ -31,8 +31,30 @@ export const siteConfig = sqliteTable('site_config', {
    */
   dateOfBirth: text('date_of_birth'),
 
+  /**
+   * First name of the site owner (e.g., "Sawyer"). Drives the "About {name}"
+   * heading on the public page and may be used elsewhere for personalization.
+   * Nullable — when unset, the public page falls back to the generic "About".
+   * Admin-editable from Content → Contact.
+   */
+  ownerFirstName: text('owner_first_name'),
+
   // SMS fallback template (buried "text Sawyer" link on landing page)
   smsTemplate: text('sms_template'),
+
+  /**
+   * Prefilled subject line for the mailto link on the public Contact section.
+   * Nullable — when unset, the email link opens with no subject.
+   * Admin-editable from Content → Contact.
+   */
+  emailTemplateSubject: text('email_template_subject'),
+
+  /**
+   * Prefilled body for the mailto link on the public Contact section.
+   * Nullable — when unset, the email link opens with no body.
+   * Supports multiline content. Admin-editable from Content → Contact.
+   */
+  emailTemplateBody: text('email_template_body'),
 
   // Booking-flow knobs
   bookingHorizonWeeks: integer('booking_horizon_weeks').notNull().default(4),

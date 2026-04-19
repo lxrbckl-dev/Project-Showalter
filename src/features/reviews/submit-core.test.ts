@@ -61,7 +61,10 @@ function makeDb(): { sqlite: Database.Database; db: Db } {
       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
       phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT, hero_image_path TEXT,
       date_of_birth TEXT,
+      owner_first_name TEXT,
       sms_template TEXT,
+      email_template_subject TEXT,
+      email_template_body TEXT,
       booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
       min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
       start_time_increment_minutes INTEGER NOT NULL DEFAULT 30,
@@ -286,7 +289,7 @@ describe('submitReviewCore', () => {
     const id = seedReview(db, { token: 'tok-4star' });
     const result = submitReviewCore({
       token: 'tok-4star',
-      input: { rating: 4 },
+      input: { rating: 4, reviewText: 'Great service!' },
       photos: [
         { filePath: 'reviews/1/a.jpg', mimeType: 'image/jpeg', sizeBytes: 100 },
         { filePath: 'reviews/1/b.jpg', mimeType: 'image/jpeg', sizeBytes: 100 },
@@ -303,8 +306,31 @@ describe('submitReviewCore', () => {
     expect(published).toHaveLength(2);
     expect(published[0].active).toBe(1);
     expect(published[0].sourceReviewId).toBe(id);
+    // Review text is carried into caption for every promoted photo
+    expect(published[0].caption).toBe('Great service!');
+    expect(published[1].caption).toBe('Great service!');
     // sort_order is strictly increasing
     expect(published[1].sortOrder).toBeGreaterThan(published[0].sortOrder);
+    sqlite.close();
+  });
+
+  it('auto-publish: no review text → caption is null on promoted photo', () => {
+    const id = seedReview(db, { token: 'tok-nocaption' });
+    submitReviewCore({
+      token: 'tok-nocaption',
+      input: { rating: 5 },
+      photos: [
+        { filePath: 'reviews/1/c.jpg', mimeType: 'image/jpeg', sizeBytes: 100 },
+      ],
+      db,
+    });
+    const published = db
+      .select()
+      .from(sitePhotos)
+      .where(eq(sitePhotos.sourceReviewId, id))
+      .all();
+    expect(published).toHaveLength(1);
+    expect(published[0].caption).toBeNull();
     sqlite.close();
   });
 

@@ -64,8 +64,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: payload.body,
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/logo_secondary.png',
+    badge: '/logo_secondary.png',
     data: { url: payload.url },
     // `tag` collapses rapid-fire duplicates of the same alert into one
     // OS notification (e.g. two booking submissions land within seconds).

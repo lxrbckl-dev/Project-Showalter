@@ -30,7 +30,7 @@ interface StatCardProps {
 function StatCard({ value, label, subtitle }: StatCardProps) {
   return (
     <div className="flex flex-col items-center px-4 py-6 text-center">
-      <span className="text-4xl font-extrabold tracking-tight text-[#0F3D2E]">{value}</span>
+      <span className="text-4xl font-extrabold tracking-tight text-[#6C9630]">{value}</span>
       <span className="mt-1 text-sm font-semibold uppercase tracking-widest text-gray-500">
         {label}
       </span>

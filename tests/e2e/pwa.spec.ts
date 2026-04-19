@@ -15,7 +15,7 @@ test('GET /manifest.webmanifest returns valid JSON with required PWA fields', as
   expect(manifest.start_url).toBe('/');
   expect(manifest.display).toBe('standalone');
   expect(manifest.background_color).toBe('#000000');
-  expect(manifest.theme_color).toBe('#0F3D2E');
+  expect(manifest.theme_color).toBe('#6C9630');
   expect(Array.isArray(manifest.icons)).toBe(true);
   expect(manifest.icons.length).toBeGreaterThanOrEqual(2);
 

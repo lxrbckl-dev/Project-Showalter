@@ -28,13 +28,13 @@ export default async function AdminLoginPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-16">
       <div className="w-full">
-        <div className="mb-6 flex justify-center">
+        <div className="mb-6">
           <Image
             src="/logo_primary.png"
             alt="Sawyer Showalter Service"
-            width={336}
-            height={336}
-            className="h-auto w-auto max-w-[336px]"
+            width={1144}
+            height={293}
+            className="block h-auto w-full"
             priority
           />
         </div>

@@ -104,6 +104,42 @@ const isoDate = z
     return dob <= todayUtc;
   }, 'Date of birth cannot be in the future');
 
+// Owner first name — drives the "About {name}" heading on the public page.
+// Letters, spaces, hyphens, and apostrophes; 1–40 chars when non-empty.
+const ownerFirstName = z
+  .string()
+  .trim()
+  .transform((v) => (v === '' ? null : v))
+  .nullable()
+  .refine(
+    (v) => v === null || (v.length >= 1 && v.length <= 40 && /^[\p{L}\p{M}'\- ]+$/u.test(v)),
+    "Name must be 1–40 characters and contain only letters, spaces, hyphens, or apostrophes",
+  );
+
+// Email template subject — trim → null on empty, 1-200 chars when non-empty,
+// no control characters beyond horizontal whitespace.
+const emailTemplateSubject = z
+  .string()
+  .trim()
+  .transform((v) => (v === '' ? null : v))
+  .nullable()
+  .refine(
+    (v) => v === null || (v.length >= 1 && v.length <= 200 && !/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(v)),
+    'Subject must be 1–200 characters with no control characters',
+  );
+
+// Email template body — trim → null on empty, 1-2000 chars when non-empty,
+// multiline allowed (newlines are preserved, not normalized).
+const emailTemplateBody = z
+  .string()
+  .trim()
+  .transform((v) => (v === '' ? null : v))
+  .nullable()
+  .refine(
+    (v) => v === null || (v.length >= 1 && v.length <= 2000 && !/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(v)),
+    'Body must be 1–2000 characters with no control characters',
+  );
+
 const ContactSchema = z.object({
   phone: e164.optional().or(z.literal('')),
   email: rfc5321Email.optional().or(z.literal('')),
@@ -115,6 +151,9 @@ const ContactSchema = z.object({
     .optional()
     .or(z.literal('')),
   dateOfBirth: isoDate.optional().or(z.literal('')),
+  ownerFirstName: ownerFirstName.optional(),
+  emailTemplateSubject: emailTemplateSubject.optional(),
+  emailTemplateBody: emailTemplateBody.optional(),
 });
 
 export async function updateContact(
@@ -127,6 +166,9 @@ export async function updateContact(
     tiktokUrl: data.get('tiktokUrl') as string,
     bio: data.get('bio') as string,
     dateOfBirth: (data.get('dateOfBirth') as string) ?? '',
+    ownerFirstName: (data.get('ownerFirstName') as string) ?? '',
+    emailTemplateSubject: (data.get('emailTemplateSubject') as string) ?? '',
+    emailTemplateBody: (data.get('emailTemplateBody') as string) ?? '',
   };
 
   const parsed = ContactSchema.safeParse(raw);
@@ -140,6 +182,9 @@ export async function updateContact(
       tiktokUrl: parsed.data.tiktokUrl || null,
       bio: parsed.data.bio || null,
       dateOfBirth: parsed.data.dateOfBirth || null,
+      ownerFirstName: parsed.data.ownerFirstName ?? null,
+      emailTemplateSubject: parsed.data.emailTemplateSubject ?? null,
+      emailTemplateBody: parsed.data.emailTemplateBody ?? null,
     })
     .run();
 

@@ -43,18 +43,18 @@ export default function BookPage() {
   const anyAvailability = hasAnyAvailability(availability);
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-white">
       <div className="mx-auto max-w-2xl px-6 py-12">
         <div className="mb-8">
           <Link
             href="/"
-            className="text-sm text-green-300 hover:text-green-100"
+            className="text-sm text-green-700 hover:text-green-600"
           >
             &larr; Back to home
           </Link>
         </div>
-        <h1 className="mb-2 text-3xl font-bold tracking-tight">Request service</h1>
-        <p className="mb-8 text-gray-300">
+        <h1 className="mb-2 text-3xl font-bold tracking-tight text-gray-900">Request service</h1>
+        <p className="mb-8 text-gray-600">
           Pick a day and time, tell Sawyer about the job, and he&apos;ll confirm.
         </p>
 
@@ -72,8 +72,8 @@ export default function BookPage() {
 
 function EmptyServicesState() {
   return (
-    <div className="rounded-lg border border-green-800 bg-green-950/40 p-6 text-center">
-      <p className="text-green-200">
+    <div className="rounded-lg border border-green-200 bg-green-50 p-6 text-center">
+      <p className="text-green-800">
         No services listed yet — check back soon.
       </p>
     </div>
@@ -84,12 +84,12 @@ function NoOpeningsState() {
   return (
     <div
       role="status"
-      className="rounded-lg border border-green-800 bg-green-950/40 p-6 text-center"
+      className="rounded-lg border border-green-200 bg-green-50 p-6 text-center"
     >
-      <h2 className="mb-2 text-xl font-semibold text-green-100">
+      <h2 className="mb-2 text-xl font-semibold text-green-800">
         No openings right now
       </h2>
-      <p className="text-green-300">
+      <p className="text-green-700">
         Sawyer&apos;s schedule is full for the next few weeks — check back
         soon. If the job can&apos;t wait, text him directly from the
         home page.

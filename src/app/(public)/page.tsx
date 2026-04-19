@@ -10,7 +10,6 @@ import { About } from '@/components/public/About';
 import { Gallery } from '@/components/public/Gallery';
 import { Services } from '@/components/public/Services';
 import { Contact } from '@/components/public/Contact';
-import { Footer } from '@/components/public/Footer';
 import { StatsBand } from '@/components/public/StatsBand';
 
 /**
@@ -20,11 +19,10 @@ import { StatsBand } from '@/components/public/StatsBand';
  *   1. Hero
  *   2. Stats widget (Phase 11)
  *   3. About
- *   4. Gallery  (gracefully absent until Phase 3 adds site_photos)
- *   5. Services
- *   6. #request anchor placeholder (Phase 5 booking flow)
- *   7. Contact
- *   8. Footer
+ *   4. Services
+ *   5. Request (booking CTA)
+ *   6. Contact
+ *   7. Reviews / Gallery (gracefully absent until Phase 3 adds site_photos)
  *
  * Gallery queries `site_photos` — the table doesn't exist until Phase 3.
  * The query is wrapped in try/catch to handle the missing table gracefully.
@@ -87,7 +85,7 @@ export default function HomePage() {
   }
 
   return (
-    <main>
+    <main className="w-full">
       {/* 1. Hero */}
       <Hero siteConfig={config} />
 
@@ -97,41 +95,32 @@ export default function HomePage() {
       {/* 3. About */}
       <About siteConfig={config} />
 
-      {/* 4. Gallery — gracefully absent until Phase 3 */}
-      <Gallery photos={photos} siteTitle={config.siteTitle} />
-
-      {/* 5. Services */}
+      {/* 4. Services */}
       <Services services={activeServices} />
 
-      {/*
-        6. #request anchor — Phase 5 booking flow. The full multi-step form
-        lives at /book (dedicated route); this section is a compact visual
-        anchor + CTA on the landing page so the "Request service" links at
-        the top and in the hero still have somewhere meaningful to scroll to
-        for users who landed on the page with #request in the URL.
-      */}
+      {/* 5. #request anchor — booking CTA */}
       <section
         id="request"
-        className="bg-gray-50 px-6 py-16 text-center"
+        className="bg-gray-50 px-6 py-8 text-center"
         aria-label="Request service"
       >
-        <h2 className="mb-3 text-3xl font-bold text-gray-900 md:text-4xl">Request a Service</h2>
+        <h2 className="mb-3 text-3xl font-bold text-gray-900 md:text-4xl">Request Service</h2>
         <p className="mb-6 text-gray-600">
           Pick a day and time, tell Sawyer about the job.
         </p>
         <a
           href="/book"
-          className="inline-block rounded-md bg-[#0F3D2E] px-8 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-[#1a5c44] focus:outline-none focus:ring-2 focus:ring-[#0F3D2E]"
+          className="inline-block rounded-md bg-[#6C9630] px-8 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-[#567826] focus:outline-none focus:ring-2 focus:ring-[#6C9630]"
         >
           Start booking
         </a>
       </section>
 
-      {/* 7. Contact */}
+      {/* 6. Contact */}
       <Contact siteConfig={config} />
 
-      {/* 8. Footer */}
-      <Footer />
+      {/* 7. Reviews — gracefully absent until Phase 3 */}
+      <Gallery photos={photos} siteTitle={config.siteTitle} />
     </main>
   );
 }

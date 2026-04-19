@@ -54,7 +54,10 @@ describe('seedFromBrief()', () => {
         template_decline_email TEXT,
         template_decline_sms TEXT,
         template_review_request_email TEXT,
-        template_review_request_sms TEXT
+        template_review_request_sms TEXT,
+        owner_first_name TEXT,
+        email_template_subject TEXT,
+        email_template_body TEXT
       );
       CREATE TABLE services (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -64,6 +67,15 @@ describe('seedFromBrief()', () => {
         price_suffix TEXT NOT NULL DEFAULT '',
         sort_order INTEGER NOT NULL DEFAULT 0,
         active INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE TABLE site_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_path TEXT NOT NULL,
+        caption TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        active INTEGER NOT NULL DEFAULT 1,
+        source_review_id INTEGER,
+        created_at TEXT NOT NULL
       );
       INSERT INTO site_config (timezone) VALUES ('America/Chicago');
     `);
@@ -112,7 +124,10 @@ describe('seedFromBrief()', () => {
         template_decline_email TEXT,
         template_decline_sms TEXT,
         template_review_request_email TEXT,
-        template_review_request_sms TEXT
+        template_review_request_sms TEXT,
+        owner_first_name TEXT,
+        email_template_subject TEXT,
+        email_template_body TEXT
       );
       CREATE TABLE services (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -122,6 +137,15 @@ describe('seedFromBrief()', () => {
         price_suffix TEXT NOT NULL DEFAULT '',
         sort_order INTEGER NOT NULL DEFAULT 0,
         active INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE TABLE site_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_path TEXT NOT NULL,
+        caption TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        active INTEGER NOT NULL DEFAULT 1,
+        source_review_id INTEGER,
+        created_at TEXT NOT NULL
       );
       INSERT INTO site_config (timezone) VALUES ('America/Chicago');
     `);
@@ -186,7 +210,10 @@ describe('seedFromBrief()', () => {
         template_decline_email TEXT,
         template_decline_sms TEXT,
         template_review_request_email TEXT,
-        template_review_request_sms TEXT
+        template_review_request_sms TEXT,
+        owner_first_name TEXT,
+        email_template_subject TEXT,
+        email_template_body TEXT
       );
       CREATE TABLE services (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -196,6 +223,15 @@ describe('seedFromBrief()', () => {
         price_suffix TEXT NOT NULL DEFAULT '',
         sort_order INTEGER NOT NULL DEFAULT 0,
         active INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE TABLE site_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_path TEXT NOT NULL,
+        caption TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        active INTEGER NOT NULL DEFAULT 1,
+        source_review_id INTEGER,
+        created_at TEXT NOT NULL
       );
       INSERT INTO site_config (timezone) VALUES ('America/Chicago');
     `);

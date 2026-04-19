@@ -45,7 +45,10 @@ function setupDb(): Database.Database {
       template_decline_email TEXT,
       template_decline_sms TEXT,
       template_review_request_email TEXT,
-      template_review_request_sms TEXT
+      template_review_request_sms TEXT,
+      owner_first_name TEXT,
+      email_template_subject TEXT,
+      email_template_body TEXT
     );
     INSERT INTO site_config (id, timezone) VALUES (1, 'America/Chicago');
 

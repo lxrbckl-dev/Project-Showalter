@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { Footer } from '@/components/public/Footer';
 import { UmamiScript } from '@/components/public/UmamiScript';
 
 /**
@@ -29,6 +30,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         </Link>
       </header>
       {children}
+      <Footer />
     </>
   );
 }
