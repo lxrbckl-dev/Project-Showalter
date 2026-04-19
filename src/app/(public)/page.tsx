@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic';
 import { siteConfig as siteConfigTable } from '@/db/schema/site-config';
 import { services as servicesTable } from '@/db/schema/services';
 import { eq, asc } from 'drizzle-orm';
-import { Hero } from '@/components/public/Hero';
 import { About } from '@/components/public/About';
 import { Gallery } from '@/components/public/Gallery';
 import { Services } from '@/components/public/Services';
@@ -86,10 +85,7 @@ export default function HomePage() {
 
   return (
     <main className="w-full">
-      {/* 1. Hero */}
-      <Hero siteConfig={config} />
-
-      {/* 2. About — includes the host-facts marquee in the eyebrow slot */}
+      {/* 1. About — includes the host-facts marquee in the eyebrow slot */}
       <About siteConfig={config} />
 
       {/* 3. Services */}

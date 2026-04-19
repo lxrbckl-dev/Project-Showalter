@@ -201,6 +201,8 @@ export type AcceptInviteInput = {
   token: string;
   /** Email the client submitted — compared case-insensitively to invited_email. */
   submittedEmail: string;
+  /** Display name supplied by the invitee. Trimmed by the caller. */
+  name?: string | null;
   credential: {
     credentialId: string;
     publicKeyB64: string;
@@ -272,6 +274,7 @@ export function acceptInvite(
         .insert(admins)
         .values({
           email: finalEmail,
+          name: input.name?.trim() ? input.name.trim() : null,
           active: 1,
           enrolledAt: nowIso,
           createdAt: nowIso,

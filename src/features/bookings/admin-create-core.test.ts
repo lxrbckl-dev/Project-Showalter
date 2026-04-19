@@ -27,7 +27,7 @@ function makeDb(): { sqlite: Database.Database; db: Db } {
   sqlite.exec(`
     CREATE TABLE site_config (
       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT, hero_image_path TEXT,
+      phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT,
       date_of_birth TEXT,
       sms_template TEXT,
       booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,

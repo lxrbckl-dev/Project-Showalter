@@ -11,13 +11,14 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/inbox', label: 'Inbox' },
-  { href: '/admin/bookings/new', label: 'New booking' },
+  { href: '/admin/bookings/new', label: 'New Booking' },
   { href: '/admin/schedule', label: 'Schedule' },
   { href: '/admin/services', label: 'Services' },
   { href: '/admin/content', label: 'Content' },
   { href: '/admin/gallery', label: 'Gallery' },
   { href: '/admin/index-book', label: 'Index Book' },
   { href: '/admin/reviews', label: 'Reviews' },
+  { href: '/admin/wiki', label: 'Wiki' },
   { href: '/admin/settings', label: 'Settings' },
 ];
 
@@ -42,7 +43,7 @@ export function AdminNav({ unread }: AdminNavProps) {
   const pathname = usePathname();
 
   return (
-    <ul className="mx-auto flex max-w-6xl gap-4 overflow-x-auto px-6 py-2">
+    <ul className="mx-auto flex max-w-6xl justify-between gap-2 overflow-x-auto px-6 py-2">
       {NAV_ITEMS.map((item) => {
         const active = isActive(pathname, item.href);
         const isInbox = item.href === '/admin/inbox';

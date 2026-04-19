@@ -56,7 +56,7 @@ export function ReviewRequestControls({
         data-testid="request-review"
         className="rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-60"
       >
-        {isPending ? 'Generating…' : 'Generate review request'}
+        {isPending ? 'Generating…' : 'Generate Review Request'}
       </button>
       {error && (
         <p

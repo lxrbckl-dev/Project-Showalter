@@ -7,8 +7,8 @@ import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
  * native BOOLEAN, so flags are stored as INTEGER (0/1). The initial migration
  * at `drizzle/0000_initial.sql` creates this table AND inserts one row with
  * all non-personal defaults populated; personal fields (`phone`, `email`,
- * `tiktok_url`, `bio`, `hero_image_path`) remain NULL until Phase 2's
- * `SEED_FROM_BRIEF` populates them.
+ * `tiktok_url`, `bio`) remain NULL until Phase 2's `SEED_FROM_BRIEF`
+ * populates them.
  *
  * Later phases will add the rest of the tables documented in STACK.md.
  */
@@ -20,7 +20,6 @@ export const siteConfig = sqliteTable('site_config', {
   email: text('email'),
   tiktokUrl: text('tiktok_url'),
   bio: text('bio'),
-  heroImagePath: text('hero_image_path'),
 
   /**
    * Sawyer's date of birth, stored as an ISO-8601 calendar date

@@ -38,6 +38,7 @@ type PendingSession = {
 
 export function FoundingAdminForm() {
   const router = useRouter();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [stage, setStage] = useState<Stage>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export function FoundingAdminForm() {
     e.preventDefault();
     setError(null);
     if (stage !== 'idle') return;
-    if (!email.trim()) {
+    if (!name.trim() || !email.trim()) {
       setError(AUTH_GENERIC_FAILURE_MESSAGE);
       return;
     }
@@ -63,7 +64,7 @@ export function FoundingAdminForm() {
 
     try {
       const attestation = await startRegistration({ optionsJSON: start.options });
-      const finish = await finishFoundingAction(email, attestation);
+      const finish = await finishFoundingAction(email, name, attestation);
       if (!finish.ok) {
         setError(finish.message);
         setStage('idle');
@@ -102,6 +103,23 @@ export function FoundingAdminForm() {
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="block text-sm">
+          <span className="mb-1 block text-[hsl(var(--muted-foreground))]">Name</span>
+          <Input
+            type="text"
+            name="name"
+            autoComplete="name"
+            required
+            maxLength={100}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={stage !== 'idle'}
+            data-testid="name-input"
+            data-founding="true"
+            placeholder="Sawyer"
+          />
+        </label>
+
         <label className="block text-sm">
           <span className="mb-1 block text-[hsl(var(--muted-foreground))]">Email</span>
           <Input

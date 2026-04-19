@@ -37,7 +37,7 @@ export default async function AdminNewBookingPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">New booking</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">New Booking</h1>
         <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
           Create a walk-in / phone-call booking. Status starts at{' '}
           <strong>accepted</strong>. Advance-notice and spacing checks are

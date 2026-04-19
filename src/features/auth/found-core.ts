@@ -21,6 +21,8 @@ export function adminsTableEmpty(
 
 export type FoundFirstAdminInput = {
   email: string;
+  /** Display name for the new admin (e.g. "Sawyer"). Trimmed by the caller. */
+  name?: string | null;
   /** If provided, the credential is recorded as the founding device. */
   credential?: {
     credentialId: string;
@@ -81,6 +83,7 @@ export function foundFirstAdmin(
         .insert(admins)
         .values({
           email: normalized,
+          name: input.name?.trim() ? input.name.trim() : null,
           active: 1,
           enrolledAt: nowIso,
           createdAt: nowIso,

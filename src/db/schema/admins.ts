@@ -12,6 +12,14 @@ import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 export const admins = sqliteTable('admins', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   email: text('email').unique().notNull(),
+  /**
+   * Display name shown in the admin shell ("Welcome, Sawyer."). Required for
+   * accounts created from the founding-admin and invite-accept flows; the
+   * column itself is nullable so pre-existing rows from before migration
+   * `0021_admins_name` continue to satisfy the schema (their welcome banner
+   * falls back to email).
+   */
+  name: text('name'),
   active: integer('active').notNull().default(1),
   enrolledAt: text('enrolled_at'),
   createdAt: text('created_at').notNull(),

@@ -12,11 +12,9 @@
  *           action's "replace the day atomically" semantics.
  *
  *   Right — Date overrides: a date picker + list of existing overrides.
- *           Selecting a date shows two actions: "Mark closed" and "Mark
- *           open with custom windows". The latter opens the same
- *           window-editor used for template days but writes via
- *           `openDateWithWindows(date, windows[])`. "Clear override"
- *           restores the template for that date.
+ *           Selecting a date offers a single "Mark closed" action that
+ *           upserts a closed-mode override for the chosen date. "Clear
+ *           override" restores the template for that date.
  *
  * Keeping everything in one component is intentional — the editor is
  * inherently interactive (staged window drafts, validation feedback,
@@ -30,7 +28,6 @@ import { Input } from '@/components/ui/input';
 import {
   clearOverride,
   closeDate,
-  openDateWithWindows,
   setTemplateDay,
 } from '@/features/availability/actions';
 
@@ -261,8 +258,6 @@ function OverridesPanel({ overrides }: { overrides: OverrideItem[] }) {
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
   const [note, setNote] = useState('');
-  const [openDraft, setOpenDraft] = useState<Window[]>([]);
-  const [showOpenEditor, setShowOpenEditor] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -275,20 +270,6 @@ function OverridesPanel({ overrides }: { overrides: OverrideItem[] }) {
         return;
       }
       setNote('');
-    });
-  }
-
-  function doOpen() {
-    setError(null);
-    startTransition(async () => {
-      const res = await openDateWithWindows(date, openDraft, note || null);
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      setNote('');
-      setOpenDraft([]);
-      setShowOpenEditor(false);
     });
   }
 
@@ -352,35 +333,7 @@ function OverridesPanel({ overrides }: { overrides: OverrideItem[] }) {
           >
             {pending ? 'Saving…' : 'Mark closed'}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowOpenEditor((v) => !v)}
-            disabled={pending}
-            data-testid="override-open-toggle"
-          >
-            {showOpenEditor ? 'Cancel open override' : 'Mark open with custom windows'}
-          </Button>
         </div>
-
-        {showOpenEditor && (
-          <div className="rounded-md border border-dashed border-[hsl(var(--border))] p-3">
-            <WindowListEditor
-              windows={openDraft}
-              onChange={setOpenDraft}
-              testidPrefix="override-open"
-            />
-            <Button
-              type="button"
-              className="mt-3"
-              onClick={doOpen}
-              disabled={pending}
-              data-testid="override-open-save"
-            >
-              {pending ? 'Saving…' : 'Save open override'}
-            </Button>
-          </div>
-        )}
 
         {error && (
           <p

@@ -156,6 +156,7 @@ export async function startFoundingEnrollment(
 
 export async function finishFoundingEnrollment(
   email: string,
+  name: string,
   response: RegistrationResponseJSON,
 ): Promise<
   AuthResult<{ recoveryCode: string; adminId: number; credentialId: string }>
@@ -173,6 +174,12 @@ export async function finishFoundingEnrollment(
     return authFailure();
   }
   const normalized = normalizeEmail(parsed.data);
+
+  const trimmedName = typeof name === 'string' ? name.trim() : '';
+  if (trimmedName.length < 1 || trimmedName.length > 100) {
+    logAuthFailure('invalid_name', { scope: 'found:finish' });
+    return authFailure();
+  }
 
   const expectedChallenge = consumeChallenge('foundAdmin', normalized);
   if (!expectedChallenge) {
@@ -212,6 +219,7 @@ export async function finishFoundingEnrollment(
 
   const result = foundFirstAdmin(getSqlite(), getDb(), {
     email: normalized,
+    name: trimmedName,
     credential: {
       credentialId: cred.id,
       publicKeyB64,

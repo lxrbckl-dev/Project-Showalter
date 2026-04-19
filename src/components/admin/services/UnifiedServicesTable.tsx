@@ -19,7 +19,7 @@
  * that prevents the DndDescribedBy-N hydration mismatch. DO NOT remove it.
  */
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import {
   DndContext,
@@ -206,6 +206,15 @@ export function UnifiedServicesTable({ services: initialServices }: UnifiedServi
     initialServices.filter((s) => s.active === 1),
   );
   const archivedItems = initialServices.filter((s) => s.active === 0);
+
+  // Re-sync from props after server-action mutations (Show/Hide/reorder) so
+  // the optimistic-state local copy doesn't drift from the source of truth.
+  // Without this, clicking Show on an archived row removes it from the
+  // archived list (derived from props) but never adds it to activeItems
+  // (which only initializes once), making the row vanish until refresh.
+  useEffect(() => {
+    setActiveItems(initialServices.filter((s) => s.active === 1));
+  }, [initialServices]);
 
   const [isPending, startTransition] = useTransition();
   const [reorderError, setReorderError] = useState<string | null>(null);

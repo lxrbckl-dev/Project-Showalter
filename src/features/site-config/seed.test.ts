@@ -34,7 +34,7 @@ describe('seedFromBrief()', () => {
       CREATE TABLE site_config (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT,
-        hero_image_path TEXT, date_of_birth TEXT, sms_template TEXT,
+ date_of_birth TEXT, sms_template TEXT,
         booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
         min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
         start_time_increment_minutes INTEGER NOT NULL DEFAULT 30,
@@ -108,7 +108,7 @@ describe('seedFromBrief()', () => {
       CREATE TABLE site_config (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT,
-        hero_image_path TEXT, date_of_birth TEXT, sms_template TEXT,
+ date_of_birth TEXT, sms_template TEXT,
         booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
         min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
         start_time_increment_minutes INTEGER NOT NULL DEFAULT 30,
@@ -245,7 +245,7 @@ describe('seedFromBrief()', () => {
       CREATE TABLE site_config (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT,
-        hero_image_path TEXT, date_of_birth TEXT, sms_template TEXT,
+ date_of_birth TEXT, sms_template TEXT,
         booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
         min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
         start_time_increment_minutes INTEGER NOT NULL DEFAULT 30,

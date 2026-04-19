@@ -6,7 +6,7 @@
  * passes it to the client-side form components.
  *
  * Tabs:
- *   - Contact      — phone, email, tiktok_url, bio, hero_image_path (read-only)
+ *   - Contact      — phone, email, tiktok_url, bio
  *   - SMS fallback — sms_template
  *   - Templates    — six message template bodies with variable-reference hints
  *   - Settings     — booking knobs, photo caps, stats toggles, timezone
@@ -17,7 +17,6 @@ import { auth } from '@/features/auth/auth';
 import { getSiteConfig } from '@/features/site-config/queries';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ContactForm } from '@/components/admin/content/ContactForm';
-import { HeroImageForm } from '@/components/admin/content/HeroImageForm';
 import { SmsForm } from '@/components/admin/content/SmsForm';
 import { TemplatesForm } from '@/components/admin/content/TemplatesForm';
 import { SettingsForm } from '@/components/admin/content/SettingsForm';
@@ -42,7 +41,7 @@ export default async function AdminContentPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <section>
         <h1 className="text-2xl font-semibold tracking-tight">Content</h1>
         <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
@@ -60,9 +59,6 @@ export default async function AdminContentPage() {
 
         <TabsContent value="contact" data-testid="tab-contact">
           <ContactForm config={config} />
-          <div className="mt-8 border-t border-[hsl(var(--border))] pt-8">
-            <HeroImageForm heroImagePath={config.heroImagePath ?? null} />
-          </div>
         </TabsContent>
 
         <TabsContent value="sms" data-testid="tab-sms">

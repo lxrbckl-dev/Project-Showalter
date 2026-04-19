@@ -4,6 +4,7 @@ import { getDb } from '@/db';
 import { siteConfig as siteConfigTable } from '@/db/schema/site-config';
 import { getReviewById } from '@/features/reviews/queries';
 import { formatUSPhone } from '@/lib/formatters/phone';
+import { formatStatus } from '@/lib/format-status';
 
 /**
  * Admin review detail — Phase 9.
@@ -130,7 +131,7 @@ export default async function AdminReviewDetailPage({
       <section className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6">
         <h2 className="mb-3 text-lg font-semibold">Details</h2>
         <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-          <DetailRow label="Status" value={detail.status} />
+          <DetailRow label="Status" value={formatStatus(detail.status)} />
           <DetailRow
             label="Requested"
             value={formatDate(detail.requestedAt, tz)}

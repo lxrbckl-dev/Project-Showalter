@@ -8,6 +8,7 @@ import {
 } from '@/features/bookings/admin-queries';
 import { Badge } from '@/components/ui/badge';
 import { formatUSPhone } from '@/lib/formatters/phone';
+import { formatStatus } from '@/lib/format-status';
 import { StandaloneReviewWidget } from './_components/StandaloneReviewWidget';
 
 /**
@@ -254,7 +255,7 @@ function StatusBadge({ status }: { status: string }) {
           : 'secondary';
   return (
     <Badge variant={variant} data-testid={`row-status-${status}`}>
-      {status.replace('_', ' ')}
+      {formatStatus(status)}
     </Badge>
   );
 }

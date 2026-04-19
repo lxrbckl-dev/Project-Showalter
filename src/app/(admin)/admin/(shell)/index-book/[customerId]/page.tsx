@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getDb } from '@/db';
 import { getCustomerFullDetail } from '@/features/customers/queries';
 import { formatUSPhone } from '@/lib/formatters/phone';
+import { formatStatus } from '@/lib/format-status';
 import { NotesEditor } from './_components/NotesEditor';
 import { ReviewRequestButton } from './_components/ReviewRequestButton';
 
@@ -266,7 +267,7 @@ export default async function AdminIndexBookDetailPage({
                           : 'bg-yellow-100 text-yellow-800'
                       }`}
                     >
-                      {r.status}
+                      {formatStatus(r.status)}
                     </span>
                   </div>
                   {r.reviewText && (

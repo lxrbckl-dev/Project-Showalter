@@ -267,6 +267,7 @@ export async function startAcceptInvite(
 export async function finishAcceptInvite(
   token: string,
   email: string,
+  name: string,
   response: RegistrationResponseJSON,
 ): Promise<
   AuthResult<{ recoveryCode: string; adminId: number; credentialId: string }>
@@ -285,6 +286,12 @@ export async function finishAcceptInvite(
   const parsedEmail = emailSchema.safeParse(email);
   if (!parsedEmail.success) return authFailure();
   const normalized = normalizeEmail(parsedEmail.data);
+
+  const trimmedName = typeof name === 'string' ? name.trim() : '';
+  if (trimmedName.length < 1 || trimmedName.length > 100) {
+    logAuthFailure('invalid_name', { scope: 'invites:accept:finish' });
+    return authFailure();
+  }
 
   const expectedChallenge = consumeChallenge(
     'acceptInvite',
@@ -328,6 +335,7 @@ export async function finishAcceptInvite(
   const result = acceptInvite(getSqlite(), getDb(), {
     token,
     submittedEmail: normalized,
+    name: trimmedName,
     credential: {
       credentialId: cred.id,
       publicKeyB64,

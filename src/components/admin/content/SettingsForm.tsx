@@ -46,7 +46,7 @@ export function SettingsForm({ config }: SettingsFormProps) {
             data-testid="settings-site-title"
           />
           <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            Shown on the landing page hero, page titles, and social-share cards.
+            Shown at the top of the landing page, in the browser tab title, and on social-share cards.
             1–60 characters.
           </p>
           <FieldError errors={err('siteTitle')} />
@@ -310,7 +310,7 @@ export function SettingsForm({ config }: SettingsFormProps) {
           <p className="text-xs text-[hsl(var(--muted-foreground))]">
             One fact per line. Up to 50 lines, 200 characters each. Order is
             randomized on each page load and items scroll continuously across
-            the landing page below the hero.
+            the landing page above "About Sawyer".
           </p>
           <FieldError errors={err('hostFacts')} />
         </div>

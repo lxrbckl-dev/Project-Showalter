@@ -19,7 +19,6 @@ import { auth } from '@/features/auth/auth';
 import { getDb } from '@/db';
 import { Button } from '@/components/ui/button';
 import { unreadCount } from '@/features/notifications/queries';
-import { getHeaderStats } from '@/features/bookings/admin-queries';
 import { AdminNav } from './_components/AdminNav';
 import { logoutAction } from './actions';
 
@@ -33,15 +32,11 @@ export default async function AdminLayout({
 
   const db = getDb();
 
-  // Header surface reads are cheap — two count queries + a join-lite fetch.
-  // If this ever gets hot, swap to a 60-second memoized cache.
   let unread = 0;
-  let stats = { pending: 0, confirmedThisWeek: 0 };
   try {
     unread = unreadCount(db);
-    stats = getHeaderStats(db);
   } catch {
-    // Boot-time race (tables not yet created in a fresh dev DB) — render zeroes.
+    // Boot-time race (notifications table not yet created in a fresh dev DB).
   }
 
   return (
@@ -73,21 +68,6 @@ export default async function AdminLayout({
       <nav className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
         <AdminNav unread={unread} />
       </nav>
-
-      <div
-        className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]/50"
-        data-testid="header-stats"
-      >
-        <div className="mx-auto flex max-w-6xl gap-6 px-6 py-2 text-xs text-[hsl(var(--muted-foreground))]">
-          <span data-testid="stats-pending">
-            Pending: <strong data-testid="stats-pending-count" className="text-[hsl(var(--foreground))]">{stats.pending}</strong>
-          </span>
-          <span data-testid="stats-confirmed-week">
-            Confirmed this week:{' '}
-            <strong data-testid="stats-confirmed-count" className="text-[hsl(var(--foreground))]">{stats.confirmedThisWeek}</strong>
-          </span>
-        </div>
-      </div>
 
       <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
     </div>

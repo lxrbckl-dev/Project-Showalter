@@ -11,6 +11,7 @@ import {
   type ConfirmationTemplateKind,
 } from '@/features/confirmations/compose';
 import { formatUSPhone } from '@/lib/formatters/phone';
+import { formatStatus } from '@/lib/format-status';
 import { Badge } from '@/components/ui/badge';
 import { BookingDecideControls } from './_components/BookingDecideControls';
 import {
@@ -230,7 +231,7 @@ export default async function AdminBookingDetailPage({
           </p>
         </div>
         <Badge data-testid="detail-status" data-status={row.status}>
-          {row.status.replace('_', ' ')}
+          {formatStatus(row.status)}
         </Badge>
       </header>
 
@@ -280,7 +281,7 @@ export default async function AdminBookingDetailPage({
           )}
           <DetailRow label="Address" value={row.addressText} />
           {row.notes && <DetailRow label="Notes" value={row.notes} />}
-          <DetailRow label="Status" value={row.status.replace('_', ' ')} />
+          <DetailRow label="Status" value={formatStatus(row.status)} />
           <DetailRow
             label="Created"
             value={formatStartAt(row.createdAt, tz)}
@@ -394,18 +395,20 @@ export default async function AdminBookingDetailPage({
           data-testid="detail-actions"
         >
           <h2 className="text-lg font-semibold">Actions</h2>
-          <BookingDecideControls
-            bookingId={row.id}
-            expectedUpdatedAt={row.updatedAt}
-            actions={actions}
-          />
-          {actions.includes('reschedule') && (
-            <RescheduleControls
+          <div className="flex flex-wrap items-start gap-2">
+            <BookingDecideControls
               bookingId={row.id}
               expectedUpdatedAt={row.updatedAt}
-              timezone={tz}
+              actions={actions}
             />
-          )}
+            {actions.includes('reschedule') && (
+              <RescheduleControls
+                bookingId={row.id}
+                expectedUpdatedAt={row.updatedAt}
+                timezone={tz}
+              />
+            )}
+          </div>
         </section>
       )}
 
@@ -415,7 +418,7 @@ export default async function AdminBookingDetailPage({
           data-testid="detail-no-actions"
         >
           No admin actions available for bookings in status{' '}
-          <strong>{row.status.replace('_', ' ')}</strong>. This state is
+          <strong>{formatStatus(row.status)}</strong>. This state is
           terminal.
         </p>
       )}

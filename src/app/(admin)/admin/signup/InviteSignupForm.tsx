@@ -65,6 +65,7 @@ function formatExpires(iso: string): string {
 
 export function InviteSignupForm({ token, invitedEmail, expiresAt }: Props) {
   const router = useRouter();
+  const [name, setName] = useState('');
   const [stage, setStage] = useState<Stage>('idle');
   const [error, setError] = useState<string | null>(null);
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
@@ -74,6 +75,10 @@ export function InviteSignupForm({ token, invitedEmail, expiresAt }: Props) {
     e.preventDefault();
     setError(null);
     if (stage !== 'idle') return;
+    if (!name.trim()) {
+      setError(AUTH_GENERIC_FAILURE_MESSAGE);
+      return;
+    }
     setStage('working');
 
     const start = await startAcceptInvite(token, invitedEmail);
@@ -85,7 +90,7 @@ export function InviteSignupForm({ token, invitedEmail, expiresAt }: Props) {
 
     try {
       const attestation = await startRegistration({ optionsJSON: start.options });
-      const finish = await finishAcceptInvite(token, invitedEmail, attestation);
+      const finish = await finishAcceptInvite(token, invitedEmail, name, attestation);
       if (!finish.ok) {
         setError(finish.message);
         setStage('idle');
@@ -127,6 +132,24 @@ export function InviteSignupForm({ token, invitedEmail, expiresAt }: Props) {
         className="space-y-4"
         data-testid="invite-signup-form"
       >
+        <label className="block text-sm">
+          <span className="mb-1 block text-[hsl(var(--muted-foreground))]">
+            Name
+          </span>
+          <Input
+            type="text"
+            name="name"
+            autoComplete="name"
+            required
+            maxLength={100}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={stage !== 'idle'}
+            data-testid="invite-signup-name"
+            placeholder="Your name"
+          />
+        </label>
+
         <label className="block text-sm">
           <span className="mb-1 block text-[hsl(var(--muted-foreground))]">
             Email (from invite)

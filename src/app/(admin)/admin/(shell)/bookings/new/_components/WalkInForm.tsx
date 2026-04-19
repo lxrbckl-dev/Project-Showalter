@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   adminCreateBooking,
@@ -63,6 +63,19 @@ export function WalkInForm({
   );
   const [startAtLocal, setStartAtLocal] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Default the start-time field to "now" (browser local clock) once mounted.
+  // We initialize to '' first so server-rendered HTML matches the first client
+  // render — populating with `new Date()` directly inside useState would cause
+  // a hydration mismatch since the server and client compute slightly
+  // different timestamps.
+  useEffect(() => {
+    const now = new Date();
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    setStartAtLocal(
+      `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    );
+  }, []);
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>(
     {},
@@ -168,7 +181,7 @@ export function WalkInForm({
                   : 'border border-[hsl(var(--border))]',
               )}
             >
-              + New
+              New
             </button>
           </div>
         </div>

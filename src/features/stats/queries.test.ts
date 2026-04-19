@@ -43,7 +43,7 @@ function setupSchema(db: Database.Database): void {
       email TEXT,
       tiktok_url TEXT,
       bio TEXT,
-      hero_image_path TEXT,
+
       date_of_birth TEXT,
       sms_template TEXT,
       booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
