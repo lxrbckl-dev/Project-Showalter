@@ -32,12 +32,16 @@ export default async function AdminNewBookingPage() {
   const tz = cfg?.timezone ?? 'America/Chicago';
 
   const services = getAllServices().filter((s) => s.active === 1);
-  const recentCustomers = searchCustomers(db, '', 6);
+  // Fetch the full customer list (cap at 1000) so the WalkInForm combobox
+  // can filter client-side as the admin types. A single-person business
+  // realistically has hundreds at most over many years; if this ever grows
+  // past the cap, swap to debounced server-side search.
+  const recentCustomers = searchCustomers(db, '', 1000);
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">New Booking</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Booking</h1>
         <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
           Create a walk-in / phone-call booking. Status starts at{' '}
           <strong>accepted</strong>. Advance-notice and spacing checks are

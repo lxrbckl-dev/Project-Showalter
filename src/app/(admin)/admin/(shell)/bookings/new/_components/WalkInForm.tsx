@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   adminCreateBooking,
@@ -49,8 +49,11 @@ export function WalkInForm({
   const [mode, setMode] = useState<'existing' | 'new'>(
     initialCustomers.length > 0 ? 'existing' : 'new',
   );
+  // Start unselected so the form doesn't pre-commit to whichever customer
+  // happens to be at the top of the recent-customers list. Sawyer picks
+  // whoever this booking is for.
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
-    initialCustomers[0]?.id ?? null,
+    null,
   );
 
   const [name, setName] = useState('');
@@ -58,9 +61,9 @@ export function WalkInForm({
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
 
-  const [serviceId, setServiceId] = useState<number>(
-    services[0]?.id ?? 0,
-  );
+  // No default — Sawyer picks the service explicitly so a wrong service
+  // doesn't get committed by accident.
+  const [serviceId, setServiceId] = useState<number | null>(null);
   const [startAtLocal, setStartAtLocal] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -77,6 +80,20 @@ export function WalkInForm({
     );
   }, []);
 
+  // When the admin picks (or switches) the customer, prefill the Address
+  // input with that customer's primary address so they don't have to retype
+  // it. The field is still freely editable afterward — it's a starting
+  // value, not a lock. Clearing the selection clears the address too,
+  // matching what `address` represented before the pick.
+  useEffect(() => {
+    if (selectedCustomerId === null) {
+      setAddress('');
+      return;
+    }
+    const picked = initialCustomers.find((c) => c.id === selectedCustomerId);
+    setAddress(picked?.primaryAddress ?? '');
+  }, [selectedCustomerId, initialCustomers]);
+
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>(
     {},
   );
@@ -87,7 +104,7 @@ export function WalkInForm({
 
   function buildFormData(force: boolean): FormData {
     const fd = new FormData();
-    fd.set('serviceId', String(serviceId));
+    if (serviceId !== null) fd.set('serviceId', String(serviceId));
     if (startAtLocal) {
       const asDate = new Date(startAtLocal);
       if (!Number.isNaN(asDate.getTime())) {
@@ -111,6 +128,14 @@ export function WalkInForm({
   function submit(force: boolean): void {
     setFieldErrors({});
     setMessage(null);
+    if (mode === 'existing' && selectedCustomerId === null) {
+      setMessage('Pick a customer first, or switch to New.');
+      return;
+    }
+    if (serviceId === null) {
+      setMessage('Pick a service first.');
+      return;
+    }
     const fd = buildFormData(force);
     startTransition(async () => {
       const result = await adminCreateBooking(fd);
@@ -153,7 +178,7 @@ export function WalkInForm({
       }}
       className="space-y-6"
     >
-      <section className="space-y-3 rounded-md border border-[hsl(var(--border))] p-4">
+      <section className="space-y-5 rounded-md border border-[hsl(var(--border))] p-4">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">Customer</h2>
           <div className="ml-auto flex gap-2 text-xs">
@@ -188,28 +213,11 @@ export function WalkInForm({
 
         {mode === 'existing' ? (
           <div className="space-y-3">
-            <label className="flex flex-col text-sm">
-              Pick a customer
-              <select
-                value={selectedCustomerId ?? ''}
-                onChange={(e) =>
-                  setSelectedCustomerId(
-                    e.target.value ? Number(e.target.value) : null,
-                  )
-                }
-                data-testid="select-customer"
-                className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2 py-1 text-sm"
-              >
-                {initialCustomers.length === 0 && (
-                  <option value="">— no recent customers —</option>
-                )}
-                {initialCustomers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} · {c.phone}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <CustomerCombobox
+              customers={initialCustomers}
+              selectedId={selectedCustomerId}
+              onSelect={setSelectedCustomerId}
+            />
             {selectedCustomer && (
               <div className="rounded-md border border-dashed border-[hsl(var(--border))] p-3 text-xs text-[hsl(var(--muted-foreground))]">
                 <div>
@@ -222,7 +230,7 @@ export function WalkInForm({
               </div>
             )}
             <label className="flex flex-col text-sm">
-              Address (override or fresh)
+              Address
               <input
                 type="text"
                 value={address}
@@ -284,50 +292,53 @@ export function WalkInForm({
             </label>
           </div>
         )}
-      </section>
 
-      <section className="space-y-3 rounded-md border border-[hsl(var(--border))] p-4">
-        <h2 className="text-lg font-semibold">Booking</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="flex flex-col text-sm">
-            Service
-            <select
-              value={serviceId}
-              onChange={(e) => setServiceId(Number(e.target.value))}
-              data-testid="select-service"
-              className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2 py-1 text-sm"
-            >
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <FieldError errors={fieldErrors.serviceId} />
-          </label>
-          <label className="flex flex-col text-sm">
-            Start time (local, {timezone})
-            <input
-              type="datetime-local"
-              value={startAtLocal}
-              onChange={(e) => setStartAtLocal(e.target.value)}
-              data-testid="input-start-at"
+        <div className="border-t border-[hsl(var(--border))] pt-5">
+          <h2 className="mb-3 text-lg font-semibold">Booking</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col text-sm">
+              Service
+              <select
+                value={serviceId ?? ''}
+                onChange={(e) =>
+                  setServiceId(e.target.value ? Number(e.target.value) : null)
+                }
+                data-testid="select-service"
+                className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2 py-1 text-sm"
+              >
+                <option value="">— pick a service —</option>
+                {services.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <FieldError errors={fieldErrors.serviceId} />
+            </label>
+            <label className="flex flex-col text-sm">
+              Start time (local, {timezone})
+              <input
+                type="datetime-local"
+                value={startAtLocal}
+                onChange={(e) => setStartAtLocal(e.target.value)}
+                data-testid="input-start-at"
+                className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2 py-1 text-sm"
+              />
+              <FieldError errors={fieldErrors.startAt} />
+            </label>
+          </div>
+          <label className="mt-3 flex flex-col text-sm">
+            Notes (optional)
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              data-testid="input-notes"
               className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2 py-1 text-sm"
             />
-            <FieldError errors={fieldErrors.startAt} />
+            <FieldError errors={fieldErrors.notes} />
           </label>
         </div>
-        <label className="flex flex-col text-sm">
-          Notes (optional)
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            data-testid="input-notes"
-            className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2 py-1 text-sm"
-          />
-          <FieldError errors={fieldErrors.notes} />
-        </label>
       </section>
 
       {pendingWarnings && (
@@ -405,4 +416,122 @@ function FieldError({ errors }: { errors?: string[] }) {
 
 function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ');
+}
+
+/**
+ * Searchable customer picker — type to filter, click to select.
+ *
+ * Filters across name / phone / email (case-insensitive substring). Picking
+ * a row commits the id upward and closes the dropdown. Re-focusing the input
+ * reopens it. Clicking outside closes it.
+ */
+function CustomerCombobox({
+  customers,
+  selectedId,
+  onSelect,
+}: {
+  customers: CustomerSummary[];
+  selectedId: number | null;
+  onSelect: (id: number | null) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Keep the input synced to the selected customer's display name (after a
+  // pick, or when the parent clears the selection externally).
+  const selected = customers.find((c) => c.id === selectedId) ?? null;
+  useEffect(() => {
+    if (selected) setQuery(`${selected.name} · ${selected.phone}`);
+    else setQuery('');
+  }, [selected]);
+
+  // Dismiss the dropdown on any click outside the wrapper.
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
+  const needle = query.trim().toLowerCase();
+  const isShowingPicked =
+    selected && needle === `${selected.name} · ${selected.phone}`.toLowerCase();
+  // When the input still shows the picked customer's label verbatim (no edit
+  // since the pick), don't filter — show the full list so the admin can
+  // browse to a different one.
+  const filtered = isShowingPicked
+    ? customers
+    : needle.length === 0
+      ? customers
+      : customers.filter((c) => {
+          const hay = `${c.name} ${c.phone} ${c.email ?? ''}`.toLowerCase();
+          return hay.includes(needle);
+        });
+
+  return (
+    <div ref={wrapperRef} className="relative space-y-1">
+      <label className="flex flex-col text-sm">
+        Pick Customer
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+            // Typing invalidates any prior selection — clear it so the
+            // address-prefill / submit guard react correctly.
+            if (selectedId !== null) onSelect(null);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder={
+            customers.length === 0
+              ? 'No customers yet'
+              : 'Type a name, phone, or email…'
+          }
+          disabled={customers.length === 0}
+          data-testid="select-customer"
+          className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2 py-1 text-sm"
+        />
+      </label>
+      {open && customers.length > 0 && (
+        <ul
+          data-testid="customer-options"
+          className="absolute z-10 max-h-64 w-full overflow-y-auto rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] py-1 text-sm shadow-md"
+        >
+          {filtered.length === 0 ? (
+            <li className="px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
+              No matches
+            </li>
+          ) : (
+            filtered.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  data-testid={`customer-option-${c.id}`}
+                  onClick={() => {
+                    onSelect(c.id);
+                    setOpen(false);
+                  }}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left hover:bg-[hsl(var(--accent))]"
+                >
+                  <span className="truncate font-medium">{c.name}</span>
+                  <span className="shrink-0 text-xs text-[hsl(var(--muted-foreground))]">
+                    {c.phone}
+                  </span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
 }

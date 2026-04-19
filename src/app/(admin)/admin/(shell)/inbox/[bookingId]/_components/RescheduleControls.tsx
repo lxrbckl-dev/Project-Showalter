@@ -31,6 +31,21 @@ export function RescheduleControls({
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
+  // Format `now` as the `YYYY-MM-DDTHH:MM` string the datetime-local input
+  // expects, in the BROWSER's local timezone (matches what the user sees in
+  // the picker). Computed lazily on click — never in a useState initializer
+  // — to avoid SSR/CSR hydration mismatches.
+  function nowAsDatetimeLocal(): string {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function openForm(): void {
+    setDatetimeLocal((prev) => prev || nowAsDatetimeLocal());
+    setIsOpen(true);
+  }
+
   function handle(result: RescheduleResult): void {
     if (result.ok) {
       setMessage(null);
@@ -79,7 +94,7 @@ export function RescheduleControls({
       <div>
         <button
           type="button"
-          onClick={() => setIsOpen(true)}
+          onClick={openForm}
           data-testid="action-reschedule-open"
           className="rounded-md border border-[hsl(var(--border))] bg-transparent px-4 py-2 text-sm font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))]"
         >

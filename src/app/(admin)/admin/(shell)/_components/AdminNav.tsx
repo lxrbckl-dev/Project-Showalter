@@ -11,7 +11,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/inbox', label: 'Inbox' },
-  { href: '/admin/bookings/new', label: 'New Booking' },
+  { href: '/admin/bookings/new', label: 'Booking' },
   { href: '/admin/schedule', label: 'Schedule' },
   { href: '/admin/services', label: 'Services' },
   { href: '/admin/content', label: 'Content' },

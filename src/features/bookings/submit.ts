@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { bookings } from '@/db/schema/bookings';
 import { bookingAttachments } from '@/db/schema/booking-attachments';
+import { notifications } from '@/db/schema/notifications';
 import { services } from '@/db/schema/services';
 import { siteConfig as siteConfigTable } from '@/db/schema/site-config';
 import { matchOrCreateCustomer, bumpLastBookingAt } from '@/features/customers/match';
@@ -228,6 +229,38 @@ export async function submitBookingCore(
 
   // Bump the customer's last_booking_at for INDEX-book sort order.
   bumpLastBookingAt(match.customerId, data.startAt, db);
+
+  // In-app notification — the local replica of the Web Push fan-out so the
+  // Inbox tab badge lights up regardless of whether the admin has subscribed
+  // to push (or has push delivery working on this device). Best-effort: a
+  // failure here must not roll back the booking, which is already committed.
+  try {
+    db.insert(notifications)
+      .values({
+        kind: 'booking_submitted',
+        bookingId,
+        payloadJson: JSON.stringify({
+          bookingId,
+          token,
+          customerName: data.name,
+          serviceName: svc.name,
+          startAt: data.startAt,
+        }),
+        read: 0,
+        createdAt: nowIso,
+      })
+      .run();
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(
+      JSON.stringify({
+        level: 'warn',
+        msg: 'submit: in-app notification insert failed',
+        bookingId,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
 
   // ---- 7. Photo uploads ---------------------------------------------------
   const photos = formData.getAll('photos').filter((v): v is File => v instanceof File);

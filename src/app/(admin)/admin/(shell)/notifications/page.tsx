@@ -182,11 +182,14 @@ function parseBookingIdFromPayload(payloadJson: string): number | null {
 function renderSubject(kind: string, payloadJson: string): string {
   try {
     const p = JSON.parse(payloadJson) as Record<string, unknown>;
+    const name = typeof p.customerName === 'string' ? p.customerName : 'Customer';
+    const service =
+      typeof p.serviceName === 'string' ? p.serviceName : 'a booking';
+    const when = typeof p.startAt === 'string' ? formatISOShort(p.startAt) : '';
+    if (kind === 'booking_submitted') {
+      return `New booking request: ${service} on ${when} — ${name}`;
+    }
     if (kind === 'booking_canceled_by_customer') {
-      const name = typeof p.customerName === 'string' ? p.customerName : 'Customer';
-      const service =
-        typeof p.serviceName === 'string' ? p.serviceName : 'a booking';
-      const when = typeof p.startAt === 'string' ? formatISOShort(p.startAt) : '';
       return `Customer canceled: ${service} on ${when} — ${name}`;
     }
   } catch {
