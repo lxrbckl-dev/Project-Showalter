@@ -18,9 +18,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { and, eq, lt } from 'drizzle-orm';
 import type * as schema from '@/db/schema';
 import { bookings } from '@/db/schema/bookings';
-import { notifications } from '@/db/schema/notifications';
 import { withCronRun } from './cron-runs';
-import { sendPushToAllAdmins } from '@/server/notifications/push';
 
 type Db = BetterSQLite3Database<typeof schema>;
 
@@ -69,23 +67,11 @@ export async function runAutoExpire(db: Db): Promise<void> {
         )
         .run();
 
-      // 2. Insert in-app notification.
-      db.insert(notifications)
-        .values({
-          kind: 'booking_expired',
-          payloadJson: JSON.stringify({ bookingId: booking.id }),
-          read: 0,
-          createdAt: nowIso,
-          bookingId: booking.id,
-        })
-        .run();
-
-      // 3. Fire Web Push.
-      await sendPushToAllAdmins({
-        title: 'Booking expired',
-        body: `Booking for ${booking.customerName} on ${booking.startAt} expired after 72 hours without a decision.`,
-        url: '/admin/notifications',
-      });
+      // No notification or push fan-out by design — Sawyer scoped the
+      // notification system to "new pending bookings I haven't looked at",
+      // so an auto-expiry doesn't surface anywhere. The state change above
+      // is enough; the row is now in the `expired` terminal state and shows
+      // up under the inbox filter naturally.
     }
   });
 }

@@ -44,11 +44,11 @@ describe('notifications queries + mark-read', () => {
     db = made.db;
   });
 
-  it('unreadCount counts only read=0 rows', () => {
+  it('unreadCount counts only read=0 booking_submitted rows', () => {
     seed(db, [
-      { kind: 'a', read: 0, createdAt: '2026-04-17T00:00:00.000Z' },
-      { kind: 'b', read: 0, createdAt: '2026-04-17T01:00:00.000Z' },
-      { kind: 'c', read: 1, createdAt: '2026-04-17T02:00:00.000Z' },
+      { kind: 'booking_submitted', read: 0, createdAt: '2026-04-17T00:00:00.000Z' },
+      { kind: 'booking_submitted', read: 0, createdAt: '2026-04-17T01:00:00.000Z' },
+      { kind: 'booking_submitted', read: 1, createdAt: '2026-04-17T02:00:00.000Z' },
     ]);
     expect(unreadCount(db)).toBe(2);
     sqlite.close();
@@ -77,11 +77,14 @@ describe('notifications queries + mark-read', () => {
     sqlite.close();
   });
 
+  // The unreadCount-using tests below use `booking_submitted` as the kind
+  // because unreadCount() is now scoped to that kind only (the Inbox tab
+  // badge is "new pending bookings I haven't looked at" — nothing else).
   it('markAsReadCore flips specified ids only', () => {
     seed(db, [
-      { kind: 'a', read: 0, createdAt: '2026-04-17T00:00:00.000Z' },
-      { kind: 'b', read: 0, createdAt: '2026-04-17T01:00:00.000Z' },
-      { kind: 'c', read: 0, createdAt: '2026-04-17T02:00:00.000Z' },
+      { kind: 'booking_submitted', read: 0, createdAt: '2026-04-17T00:00:00.000Z' },
+      { kind: 'booking_submitted', read: 0, createdAt: '2026-04-17T01:00:00.000Z' },
+      { kind: 'booking_submitted', read: 0, createdAt: '2026-04-17T02:00:00.000Z' },
     ]);
     const ids = db.select().from(notifications).all().map((r) => r.id);
     const changed = markAsReadCore(db, [ids[0], ids[2]]);
@@ -96,7 +99,7 @@ describe('notifications queries + mark-read', () => {
 
   it('markAsReadCore with empty array is a no-op', () => {
     seed(db, [
-      { kind: 'a', read: 0, createdAt: '2026-04-17T00:00:00.000Z' },
+      { kind: 'booking_submitted', read: 0, createdAt: '2026-04-17T00:00:00.000Z' },
     ]);
     expect(markAsReadCore(db, [])).toBe(0);
     expect(unreadCount(db)).toBe(1);
@@ -105,14 +108,24 @@ describe('notifications queries + mark-read', () => {
 
   it('markAllAsReadCore clears the unread count', () => {
     seed(db, [
-      { kind: 'a', read: 0, createdAt: '2026-04-17T00:00:00.000Z' },
-      { kind: 'b', read: 0, createdAt: '2026-04-17T01:00:00.000Z' },
-      { kind: 'c', read: 1, createdAt: '2026-04-17T02:00:00.000Z' },
+      { kind: 'booking_submitted', read: 0, createdAt: '2026-04-17T00:00:00.000Z' },
+      { kind: 'booking_submitted', read: 0, createdAt: '2026-04-17T01:00:00.000Z' },
+      { kind: 'booking_submitted', read: 1, createdAt: '2026-04-17T02:00:00.000Z' },
     ]);
     expect(markAllAsReadCore(db)).toBe(2);
     expect(unreadCount(db)).toBe(0);
     // Second run should be a no-op (everything already read).
     expect(markAllAsReadCore(db)).toBe(0);
+    sqlite.close();
+  });
+
+  it('unreadCount ignores non-booking_submitted kinds even if unread', () => {
+    seed(db, [
+      { kind: 'booking_canceled_by_customer', read: 0, createdAt: '2026-04-17T00:00:00.000Z' },
+      { kind: 'review_submitted', read: 0, createdAt: '2026-04-17T01:00:00.000Z' },
+      { kind: 'booking_expired', read: 0, createdAt: '2026-04-17T02:00:00.000Z' },
+    ]);
+    expect(unreadCount(db)).toBe(0);
     sqlite.close();
   });
 });

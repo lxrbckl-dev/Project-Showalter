@@ -127,34 +127,37 @@ describe('auto-expire sweep', () => {
     sqlite.close();
   });
 
-  it('inserts a booking_expired notification for expired booking', async () => {
+  it('expires the booking but writes no notification (notifications scoped to booking_submitted only)', async () => {
     const id = insertBooking(db, { createdAt: hoursAgo(73) });
 
     await runAutoExpire(db);
+
+    const row = db.select().from(bookings).where(eq(bookings.id, id)).get();
+    expect(row?.status).toBe('expired');
 
     const notifs = db
       .select()
       .from(notifications)
       .where(eq(notifications.bookingId, id))
       .all();
-    expect(notifs).toHaveLength(1);
-    expect(notifs[0].kind).toBe('booking_expired');
+    expect(notifs).toHaveLength(0);
     sqlite.close();
   });
 
-  it('idempotency: running twice does not double-insert the notification', async () => {
+  it('idempotency: running twice does not flip an already-expired row again', async () => {
     insertBooking(db, { createdAt: hoursAgo(73) });
 
     await runAutoExpire(db);
-    await runAutoExpire(db); // second run
+    await runAutoExpire(db); // second run — already expired, no-op
 
-    const notifs = db
-      .select()
-      .from(notifications)
-      .where(eq(notifications.kind, 'booking_expired'))
-      .all();
-    // Exactly one notification (booking is no longer pending after first run)
-    expect(notifs).toHaveLength(1);
+    const allBookings = db.select().from(bookings).all();
+    expect(allBookings).toHaveLength(1);
+    expect(allBookings[0].status).toBe('expired');
+
+    // No notifications by design — Sawyer only wants notifications for
+    // brand-new pending requests he hasn't viewed.
+    const notifs = db.select().from(notifications).all();
+    expect(notifs).toHaveLength(0);
     sqlite.close();
   });
 
@@ -186,7 +189,7 @@ describe('auto-expire sweep', () => {
     expect(row3?.status).toBe('pending');
 
     const notifs = db.select().from(notifications).all();
-    expect(notifs).toHaveLength(2);
+    expect(notifs).toHaveLength(0);
     sqlite.close();
   });
 });

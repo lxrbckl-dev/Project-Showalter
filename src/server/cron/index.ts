@@ -10,15 +10,19 @@
  * Jobs:
  *   - nightly_backup       `0 3 * * *`   SQLite backup + 14-day prune
  *   - photo_cleanup        `0 3 * * *`   Booking-photo retention cleanup
- *   - reminders_sweep      every 15 min  24h / 48h pending-booking reminders
  *   - auto_expire_sweep    every 15 min  72h auto-expire of pending bookings
+ *
+ * Retired:
+ *   - reminders_sweep — the 24h/48h reminder fan-out was the only thing
+ *     this job did. Sawyer asked to scope notifications to "new pending
+ *     bookings I haven't looked at" only, which leaves no use for periodic
+ *     reminders. The handler module stays in the tree for git history.
  */
 
 import nodeCron from 'node-cron';
 import { getDb } from '@/db';
 import { runBackup } from './backup-sqlite';
 import { runPhotoCleanup } from './cleanup-photos';
-import { runPendingReminders } from './pending-reminders';
 import { runAutoExpire } from './auto-expire';
 
 const SCHEDULE_NIGHTLY = '0 3 * * *';
@@ -87,11 +91,6 @@ export function registerCronJobs() {
     ),
     nodeCron.schedule(
       SCHEDULE_15MIN,
-      makeHandler('reminders_sweep', () => runPendingReminders(db)),
-      { name: 'reminders_sweep', noOverlap: true },
-    ),
-    nodeCron.schedule(
-      SCHEDULE_15MIN,
       makeHandler('auto_expire_sweep', () => runAutoExpire(db)),
       { name: 'auto_expire_sweep', noOverlap: true },
     ),
@@ -102,8 +101,8 @@ export function registerCronJobs() {
     JSON.stringify({
       level: 'info',
       timestamp: new Date().toISOString(),
-      msg: 'cron: registered 4 jobs',
-      jobs: ['nightly_backup', 'photo_cleanup', 'reminders_sweep', 'auto_expire_sweep'],
+      msg: 'cron: registered 3 jobs',
+      jobs: ['nightly_backup', 'photo_cleanup', 'auto_expire_sweep'],
     }),
   );
 

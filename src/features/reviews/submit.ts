@@ -5,9 +5,6 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { reviews } from '@/db/schema/reviews';
 import { siteConfig as siteConfigTable } from '@/db/schema/site-config';
-import { customers } from '@/db/schema/customers';
-import { notifications } from '@/db/schema/notifications';
-import { sendPushToAllAdmins } from '@/server/notifications/push';
 import { upload } from '@/features/uploads/upload';
 import { submitReviewCore, type UploadedPhoto } from './submit-core';
 
@@ -139,66 +136,9 @@ export async function submitReview(
     };
   }
 
-  // Best-effort notify Sawyer: insert an in-app notification + fan out push.
-  try {
-    const customerRow = db
-      .select({ name: customers.name })
-      .from(customers)
-      .where(eq(customers.id, core.review.customerId))
-      .limit(1)
-      .all()[0];
-    const customerName = customerRow?.name ?? 'A customer';
-    const stars = '★'.repeat(core.review.rating ?? 0);
-
-    db.insert(notifications)
-      .values({
-        kind: 'review_submitted',
-        payloadJson: JSON.stringify({
-          reviewId: core.review.id,
-          rating: core.review.rating,
-          customerName,
-          bookingId: core.review.bookingId ?? 'standalone',
-          autoPublished: core.autoPublished,
-          publishedPhotoCount: core.publishedPhotoCount,
-        }),
-        read: 0,
-        createdAt: new Date().toISOString(),
-        bookingId: core.review.bookingId ?? null,
-      })
-      .run();
-
-    try {
-      await sendPushToAllAdmins({
-        title: `${stars || 'New review'} from ${customerName}`,
-        body: core.autoPublished
-          ? `Review submitted (${core.publishedPhotoCount} photo${core.publishedPhotoCount === 1 ? '' : 's'} auto-published)`
-          : 'Review submitted',
-        url: `/admin/reviews/${core.review.id}`,
-      });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(
-        JSON.stringify({
-          level: 'warn',
-          msg: 'review: push fan-out failed',
-          reviewId: core.review.id,
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
-    }
-  } catch (err) {
-    // Never fail the submission because a notification write failed — the
-    // review is already committed.
-    // eslint-disable-next-line no-console
-    console.error(
-      JSON.stringify({
-        level: 'warn',
-        msg: 'review: notification write failed',
-        reviewId: core.review.id,
-        error: err instanceof Error ? err.message : String(err),
-      }),
-    );
-  }
+  // No in-app notification or push fan-out by design — Sawyer scoped the
+  // notification system to "new pending bookings I haven't looked at" only.
+  // Submitted reviews are still visible at /admin/reviews.
 
   try {
     revalidatePath('/');

@@ -69,7 +69,7 @@ function seedBooking(db: Db, status: BookingStatus): string {
 }
 
 describe('cancelByCustomerCore — state machine guards', () => {
-  it('cancels a pending booking and inserts a notification', () => {
+  it('cancels a pending booking; writes no notification (notifications scoped to booking_submitted only)', () => {
     const { sqlite, db } = makeDb();
     const token = seedBooking(db, 'pending');
     const result = cancelByCustomerCore({ token, db, now: new Date('2026-04-18T12:00:00Z') });
@@ -80,11 +80,7 @@ describe('cancelByCustomerCore — state machine guards', () => {
     expect(after.decidedAt).toBe('2026-04-18T12:00:00.000Z');
 
     const notifs = db.select().from(notifications).all();
-    expect(notifs).toHaveLength(1);
-    expect(notifs[0].kind).toBe('booking_canceled_by_customer');
-    const payload = JSON.parse(notifs[0].payloadJson);
-    expect(payload.serviceName).toBe('Mowing');
-    expect(payload.token).toBe(token);
+    expect(notifs).toHaveLength(0);
     sqlite.close();
   });
 

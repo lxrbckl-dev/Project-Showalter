@@ -5,8 +5,6 @@ import {
   CUSTOMER_CANCELABLE_STATUSES,
   type BookingStatus,
 } from '@/db/schema/bookings';
-import { services } from '@/db/schema/services';
-import { notifications } from '@/db/schema/notifications';
 import type * as schema from '@/db/schema';
 
 /**
@@ -51,43 +49,18 @@ export function cancelByCustomerCore(
     return { ok: false, kind: 'already_terminal', status: row.status };
   }
 
-  const svc = db
-    .select({ name: services.name })
-    .from(services)
-    .where(eq(services.id, row.serviceId))
-    .limit(1)
-    .all()[0];
-  const serviceName = svc?.name ?? 'Service';
-
   const nowIso = now.toISOString();
-  db.transaction((tx) => {
-    tx.update(bookings)
-      .set({
-        status: 'canceled',
-        decidedAt: nowIso,
-        updatedAt: nowIso,
-      })
-      .where(eq(bookings.id, row.id))
-      .run();
+  db.update(bookings)
+    .set({
+      status: 'canceled',
+      decidedAt: nowIso,
+      updatedAt: nowIso,
+    })
+    .where(eq(bookings.id, row.id))
+    .run();
 
-    tx.insert(notifications)
-      .values({
-        kind: 'booking_canceled_by_customer',
-        // Promoted in 0007_admin_mgmt.sql — kept in payload as well for
-        // backwards compatibility with older rows that predate the column.
-        bookingId: row.id,
-        payloadJson: JSON.stringify({
-          bookingId: row.id,
-          token: row.token,
-          customerName: row.customerName,
-          serviceName,
-          startAt: row.startAt,
-        }),
-        read: 0,
-        createdAt: nowIso,
-      })
-      .run();
-  });
-
+  // No in-app notification by design — Sawyer scoped notifications to
+  // "new pending bookings I haven't looked at" only. The cancel still
+  // flips the row to `canceled` (above) so it shows up in inbox lists.
   return { ok: true };
 }

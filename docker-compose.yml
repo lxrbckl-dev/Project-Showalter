@@ -1,6 +1,11 @@
 services:
   showalter:
-    image: ghcr.io/lxrbckl-dev/project-showalter:latest
+    # Image is published by the org-shared workflow at
+    # lxrbckl-dev/.github/.github/workflows/dockerhub-build-push.yml,
+    # which tags `<DOCKERHUB_USERNAME>/project-showalter:<branch>` and
+    # `:<sha>`. Set DOCKERHUB_USERNAME in the deployment .env; override
+    # SHOWALTER_IMAGE_TAG to pin a specific sha (defaults to `main`).
+    image: ${DOCKERHUB_USERNAME}/project-showalter:${SHOWALTER_IMAGE_TAG:-main}
     container_name: showalter
     restart: unless-stopped
     ports:

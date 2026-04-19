@@ -1,5 +1,5 @@
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type * as schema from '@/db/schema';
 import {
   notifications,
@@ -44,11 +44,19 @@ export function listNotifications(
   return q.all();
 }
 
+/**
+ * Inbox-tab badge count. By design only counts `booking_submitted` rows so
+ * the badge reflects "new pending requests I haven't looked at yet" — the
+ * single signal Sawyer wants surfaced. Cron reminders, expiry notices,
+ * customer cancellations, review submissions, etc. don't contribute.
+ */
 export function unreadCount(db: Db): number {
   const row = db
     .select({ c: sql<number>`count(*)` })
     .from(notifications)
-    .where(eq(notifications.read, 0))
+    .where(
+      and(eq(notifications.read, 0), eq(notifications.kind, 'booking_submitted')),
+    )
     .all()[0];
   return Number(row?.c ?? 0);
 }

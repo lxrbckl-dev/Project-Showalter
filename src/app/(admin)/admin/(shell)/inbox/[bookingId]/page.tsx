@@ -21,6 +21,7 @@ import {
 import { RescheduleControls } from './_components/RescheduleControls';
 import { ReviewRequestControls } from './_components/ReviewRequestControls';
 import { bookings } from '@/db/schema/bookings';
+import { notifications } from '@/db/schema/notifications';
 import {
   findPendingReviewForBooking,
   findSubmittedReviewForBooking,
@@ -50,6 +51,20 @@ export default async function AdminBookingDetailPage({
   const db = getDb();
   const row = getAdminBookingById(db, bookingId);
   if (!row) notFound();
+
+  // Opening this page counts as "looking at" the booking — clear any
+  // unread booking_submitted notifications for it so the Inbox tab badge
+  // drops. Idempotent; no-op when already read or when no row exists.
+  db.update(notifications)
+    .set({ read: 1 })
+    .where(
+      and(
+        eq(notifications.bookingId, bookingId),
+        eq(notifications.kind, 'booking_submitted'),
+        eq(notifications.read, 0),
+      ),
+    )
+    .run();
 
   const cfg = db
     .select({ timezone: siteConfigTable.timezone })
