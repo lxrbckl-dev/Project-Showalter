@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,8 +19,34 @@ export function ContactForm({ config }: ContactFormProps) {
   const fieldError = (key: keyof Extract<ActionResult, { ok: false }>['errors']): string[] | undefined =>
     state.ok === false ? state.errors[key] : undefined;
 
+  // Dirty-state tracking — `onChange` on the form bubbles from every field,
+  // including selects and file inputs (React normalizes these). We flip
+  // `isDirty` on the first edit and clear it whenever a save succeeds.
+  // Discard restores all `defaultValue`s via the native form.reset().
+  const formRef = useRef<HTMLFormElement>(null);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    if (state.ok === true && !isPending) {
+      setIsDirty(false);
+    }
+  }, [state, isPending]);
+
+  function discard(): void {
+    formRef.current?.reset();
+    setIsDirty(false);
+  }
+
   return (
-    <form action={formAction} className="space-y-8" data-testid="contact-form">
+    // pb-20 reserves room at the bottom of the form so the very last field
+    // doesn't end up hidden behind the fixed save bar.
+    <form
+      ref={formRef}
+      action={formAction}
+      onChange={() => setIsDirty(true)}
+      className="space-y-8 pb-20"
+      data-testid="contact-form"
+    >
       {state.ok === false && state.errors._root && (
         <p className="rounded-md border border-[hsl(var(--destructive))] bg-[hsl(var(--destructive))]/10 px-3 py-2 text-sm text-[hsl(var(--destructive))]">
           {state.errors._root.join(', ')}
@@ -210,19 +236,39 @@ export function ContactForm({ config }: ContactFormProps) {
         </div>
       </section>
 
-      {/* ── Save bar — sticky at the bottom for long forms ───────────── */}
-      <div className="sticky bottom-0 -mx-6 flex items-center justify-end gap-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-6 py-3 backdrop-blur">
-        {state.ok === true && !isPending && (
+      {/* ── Save bar ──────────────────────────────────────────────────────
+        Pinned to the bottom of the viewport. Inner wrapper mirrors the
+        admin shell's `mx-auto max-w-6xl px-6` so the controls line up with
+        the form fields above. `justify-between` puts the "Saved" indicator
+        on the left and the action buttons on the right.
+      */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-3">
           <span
             className="text-sm text-[hsl(var(--muted-foreground))]"
             data-testid="contact-saved-indicator"
           >
-            Saved
+            {state.ok === true && !isPending && !isDirty ? 'Saved' : ''}
           </span>
-        )}
-        <Button type="submit" disabled={isPending} data-testid="contact-save">
-          {isPending ? 'Saving…' : 'Save changes'}
-        </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={discard}
+              disabled={!isDirty || isPending}
+              data-testid="contact-discard"
+            >
+              Discard
+            </Button>
+            <Button
+              type="submit"
+              disabled={!isDirty || isPending}
+              data-testid="contact-save"
+            >
+              {isPending ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </div>
       </div>
     </form>
   );

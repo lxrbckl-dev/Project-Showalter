@@ -41,33 +41,40 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
-      <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <Link href="/admin" aria-label="Showalter Admin">
-              <Image
-                src="/logo_primary.png"
-                alt="Showalter Admin"
-                width={120}
-                height={120}
-                className="h-auto w-auto max-h-[120px]"
-                priority
-              />
-            </Link>
+      {/* Sticky chrome — header + tab nav stay pinned to the top of the
+        viewport on scroll. `bg-[hsl(var(--card))]` on each strip keeps the
+        underlying page content from showing through; `z-30` keeps it under
+        the fixed save-bar in /admin/content (which uses z-40).
+      */}
+      <div className="sticky top-0 z-30">
+        <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-3">
+              <Link href="/admin" aria-label="Showalter Admin">
+                <Image
+                  src="/logo_primary.png"
+                  alt="Showalter Admin"
+                  width={120}
+                  height={120}
+                  className="h-auto w-auto max-h-[120px]"
+                  priority
+                />
+              </Link>
+            </div>
+            <div className="flex items-center gap-3">
+              <form action={logoutAction}>
+                <Button type="submit" size="sm" variant="outline">
+                  Logout
+                </Button>
+              </form>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <form action={logoutAction}>
-              <Button type="submit" size="sm" variant="outline">
-                Logout
-              </Button>
-            </form>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      <nav className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-        <AdminNav unread={unread} />
-      </nav>
+        <nav className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+          <AdminNav unread={unread} />
+        </nav>
+      </div>
 
       <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
     </div>

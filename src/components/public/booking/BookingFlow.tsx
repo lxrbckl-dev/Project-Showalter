@@ -327,7 +327,7 @@ function BookingForm({
 
       <form
         onSubmit={onSubmit}
-        className="space-y-4"
+        className="space-y-2.5"
         encType="multipart/form-data"
         data-testid="booking-form"
       >
@@ -336,6 +336,7 @@ function BookingForm({
         <Field
           label="Service"
           name="serviceId"
+          required
           error={err('serviceId')}
           render={(id) => (
             <select
@@ -343,7 +344,7 @@ function BookingForm({
               name="serviceId"
               required
               defaultValue=""
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
             >
               <option value="" disabled>
                 — choose one —
@@ -360,6 +361,7 @@ function BookingForm({
         <Field
           label="Your name"
           name="name"
+          required
           error={err('name')}
           render={(id) => (
             <input
@@ -369,7 +371,7 @@ function BookingForm({
               required
               maxLength={100}
               autoComplete="name"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
             />
           )}
         />
@@ -377,6 +379,7 @@ function BookingForm({
         <Field
           label="Phone"
           name="phone"
+          required
           error={err('phone')}
           render={(id) => (
             <input
@@ -386,7 +389,7 @@ function BookingForm({
               required
               autoComplete="tel"
               placeholder="(913) 309-7340"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
             />
           )}
         />
@@ -401,7 +404,7 @@ function BookingForm({
               name="email"
               type="email"
               autoComplete="email"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
             />
           )}
         />
@@ -409,6 +412,7 @@ function BookingForm({
         <Field
           label="Service address"
           name="address"
+          required
           error={err('address')}
           render={(id) => (
             <input
@@ -418,7 +422,7 @@ function BookingForm({
               required
               maxLength={500}
               autoComplete="street-address"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
             />
           )}
         />
@@ -431,10 +435,10 @@ function BookingForm({
             <textarea
               id={id}
               name="notes"
-              rows={3}
+              rows={2}
               maxLength={2000}
               placeholder="Gate code, yard size, anything else Sawyer should know"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-green-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
             />
           )}
         />
@@ -484,6 +488,8 @@ function BookingForm({
           </label>
         </div>
 
+        <hr className="border-gray-200" />
+
         <button
           type="submit"
           disabled={isSubmitting}
@@ -502,11 +508,14 @@ function Field({
   label,
   name,
   error,
+  required,
   render,
 }: {
   label: string;
   name: string;
   error?: string;
+  /** When true, renders a red asterisk next to the label as a visual cue. */
+  required?: boolean;
   render: (id: string) => React.ReactNode;
 }) {
   const id = `booking-${name}`;
@@ -514,6 +523,11 @@ function Field({
     <div>
       <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-700">
         {label}
+        {required && (
+          <span aria-hidden="true" className="ml-0.5 text-red-600">
+            *
+          </span>
+        )}
       </label>
       {render(id)}
       {error && (

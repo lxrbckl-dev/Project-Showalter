@@ -43,17 +43,20 @@ export function AdminNav({ unread }: AdminNavProps) {
   const pathname = usePathname();
 
   return (
-    <ul className="mx-auto flex max-w-6xl justify-between gap-2 overflow-x-auto px-6 py-2">
+    // `flex-1` on each <li> divides the available row evenly so every tab
+    // is the same width regardless of label length. The active green
+    // underline therefore spans the whole tab slot, not just the text.
+    <ul className="mx-auto flex max-w-6xl px-6 py-2">
       {NAV_ITEMS.map((item) => {
         const active = isActive(pathname, item.href);
         const isInbox = item.href === '/admin/inbox';
 
         return (
-          <li key={item.href} className="relative">
+          <li key={item.href} className="relative min-w-0 flex-1">
             <Link
               href={item.href}
               className={[
-                'block whitespace-nowrap px-3 py-1 text-sm transition-colors',
+                'block w-full whitespace-nowrap px-2 py-1 text-center text-sm transition-colors',
                 active
                   ? 'font-semibold text-[#6C9630] border-b-2 border-[#6C9630]'
                   : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
@@ -67,7 +70,7 @@ export function AdminNav({ unread }: AdminNavProps) {
             {isInbox && unread > 0 && (
               <span
                 aria-label={`${unread} unread`}
-                className="pointer-events-none absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-[3px] text-[10px] font-bold leading-none text-white"
+                className="pointer-events-none absolute right-1 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-[3px] text-[10px] font-bold leading-none text-white"
               >
                 {unread > 99 ? '99+' : unread}
               </span>

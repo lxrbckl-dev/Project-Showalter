@@ -41,7 +41,7 @@ export default async function AdminContentPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="space-y-6">
       <section>
         <h1 className="text-2xl font-semibold tracking-tight">Content</h1>
         <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
