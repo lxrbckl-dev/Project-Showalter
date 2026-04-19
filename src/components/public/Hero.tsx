@@ -30,7 +30,7 @@ export function Hero({ siteConfig }: HeroProps) {
     : null;
 
   return (
-    <section className="relative flex min-h-[60vh] flex-col items-center justify-center overflow-hidden bg-white px-6 py-20 text-center border-t-4 border-[#0F3D2E]">
+    <section className="relative flex min-h-[60vh] flex-col items-center justify-center overflow-hidden bg-white px-6 py-20 text-center">
       {/* Background: hero image only (no fallback pattern) */}
       {siteConfig.heroImagePath && (
         <Image
@@ -44,11 +44,6 @@ export function Hero({ siteConfig }: HeroProps) {
 
       {/* Content overlay */}
       <div className="relative z-10 mx-auto max-w-2xl">
-        {/* Hero eyebrow — uppercased via Tailwind, so the stored mixed-case
-            value still reads naturally in SEO titles / OG cards elsewhere. */}
-        <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[#0F3D2E]">
-          {siteConfig.siteTitle}
-        </p>
         <h1 className="mb-4 text-4xl font-bold leading-tight tracking-tight text-gray-900 md:text-6xl">
           {age ? (
             <>

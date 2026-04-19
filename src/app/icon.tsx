@@ -1,34 +1,12 @@
-import { ImageResponse } from 'next/og';
+import fs from 'fs/promises';
+import path from 'path';
 
 export const size = { width: 32, height: 32 };
 export const contentType = 'image/png';
 
-export default function Icon() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#0F3D2E',
-          borderRadius: '4px',
-        }}
-      >
-        <span
-          style={{
-            color: '#ffffff',
-            fontSize: 14,
-            fontWeight: 700,
-            letterSpacing: '-0.5px',
-          }}
-        >
-          SS
-        </span>
-      </div>
-    ),
-    { ...size },
-  );
+export default async function Icon() {
+  const buf = await fs.readFile(path.join(process.cwd(), 'public', 'logo_primary.png'));
+  return new Response(buf, {
+    headers: { 'Content-Type': 'image/png' },
+  });
 }

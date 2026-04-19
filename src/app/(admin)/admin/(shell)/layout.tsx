@@ -14,6 +14,7 @@
 
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { auth } from '@/features/auth/auth';
 import { getDb } from '@/db';
 import { Badge } from '@/components/ui/badge';
@@ -62,8 +63,15 @@ export default async function AdminLayout({
       <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <Link href="/admin" className="text-sm font-semibold tracking-tight">
-              Showalter Admin
+            <Link href="/admin" aria-label="Showalter Admin">
+              <Image
+                src="/logo_primary.png"
+                alt="Showalter Admin"
+                width={120}
+                height={120}
+                className="h-auto w-auto max-h-[120px]"
+                priority
+              />
             </Link>
             <Link
               href="/admin/notifications"

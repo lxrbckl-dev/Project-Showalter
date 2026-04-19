@@ -59,7 +59,7 @@ export function StatsBand() {
     <section
       id="stats"
       aria-label="At a glance"
-      className="border-y border-gray-200 bg-white px-6 py-2"
+      className="border-y border-gray-200 bg-gray-50 px-6 py-2"
     >
       <div className="mx-auto grid max-w-4xl grid-cols-2 gap-y-0 sm:grid-cols-4">
         <StatCard

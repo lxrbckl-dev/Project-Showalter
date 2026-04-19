@@ -15,6 +15,7 @@
  * client components. This page only picks which one to render.
  */
 
+import Image from 'next/image';
 import { isAdminsTableEmpty } from '@/features/auth/found';
 import { LoginForm } from './LoginForm';
 import { FoundingAdminForm } from './FoundingAdminForm';
@@ -27,6 +28,16 @@ export default async function AdminLoginPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-16">
       <div className="w-full">
+        <div className="mb-6 flex justify-center">
+          <Image
+            src="/logo_primary.png"
+            alt="Sawyer Showalter Service"
+            width={336}
+            height={336}
+            className="h-auto w-auto max-w-[336px]"
+            priority
+          />
+        </div>
         <h1 className="text-2xl font-semibold tracking-tight">
           {empty ? 'Create the first admin' : 'Admin sign-in'}
         </h1>

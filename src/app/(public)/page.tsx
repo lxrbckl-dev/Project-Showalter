@@ -112,7 +112,7 @@ export default function HomePage() {
       */}
       <section
         id="request"
-        className="bg-neutral-50 px-6 py-16 text-center"
+        className="bg-gray-50 px-6 py-16 text-center"
         aria-label="Request service"
       >
         <h2 className="mb-3 text-3xl font-bold text-gray-900 md:text-4xl">Request a Service</h2>
@@ -131,7 +131,7 @@ export default function HomePage() {
       <Contact siteConfig={config} />
 
       {/* 8. Footer */}
-      <Footer siteConfig={config} />
+      <Footer />
     </main>
   );
 }

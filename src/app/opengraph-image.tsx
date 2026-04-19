@@ -1,4 +1,6 @@
 import { ImageResponse } from 'next/og';
+import fs from 'fs/promises';
+import path from 'path';
 import { getSiteConfig } from '@/features/site-config/queries';
 
 // Node runtime (not edge) — we read `site_config.site_title` via
@@ -20,8 +22,11 @@ export const contentType = 'image/png';
  * flow through to social-share cards on next crawl.
  */
 export default async function OpengraphImage() {
-  const config = await getSiteConfig();
-  const siteTitle = config?.siteTitle ?? 'Sawyer Showalter Service';
+  const logoBuffer = await fs.readFile(
+    path.join(process.cwd(), 'public', 'logo_primary.png'),
+  );
+  const logoDataUrl = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+
   return new ImageResponse(
     (
       <div
@@ -47,26 +52,20 @@ export default async function OpengraphImage() {
           }}
         />
 
-        {/* Business name */}
-        <div
-          style={{
-            fontSize: '80px',
-            fontWeight: 700,
-            color: '#ffffff',
-            textAlign: 'center',
-            lineHeight: 1.1,
-            letterSpacing: '-1px',
-          }}
-        >
-          {siteTitle}
-        </div>
+        {/* Primary logo — siteTitle is baked into the image */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={logoDataUrl}
+          alt="Sawyer Showalter Service"
+          style={{ width: '816px', height: 'auto', objectFit: 'contain' }}
+        />
 
         {/* Tagline */}
         <div
           style={{
             fontSize: '36px',
             color: '#86efac', // green-300
-            marginTop: '24px',
+            marginTop: '32px',
             textAlign: 'center',
             fontWeight: 400,
           }}

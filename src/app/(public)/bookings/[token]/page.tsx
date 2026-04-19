@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
@@ -207,6 +208,16 @@ export default async function BookingPage({
         )}
 
         {copy.canCancel && <CancelButton token={booking.token} />}
+
+        <div className="mt-10 flex justify-center">
+          <Image
+            src="/logo_secondary.png"
+            alt=""
+            width={110}
+            height={110}
+            className="h-auto w-auto max-w-[110px] opacity-70"
+          />
+        </div>
       </div>
     </main>
   );

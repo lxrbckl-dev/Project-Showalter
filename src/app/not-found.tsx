@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -29,6 +30,15 @@ export default function NotFound() {
         >
           &larr; Back to home
         </Link>
+        <div className="mt-10 flex justify-center">
+          <Image
+            src="/logo_secondary.png"
+            alt=""
+            width={130}
+            height={130}
+            className="h-auto w-auto max-w-[130px] opacity-60"
+          />
+        </div>
       </div>
     </main>
   );

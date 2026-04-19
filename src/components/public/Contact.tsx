@@ -10,7 +10,7 @@ interface ContactProps {
  */
 export function Contact({ siteConfig }: ContactProps) {
   return (
-    <section id="contact" className="bg-neutral-50 px-6 py-16">
+    <section id="contact" className="bg-white px-6 py-16">
       <div className="mx-auto max-w-2xl">
         <h2 className="mb-6 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Contact</h2>
         <ul className="space-y-3 text-base text-gray-700">

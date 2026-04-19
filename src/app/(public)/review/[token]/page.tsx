@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import { getDb } from '@/db';
 import { siteConfig as siteConfigTable } from '@/db/schema/site-config';
 import { getReviewByToken } from '@/features/reviews/queries';
@@ -57,6 +58,13 @@ export default async function ReviewPage({
             {'☆'.repeat(5 - (review.rating ?? 0))}
           </p>
         )}
+        <Image
+          src="/logo_secondary.png"
+          alt=""
+          width={110}
+          height={110}
+          className="mt-10 h-auto w-auto max-w-[110px] opacity-70"
+        />
       </main>
     );
   }
@@ -77,6 +85,15 @@ export default async function ReviewPage({
           token={token}
           maxPhotos={maxPhotos}
           maxBytes={maxBytes}
+        />
+      </div>
+      <div className="mt-10 flex justify-center">
+        <Image
+          src="/logo_secondary.png"
+          alt=""
+          width={110}
+          height={110}
+          className="h-auto w-auto max-w-[110px] opacity-70"
         />
       </div>
     </main>
