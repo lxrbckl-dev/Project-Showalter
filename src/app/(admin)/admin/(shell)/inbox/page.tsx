@@ -115,7 +115,7 @@ function QueueView({ tz }: { tz: string }) {
       />
       <Section
         id="confirmed-upcoming"
-        title="Confirmed upcoming"
+        title="Confirmed Upcoming"
         subtitle="On the books, still in the future."
         rows={queue.confirmedUpcoming}
         tz={tz}
@@ -191,7 +191,12 @@ function Section({
   emptyText: string;
 }) {
   return (
-    <section data-testid={`inbox-section-${id}`} data-count={rows.length}>
+    <section
+      id={id}
+      data-testid={`inbox-section-${id}`}
+      data-count={rows.length}
+      className="scroll-mt-24"
+    >
       <header className="mb-2 flex items-baseline justify-between">
         <div>
           <h2 className="text-lg font-semibold">

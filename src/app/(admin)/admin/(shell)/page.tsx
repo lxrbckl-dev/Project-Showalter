@@ -120,8 +120,9 @@ export default async function AdminDashboardPage() {
               {stats.pending}
             </span>
           </Link>
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-1 text-xs font-medium text-[hsl(var(--muted-foreground))]"
+          <Link
+            href="/admin/inbox#confirmed-upcoming"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-1 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent))] hover:text-[hsl(var(--foreground))]"
             data-testid="stats-confirmed-week"
           >
             Confirmed this week
@@ -131,7 +132,7 @@ export default async function AdminDashboardPage() {
             >
               {stats.confirmedThisWeek}
             </span>
-          </span>
+          </Link>
         </div>
       </section>
 

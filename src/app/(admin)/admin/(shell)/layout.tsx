@@ -44,36 +44,43 @@ export default async function AdminLayout({
         underlying page content from showing through; `z-30` keeps it under
         the fixed save-bar in /admin/content (which uses z-40).
       */}
-      <div className="sticky top-0 z-30">
-        <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-          {/* 3-column grid keeps the logo perfectly centered relative to
-            the page no matter how wide the hamburger button is. The third
-            column is an empty spacer balancing the hamburger so the logo
-            stays optically dead-center. */}
-          <div className="mx-auto grid max-w-6xl grid-cols-3 items-center px-6 py-4">
-            <div className="justify-self-start">
-              <AdminNav unread={unread} />
+      {/* Desktop (md+) pads the whole shell right by the drawer's 288px
+        width so the header + content sit beside the always-visible
+        drawer. Mobile gets no padding — the drawer is a modal overlay
+        and the hamburger button (rendered by AdminNav, inline below)
+        triggers it. */}
+      <div className="md:pl-72">
+        <div className="sticky top-0 z-30">
+          <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+            {/* On mobile the hamburger sits left of the centered logo
+              (using a 3-col grid for stable centering). On desktop the
+              hamburger is hidden via AdminNav's `md:hidden`, so the
+              empty grid cells just collapse around the centered logo. */}
+            <div className="mx-auto grid max-w-6xl grid-cols-3 items-center px-6 py-4">
+              <div className="justify-self-start">
+                <AdminNav unread={unread} />
+              </div>
+              <Link
+                href="/admin"
+                aria-label="Showalter Admin"
+                className="justify-self-center"
+              >
+                <Image
+                  src="/logo_primary.png"
+                  alt="Showalter Admin"
+                  width={120}
+                  height={120}
+                  className="h-auto w-auto max-h-[120px]"
+                  priority
+                />
+              </Link>
+              <div />
             </div>
-            <Link
-              href="/admin"
-              aria-label="Showalter Admin"
-              className="justify-self-center"
-            >
-              <Image
-                src="/logo_primary.png"
-                alt="Showalter Admin"
-                width={120}
-                height={120}
-                className="h-auto w-auto max-h-[120px]"
-                priority
-              />
-            </Link>
-            <div />
-          </div>
-        </header>
-      </div>
+          </header>
+        </div>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+        <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+      </div>
     </div>
   );
 }

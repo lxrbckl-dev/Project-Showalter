@@ -126,15 +126,13 @@ function _fetchLandingStats(): LandingStats {
   const computedCompletedCount = Number(bookingAgg?.completedCount ?? 0);
   const computedCustomersServed = Number(bookingAgg?.customersServed ?? 0);
 
-  // Apply admin overrides — fall back to computed values when override is unset.
+  // Admin "bonus" values are added to the live computed counts so the public
+  // numbers reflect both pre-platform work (the override) and bookings closed
+  // through the system. Null override → no bonus.
   const completedCount =
-    config?.statsJobsCompletedOverride != null
-      ? config.statsJobsCompletedOverride
-      : computedCompletedCount;
+    computedCompletedCount + (config?.statsJobsCompletedOverride ?? 0);
   const customersServed =
-    config?.statsCustomersServedOverride != null
-      ? config.statsCustomersServedOverride
-      : computedCustomersServed;
+    computedCustomersServed + (config?.statsCustomersServedOverride ?? 0);
 
   // --- gating ---
   const enabled = showLandingStats && reviewCount >= minReviews;

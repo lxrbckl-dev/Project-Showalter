@@ -62,7 +62,7 @@ export function ContactForm({ config }: ContactFormProps) {
           </p>
         </header>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="ownerFirstName" className="block text-sm font-medium">
               Your first name
@@ -134,7 +134,7 @@ export function ContactForm({ config }: ContactFormProps) {
             )}
           </div>
 
-          <div className="space-y-1.5 sm:col-span-1">
+          <div className="space-y-1.5">
             <label htmlFor="dateOfBirth" className="block text-sm font-medium">
               Date of birth
             </label>
@@ -242,7 +242,7 @@ export function ContactForm({ config }: ContactFormProps) {
         the form fields above. `justify-between` puts the "Saved" indicator
         on the left and the action buttons on the right.
       */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur md:left-72">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-3">
           <span
             className="text-sm text-[hsl(var(--muted-foreground))]"

@@ -360,13 +360,30 @@ function BookingForm({
         });
       });
       const { latitude, longitude } = pos.coords;
-      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${latitude}&lon=${longitude}`;
+      // `zoom=18` forces street-level resolution. Without it Nominatim picks
+      // its own zoom based on the lat/lng and sometimes returns "neighborhood"
+      // or "county" granularity. `addressdetails=1` returns the structured
+      // `address` object we compose into a compact "street, city, region"
+      // string — Nominatim's raw `display_name` includes county/zip/country
+      // cruft that customers don't want pre-filled.
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${latitude}&lon=${longitude}`;
       const res = await fetch(url, { headers: { Accept: 'application/json' } });
       if (!res.ok) throw new Error(`reverse geocode failed (${res.status})`);
-      const data = (await res.json()) as { display_name?: string };
-      if (!data.display_name) throw new Error('no address returned');
-      // Trim trailing ", United States" — domestic users don't want it.
-      const cleaned = data.display_name.replace(/,\s*United States$/, '');
+      const data = (await res.json()) as {
+        display_name?: string;
+        address?: Record<string, string>;
+      };
+      const a = data.address ?? {};
+      const street = [a.house_number, a.road].filter(Boolean).join(' ');
+      const city =
+        a.city ?? a.town ?? a.village ?? a.hamlet ?? a.suburb ?? '';
+      const region = a.state ?? a.region ?? '';
+      const compact = [street, city, region].filter(Boolean).join(', ');
+      // Fall back to display_name (sans trailing ", United States") if the
+      // structured fields didn't yield enough to compose a usable address.
+      const cleaned =
+        compact || data.display_name?.replace(/,\s*United States$/, '') || '';
+      if (!cleaned) throw new Error('no address returned');
       if (addressRef.current) {
         addressRef.current.value = cleaned;
         addressRef.current.dispatchEvent(

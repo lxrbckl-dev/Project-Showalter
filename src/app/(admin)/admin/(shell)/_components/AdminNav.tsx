@@ -106,27 +106,28 @@ export function AdminNav({ unread }: AdminNavProps) {
         aria-label="Open menu"
         aria-expanded={open}
         data-testid="admin-menu-button"
-        className="inline-flex items-center justify-center rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-2 text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))]"
+        className="inline-flex items-center justify-center rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-2 text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))] md:hidden"
       >
         <Menu className="h-5 w-5" aria-hidden="true" />
       </button>
 
-      {/* Overlay is always rendered so the slide animation has both
-        directions (in AND out) to transition over. When closed,
-        `pointer-events-none` keeps the invisible layer from intercepting
-        clicks; the backdrop fades and the panel slides off-screen. */}
+      {/* Mobile: full-viewport overlay (modal drawer). Desktop (md+):
+        wrapper shrinks to the drawer's footprint so it never intercepts
+        clicks on the right side of the page, and is always pointer-active
+        regardless of `open` state. */}
       <div
         className={
           open
-            ? 'fixed inset-0 z-50 pointer-events-auto'
-            : 'fixed inset-0 z-50 pointer-events-none'
+            ? 'fixed inset-0 z-50 pointer-events-auto md:inset-y-0 md:left-0 md:right-auto md:w-72'
+            : 'fixed inset-0 z-50 pointer-events-none md:inset-y-0 md:left-0 md:right-auto md:w-72 md:pointer-events-auto'
         }
         role="dialog"
         aria-modal="true"
         aria-label="Admin navigation"
         aria-hidden={!open}
       >
-        {/* Backdrop fades in/out. */}
+        {/* Backdrop — mobile only. Hidden on desktop since the drawer is
+          a permanent side panel, not a modal. */}
         <button
           type="button"
           aria-label="Close menu"
@@ -134,18 +135,20 @@ export function AdminNav({ unread }: AdminNavProps) {
           onClick={() => setOpen(false)}
           className={
             open
-              ? 'absolute inset-0 bg-black/50 transition-opacity duration-200 ease-out opacity-100'
-              : 'absolute inset-0 bg-black/50 transition-opacity duration-200 ease-out opacity-0'
+              ? 'absolute inset-0 bg-black/50 transition-opacity duration-200 ease-out opacity-100 md:hidden'
+              : 'absolute inset-0 bg-black/50 transition-opacity duration-200 ease-out opacity-0 md:hidden'
           }
         />
-        {/* Drawer panel slides in from the left. `-translate-x-full` parks
-          it off-screen when closed; `translate-x-0` brings it back. */}
+        {/* Drawer panel — slides in from the left on mobile, always
+          visible on desktop (md+). `md:translate-x-0` keeps it parked
+          on-screen regardless of mobile open state; `md:shadow-none`
+          drops the modal shadow once it's a permanent inline panel. */}
         <div
           data-testid="admin-menu-drawer"
           className={
             open
-              ? 'absolute left-0 top-0 grid h-dvh w-72 max-w-[85vw] grid-rows-[auto_1fr_auto] border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-xl transition-transform duration-200 ease-out translate-x-0'
-              : 'absolute left-0 top-0 grid h-dvh w-72 max-w-[85vw] grid-rows-[auto_1fr_auto] border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-xl transition-transform duration-200 ease-out -translate-x-full'
+              ? 'absolute left-0 top-0 grid h-dvh w-72 max-w-[85vw] grid-rows-[auto_1fr_auto] border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-xl transition-transform duration-200 ease-out translate-x-0 md:shadow-none'
+              : 'absolute left-0 top-0 grid h-dvh w-72 max-w-[85vw] grid-rows-[auto_1fr_auto] border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-xl transition-transform duration-200 ease-out -translate-x-full md:translate-x-0 md:shadow-none'
           }
         >
           <div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-4 py-3">
@@ -158,7 +161,7 @@ export function AdminNav({ unread }: AdminNavProps) {
               aria-label="Close menu"
               tabIndex={open ? 0 : -1}
               data-testid="admin-menu-close"
-              className="rounded-md p-1 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent))] hover:text-[hsl(var(--foreground))]"
+              className="rounded-md p-1 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent))] hover:text-[hsl(var(--foreground))] md:hidden"
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>

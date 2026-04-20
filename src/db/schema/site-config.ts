@@ -61,7 +61,7 @@ export const siteConfig = sqliteTable('site_config', {
   startTimeIncrementMinutes: integer('start_time_increment_minutes').notNull().default(30),
   bookingSpacingMinutes: integer('booking_spacing_minutes').notNull().default(60),
   maxBookingPhotos: integer('max_booking_photos').notNull().default(3),
-  bookingPhotoMaxBytes: integer('booking_photo_max_bytes').notNull().default(10_485_760),
+  bookingPhotoMaxBytes: integer('booking_photo_max_bytes').notNull().default(1_073_741_824),
   photoRetentionDaysAfterResolve: integer('photo_retention_days_after_resolve')
     .notNull()
     .default(30),
@@ -71,16 +71,17 @@ export const siteConfig = sqliteTable('site_config', {
   businessFoundedYear: integer('business_founded_year').notNull().default(2023),
 
   /**
-   * Admin override for the "Jobs Completed" stat on the landing page.
-   * When set, overrides the auto-computed count of completed bookings.
-   * Nullable — when unset, the public site falls back to the computed value.
+   * Admin "bonus" added to the auto-computed "Jobs Completed" stat on the
+   * landing page. Used to credit pre-platform work that isn't tracked as
+   * bookings. Nullable — when unset, the public site shows just the
+   * computed count. Field name kept as `_override` for migration stability.
    */
   statsJobsCompletedOverride: integer('stats_jobs_completed_override'),
 
   /**
-   * Admin override for the "Customers Served" stat on the landing page.
-   * When set, overrides the auto-computed distinct-customer count.
-   * Nullable — when unset, the public site falls back to the computed value.
+   * Admin "bonus" added to the auto-computed "Customers Served" stat on the
+   * landing page. Same semantics as `statsJobsCompletedOverride` — credits
+   * pre-platform customers. Nullable when no bonus applies.
    */
   statsCustomersServedOverride: integer('stats_customers_served_override'),
 

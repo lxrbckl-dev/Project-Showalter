@@ -107,20 +107,22 @@ export function SortableGalleryList({ photos: initialPhotos }: SortableGalleryLi
     const { active: dragActive, over } = event;
     if (!over || dragActive.id === over.id) return;
 
-    setItems((current) => {
-      const oldIndex = current.findIndex((p) => p.id === dragActive.id);
-      const newIndex = current.findIndex((p) => p.id === over.id);
-      const reordered = arrayMove(current, oldIndex, newIndex);
+    const oldIndex = items.findIndex((p) => p.id === dragActive.id);
+    const newIndex = items.findIndex((p) => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
 
-      startTransition(async () => {
-        try {
-          await reorderPhotos(reordered.map((p) => p.id));
-        } catch {
-          setError('Failed to save reorder. Please refresh and try again.');
-        }
-      });
+    const reordered = arrayMove(items, oldIndex, newIndex);
+    setItems(reordered);
 
-      return reordered;
+    // `startTransition` must be called from event-handler scope, not from
+    // inside a `setState` updater callback — React executes those during
+    // render and refuses transitions there.
+    startTransition(async () => {
+      try {
+        await reorderPhotos(reordered.map((p) => p.id));
+      } catch {
+        setError('Failed to save reorder. Please refresh and try again.');
+      }
     });
   }
 

@@ -37,7 +37,7 @@ export async function uploadPhoto(
 
   let result: Awaited<ReturnType<typeof upload>>;
   try {
-    result = await upload(file, { subdir: 'site/gallery', maxBytes: 10_485_760 });
+    result = await upload(file, { subdir: 'site/gallery', maxBytes: 1_073_741_824 });
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Upload failed.' };
   }

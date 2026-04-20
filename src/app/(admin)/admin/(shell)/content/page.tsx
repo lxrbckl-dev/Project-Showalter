@@ -50,11 +50,11 @@ export default async function AdminContentPage() {
       </section>
 
       <Tabs defaultValue="contact">
-        <TabsList className="mb-6">
-          <TabsTrigger value="contact">Contact</TabsTrigger>
-          <TabsTrigger value="sms">SMS fallback</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+        <TabsList className="mb-6 grid h-auto w-full grid-cols-4 p-1">
+          <TabsTrigger value="contact" className="py-2">Contact</TabsTrigger>
+          <TabsTrigger value="sms" className="py-2">SMS fallback</TabsTrigger>
+          <TabsTrigger value="templates" className="py-2">Templates</TabsTrigger>
+          <TabsTrigger value="settings" className="py-2">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="contact" data-testid="tab-contact">

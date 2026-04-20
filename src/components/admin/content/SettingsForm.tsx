@@ -25,7 +25,7 @@ export function SettingsForm({ config }: SettingsFormProps) {
     state.ok === false ? (state.errors[field] ?? []) : [];
 
   return (
-    <form action={formAction} className="space-y-8 max-w-xl">
+    <form action={formAction} className="space-y-8">
       {/* --- Business --- */}
       <section className="space-y-4">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
@@ -52,36 +52,38 @@ export function SettingsForm({ config }: SettingsFormProps) {
           <FieldError errors={err('siteTitle')} />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="businessFoundedYear" className="block text-sm font-medium">
-            Year founded
-          </label>
-          <Input
-            id="businessFoundedYear"
-            name="businessFoundedYear"
-            type="number"
-            defaultValue={config.businessFoundedYear}
-            min={1900}
-            max={new Date().getFullYear()}
-          />
-          <FieldError errors={err('businessFoundedYear')} />
-        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label htmlFor="businessFoundedYear" className="block text-sm font-medium">
+              Year founded
+            </label>
+            <Input
+              id="businessFoundedYear"
+              name="businessFoundedYear"
+              type="number"
+              defaultValue={config.businessFoundedYear}
+              min={1900}
+              max={new Date().getFullYear()}
+            />
+            <FieldError errors={err('businessFoundedYear')} />
+          </div>
 
-        <div className="space-y-2">
-          <label htmlFor="timezone" className="block text-sm font-medium">
-            Timezone
-          </label>
-          <Input
-            id="timezone"
-            name="timezone"
-            type="text"
-            defaultValue={config.timezone}
-            placeholder="America/Chicago"
-          />
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            Must be a valid IANA timezone (e.g. America/Chicago, America/New_York)
-          </p>
-          <FieldError errors={err('timezone')} />
+          <div className="space-y-2">
+            <label htmlFor="timezone" className="block text-sm font-medium">
+              Timezone
+            </label>
+            <Input
+              id="timezone"
+              name="timezone"
+              type="text"
+              defaultValue={config.timezone}
+              placeholder="America/Chicago"
+            />
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Must be a valid IANA timezone (e.g. America/Chicago, America/New_York)
+            </p>
+            <FieldError errors={err('timezone')} />
+          </div>
         </div>
       </section>
 
@@ -91,66 +93,68 @@ export function SettingsForm({ config }: SettingsFormProps) {
           Booking
         </h3>
 
-        <div className="space-y-2">
-          <label htmlFor="bookingHorizonWeeks" className="block text-sm font-medium">
-            Booking horizon (weeks)
-          </label>
-          <Input
-            id="bookingHorizonWeeks"
-            name="bookingHorizonWeeks"
-            type="number"
-            defaultValue={config.bookingHorizonWeeks}
-            min={1}
-          />
-          <FieldError errors={err('bookingHorizonWeeks')} />
-        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label htmlFor="bookingHorizonWeeks" className="block text-sm font-medium">
+              Booking horizon (weeks)
+            </label>
+            <Input
+              id="bookingHorizonWeeks"
+              name="bookingHorizonWeeks"
+              type="number"
+              defaultValue={config.bookingHorizonWeeks}
+              min={1}
+            />
+            <FieldError errors={err('bookingHorizonWeeks')} />
+          </div>
 
-        <div className="space-y-2">
-          <label htmlFor="startTimeIncrementMinutes" className="block text-sm font-medium">
-            Start time increment (minutes)
-          </label>
-          <select
-            id="startTimeIncrementMinutes"
-            name="startTimeIncrementMinutes"
-            defaultValue={config.startTimeIncrementMinutes}
-            className="flex h-10 w-full rounded-md border border-[hsl(var(--input))] bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
-          >
-            {[15, 20, 30, 60].map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-          <FieldError errors={err('startTimeIncrementMinutes')} />
-        </div>
+          <div className="space-y-2">
+            <label htmlFor="startTimeIncrementMinutes" className="block text-sm font-medium">
+              Start time increment (minutes)
+            </label>
+            <select
+              id="startTimeIncrementMinutes"
+              name="startTimeIncrementMinutes"
+              defaultValue={config.startTimeIncrementMinutes}
+              className="flex h-10 w-full rounded-md border border-[hsl(var(--input))] bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            >
+              {[15, 20, 30, 60].map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <FieldError errors={err('startTimeIncrementMinutes')} />
+          </div>
 
-        <div className="space-y-2">
-          <label htmlFor="bookingSpacingMinutes" className="block text-sm font-medium">
-            Booking spacing (minutes, 0–240)
-          </label>
-          <Input
-            id="bookingSpacingMinutes"
-            name="bookingSpacingMinutes"
-            type="number"
-            defaultValue={config.bookingSpacingMinutes}
-            min={0}
-            max={240}
-          />
-          <FieldError errors={err('bookingSpacingMinutes')} />
-        </div>
+          <div className="space-y-2">
+            <label htmlFor="bookingSpacingMinutes" className="block text-sm font-medium">
+              Booking spacing (minutes, 0–240)
+            </label>
+            <Input
+              id="bookingSpacingMinutes"
+              name="bookingSpacingMinutes"
+              type="number"
+              defaultValue={config.bookingSpacingMinutes}
+              min={0}
+              max={240}
+            />
+            <FieldError errors={err('bookingSpacingMinutes')} />
+          </div>
 
-        <div className="space-y-2">
-          <label htmlFor="minAdvanceNoticeHours" className="block text-sm font-medium">
-            Min advance notice (hours)
-          </label>
-          <Input
-            id="minAdvanceNoticeHours"
-            name="minAdvanceNoticeHours"
-            type="number"
-            defaultValue={config.minAdvanceNoticeHours}
-            min={0}
-          />
-          <FieldError errors={err('minAdvanceNoticeHours')} />
+          <div className="space-y-2">
+            <label htmlFor="minAdvanceNoticeHours" className="block text-sm font-medium">
+              Min advance notice (hours)
+            </label>
+            <Input
+              id="minAdvanceNoticeHours"
+              name="minAdvanceNoticeHours"
+              type="number"
+              defaultValue={config.minAdvanceNoticeHours}
+              min={0}
+            />
+            <FieldError errors={err('minAdvanceNoticeHours')} />
+          </div>
         </div>
       </section>
 
@@ -160,49 +164,51 @@ export function SettingsForm({ config }: SettingsFormProps) {
           Photos
         </h3>
 
-        <div className="space-y-2">
-          <label htmlFor="maxBookingPhotos" className="block text-sm font-medium">
-            Max photos per booking
-          </label>
-          <Input
-            id="maxBookingPhotos"
-            name="maxBookingPhotos"
-            type="number"
-            defaultValue={config.maxBookingPhotos}
-            min={0}
-          />
-          <FieldError errors={err('maxBookingPhotos')} />
-        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <label htmlFor="maxBookingPhotos" className="block text-sm font-medium">
+              Max photos per booking
+            </label>
+            <Input
+              id="maxBookingPhotos"
+              name="maxBookingPhotos"
+              type="number"
+              defaultValue={config.maxBookingPhotos}
+              min={0}
+            />
+            <FieldError errors={err('maxBookingPhotos')} />
+          </div>
 
-        <div className="space-y-2">
-          <label htmlFor="bookingPhotoMaxBytes" className="block text-sm font-medium">
-            Max photo size (bytes)
-          </label>
-          <Input
-            id="bookingPhotoMaxBytes"
-            name="bookingPhotoMaxBytes"
-            type="number"
-            defaultValue={config.bookingPhotoMaxBytes}
-            min={1}
-          />
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            Default 10485760 = 10 MB
-          </p>
-          <FieldError errors={err('bookingPhotoMaxBytes')} />
-        </div>
+          <div className="space-y-2">
+            <label htmlFor="bookingPhotoMaxBytes" className="block text-sm font-medium">
+              Max photo size (bytes)
+            </label>
+            <Input
+              id="bookingPhotoMaxBytes"
+              name="bookingPhotoMaxBytes"
+              type="number"
+              defaultValue={config.bookingPhotoMaxBytes}
+              min={1}
+            />
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              1073741824 = 1 GB
+            </p>
+            <FieldError errors={err('bookingPhotoMaxBytes')} />
+          </div>
 
-        <div className="space-y-2">
-          <label htmlFor="photoRetentionDaysAfterResolve" className="block text-sm font-medium">
-            Photo retention after resolve (days)
-          </label>
-          <Input
-            id="photoRetentionDaysAfterResolve"
-            name="photoRetentionDaysAfterResolve"
-            type="number"
-            defaultValue={config.photoRetentionDaysAfterResolve}
-            min={0}
-          />
-          <FieldError errors={err('photoRetentionDaysAfterResolve')} />
+          <div className="space-y-2">
+            <label htmlFor="photoRetentionDaysAfterResolve" className="block text-sm font-medium">
+              Photo retention after resolve (days)
+            </label>
+            <Input
+              id="photoRetentionDaysAfterResolve"
+              name="photoRetentionDaysAfterResolve"
+              type="number"
+              defaultValue={config.photoRetentionDaysAfterResolve}
+              min={0}
+            />
+            <FieldError errors={err('photoRetentionDaysAfterResolve')} />
+          </div>
         </div>
       </section>
 
@@ -223,68 +229,70 @@ export function SettingsForm({ config }: SettingsFormProps) {
           </label>
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="minReviewsForLandingStats" className="block text-sm font-medium">
-            Min reviews to show stats band
-          </label>
-          <Input
-            id="minReviewsForLandingStats"
-            name="minReviewsForLandingStats"
-            type="number"
-            defaultValue={config.minReviewsForLandingStats}
-            min={0}
-          />
-          <FieldError errors={err('minReviewsForLandingStats')} />
-        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label htmlFor="minReviewsForLandingStats" className="block text-sm font-medium">
+              Min reviews to show stats band
+            </label>
+            <Input
+              id="minReviewsForLandingStats"
+              name="minReviewsForLandingStats"
+              type="number"
+              defaultValue={config.minReviewsForLandingStats}
+              min={0}
+            />
+            <FieldError errors={err('minReviewsForLandingStats')} />
+          </div>
 
-        <div className="space-y-2">
-          <label htmlFor="statsJobsCompletedOverride" className="block text-sm font-medium">
-            Jobs completed (override)
-          </label>
-          <Input
-            id="statsJobsCompletedOverride"
-            name="statsJobsCompletedOverride"
-            type="number"
-            defaultValue={config.statsJobsCompletedOverride ?? ''}
-            min={0}
-            max={100000}
-            placeholder="Leave blank to auto-compute from bookings"
-          />
-          <FieldError errors={err('statsJobsCompletedOverride')} />
-        </div>
+          <div className="space-y-2">
+            <label htmlFor="businessStartDate" className="block text-sm font-medium">
+              Business start date
+            </label>
+            <Input
+              id="businessStartDate"
+              name="businessStartDate"
+              type="date"
+              defaultValue={config.businessStartDate ?? ''}
+              placeholder="Leave blank to use founding year"
+            />
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              When set, "Years in Business" is computed from this date (month/day precise).
+              Leave blank to fall back to Year Founded.
+            </p>
+            <FieldError errors={err('businessStartDate')} />
+          </div>
 
-        <div className="space-y-2">
-          <label htmlFor="statsCustomersServedOverride" className="block text-sm font-medium">
-            Customers served (override)
-          </label>
-          <Input
-            id="statsCustomersServedOverride"
-            name="statsCustomersServedOverride"
-            type="number"
-            defaultValue={config.statsCustomersServedOverride ?? ''}
-            min={0}
-            max={100000}
-            placeholder="Leave blank to auto-compute from bookings"
-          />
-          <FieldError errors={err('statsCustomersServedOverride')} />
-        </div>
+          <div className="space-y-2">
+            <label htmlFor="statsJobsCompletedOverride" className="block text-sm font-medium">
+              Jobs completed (bonus)
+            </label>
+            <Input
+              id="statsJobsCompletedOverride"
+              name="statsJobsCompletedOverride"
+              type="number"
+              defaultValue={config.statsJobsCompletedOverride ?? ''}
+              min={0}
+              max={100000}
+              placeholder="Added to live count. Leave blank for none."
+            />
+            <FieldError errors={err('statsJobsCompletedOverride')} />
+          </div>
 
-        <div className="space-y-2">
-          <label htmlFor="businessStartDate" className="block text-sm font-medium">
-            Business start date
-          </label>
-          <Input
-            id="businessStartDate"
-            name="businessStartDate"
-            type="date"
-            defaultValue={config.businessStartDate ?? ''}
-            placeholder="Leave blank to use founding year"
-          />
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            When set, "Years in Business" is computed from this date (month/day precise).
-            Leave blank to fall back to Year Founded.
-          </p>
-          <FieldError errors={err('businessStartDate')} />
+          <div className="space-y-2">
+            <label htmlFor="statsCustomersServedOverride" className="block text-sm font-medium">
+              Customers served (bonus)
+            </label>
+            <Input
+              id="statsCustomersServedOverride"
+              name="statsCustomersServedOverride"
+              type="number"
+              defaultValue={config.statsCustomersServedOverride ?? ''}
+              min={0}
+              max={100000}
+              placeholder="Added to live count. Leave blank for none."
+            />
+            <FieldError errors={err('statsCustomersServedOverride')} />
+          </div>
         </div>
       </section>
 
