@@ -70,7 +70,7 @@ vi.mock('next/cache', () => ({
 
 vi.mock('@/features/auth/auth', () => ({
   auth: vi.fn(async () => ({
-    user: { id: 'u1', email: 'admin@test.com', name: 'admin' },
+    user: { id: 'u1', name: 'admin' },
     expires: new Date(Date.now() + 86_400_000),
   })),
 }));
@@ -88,7 +88,8 @@ describe('availability actions', () => {
   beforeEach(() => {
     setupDb();
     vi.mocked(auth).mockImplementation(async () => ({
-      user: { id: 'u1', email: 'admin@test.com', name: 'admin' },
+      user: { id: 'u1', name: 'admin' },
+      credentialId: null,
       expires: new Date(Date.now() + 86_400_000),
     }));
   });

@@ -37,7 +37,7 @@ import {
   type CredentialRow,
 } from '@/db/schema';
 import { auth } from './auth';
-import { findAdminByEmail, listCredentialsForAdmin } from './admin-queries';
+import { findSingleAdmin, listCredentialsForAdmin } from './admin-queries';
 import { consumeChallenge, saveChallenge } from './challenges';
 import { getRelyingParty } from './relying-party';
 import { authFailure, authOk, logAuthFailure, type AuthResult } from './response';
@@ -64,7 +64,7 @@ type AdminContext = {
 async function requireAdmin(): Promise<AdminContext | null> {
   const session = await auth();
   if (!session) return null;
-  const admin = findAdminByEmail(session.user.email);
+  const admin = findSingleAdmin();
   if (!admin || !admin.active || !admin.enrolledAt) return null;
   return {
     adminId: admin.id,
@@ -131,11 +131,16 @@ export async function startAddDevice(): Promise<
 
   const existing = listCredentialsForAdmin(ctx.adminId);
   const { rpID, rpName } = getRelyingParty();
+  // Single-admin install: no email to use as the WebAuthn user identifier.
+  // Use the display name (or a sentinel) — only the OS passkey UI ever
+  // shows it, and the challenge map is keyed on `admin.id` for stability.
+  const passkeyLabel = adminRow.name?.trim() || `admin-${adminRow.id}`;
+  const challengeKey = `admin:${adminRow.id}`;
   const options = await generateRegistrationOptions({
     rpName,
     rpID,
-    userName: adminRow.email,
-    userDisplayName: adminRow.email,
+    userName: passkeyLabel,
+    userDisplayName: passkeyLabel,
     attestationType: 'none',
     authenticatorSelection: {
       residentKey: 'preferred',
@@ -148,7 +153,7 @@ export async function startAddDevice(): Promise<
     excludeCredentials: existing.map((c) => ({ id: c.credentialId })),
   });
 
-  saveChallenge('addDevice', adminRow.email, options.challenge);
+  saveChallenge('addDevice', challengeKey, options.challenge);
   return authOk({ options });
 }
 
@@ -184,7 +189,7 @@ export async function finishAddDevice(
   const normalizedLabel =
     parsedLabel.data && parsedLabel.data.length > 0 ? parsedLabel.data : null;
 
-  const expectedChallenge = consumeChallenge('addDevice', adminRow.email);
+  const expectedChallenge = consumeChallenge('addDevice', `admin:${adminRow.id}`);
   if (!expectedChallenge) {
     logAuthFailure('challenge_missing', { scope: 'devices:finishAdd' });
     return authFailure();

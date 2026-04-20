@@ -39,7 +39,6 @@ type PendingSession = {
 export function FoundingAdminForm() {
   const router = useRouter();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [stage, setStage] = useState<Stage>('idle');
   const [error, setError] = useState<string | null>(null);
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
@@ -49,13 +48,13 @@ export function FoundingAdminForm() {
     e.preventDefault();
     setError(null);
     if (stage !== 'idle') return;
-    if (!name.trim() || !email.trim()) {
+    if (!name.trim()) {
       setError(AUTH_GENERIC_FAILURE_MESSAGE);
       return;
     }
     setStage('working');
 
-    const start = await startFoundingAction(email);
+    const start = await startFoundingAction();
     if (!start.ok) {
       setError(start.message);
       setStage('idle');
@@ -64,7 +63,7 @@ export function FoundingAdminForm() {
 
     try {
       const attestation = await startRegistration({ optionsJSON: start.options });
-      const finish = await finishFoundingAction(email, name, attestation);
+      const finish = await finishFoundingAction(name, attestation);
       if (!finish.ok) {
         setError(finish.message);
         setStage('idle');
@@ -117,21 +116,6 @@ export function FoundingAdminForm() {
             data-testid="name-input"
             data-founding="true"
             placeholder="Sawyer"
-          />
-        </label>
-
-        <label className="block text-sm">
-          <span className="mb-1 block text-[hsl(var(--muted-foreground))]">Email</span>
-          <Input
-            type="email"
-            name="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={stage !== 'idle'}
-            data-testid="email-input"
-            data-founding="true"
           />
         </label>
 

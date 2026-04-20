@@ -43,7 +43,6 @@ const ONE_DAY_MS = 24 * 60 * 60_000;
 export type AuthSession = {
   user: {
     id: string;
-    email: string;
     name?: string | null;
   };
   /**
@@ -63,12 +62,25 @@ function newToken(): string {
   return randomBytes(48).toString('base64url');
 }
 
-function getOrCreateUserByEmail(email: string): UserRow {
+/**
+ * Resolve (or create) the auth.js `users` row that owns this admin's
+ * sessions. We synthesize a stable sentinel email keyed on `adminId` —
+ * never displayed anywhere — so the auth.js schema (which makes user.email
+ * NOT NULL) keeps working without email being a real concern.
+ */
+function getOrCreateUserForAdmin(adminId: number): UserRow {
+  const sentinelEmail = `admin-${adminId}@local`;
   const db = getDb();
-  const existing = db.select().from(users).where(eq(users.email, email)).all();
+  const existing = db
+    .select()
+    .from(users)
+    .where(eq(users.email, sentinelEmail))
+    .all();
   if (existing[0]) return existing[0];
   const id = crypto.randomUUID();
-  db.insert(users).values({ id, email, name: email }).run();
+  db.insert(users)
+    .values({ id, email: sentinelEmail, name: sentinelEmail })
+    .run();
   return db.select().from(users).where(eq(users.id, id)).all()[0]!;
 }
 
@@ -120,7 +132,7 @@ export async function auth(): Promise<AuthSession | null> {
   }
 
   return {
-    user: { id: user.id, email: user.email ?? '', name: user.name },
+    user: { id: user.id, name: user.name },
     credentialId: row.credentialId ?? null,
     expires: new Date(expiresAt),
   };
@@ -140,10 +152,9 @@ export async function auth(): Promise<AuthSession | null> {
  */
 export async function signIn(
   _provider: 'webauthn',
-  opts: { email: string; redirect?: boolean; credentialId?: string },
+  opts: { adminId: number; redirect?: boolean; credentialId?: string },
 ): Promise<{ ok: true }> {
-  const email = opts.email.toLowerCase();
-  const user = getOrCreateUserByEmail(email);
+  const user = getOrCreateUserForAdmin(opts.adminId);
   const token = newToken();
   const expires = new Date(Date.now() + THIRTY_DAYS_MS);
 

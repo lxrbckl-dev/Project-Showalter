@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { eq } from 'drizzle-orm';
 import { auth } from '@/features/auth/auth';
 import { getDb } from '@/db';
 import { admins as adminsTable } from '@/db/schema/admins';
@@ -42,8 +41,7 @@ function dateInTz(iso: string, tz: string): string {
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
-  const session = await auth();
-  const email = session?.user.email ?? '';
+  await auth();
 
   const db = getDb();
   const stats = getHeaderStats(db);
@@ -86,17 +84,14 @@ export default async function AdminDashboardPage() {
     else laterCount += 1;
   }
 
-  // Resolve the admin's display name, falling back to email for legacy rows
-  // that pre-date the `name` column being added in migration 0021.
-  const adminRow = email
-    ? db
-        .select({ name: adminsTable.name })
-        .from(adminsTable)
-        .where(eq(adminsTable.email, email))
-        .limit(1)
-        .all()[0]
-    : null;
-  const displayName = adminRow?.name?.trim() || email;
+  // Single-admin install: pull the lone admin's display name. Falls back
+  // to "Admin" if the name column is unset.
+  const adminRow = db
+    .select({ name: adminsTable.name })
+    .from(adminsTable)
+    .limit(1)
+    .all()[0];
+  const displayName = adminRow?.name?.trim() || 'Admin';
 
   return (
     <div className="space-y-6">

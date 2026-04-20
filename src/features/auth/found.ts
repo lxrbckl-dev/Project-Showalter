@@ -58,8 +58,15 @@ import { hashCode, generatePlaintextCode } from './recovery';
 import { authFailure, authOk, logAuthFailure, type AuthResult } from './response';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { auth, signIn } from './auth';
-import { emailSchema, normalizeEmail } from './invites-shared';
 import { adminsTableEmpty, foundFirstAdmin } from './found-core';
+
+/**
+ * Sentinel "user identity" passed to WebAuthn registration. The username is
+ * only ever shown by the browser/OS as the passkey label — single-admin
+ * install means there's nothing meaningful to put here, so a stable
+ * placeholder keeps every enrolled passkey consistently named.
+ */
+const PASSKEY_USERNAME = 'admin';
 
 const RATE_LIMIT_KEY = 'found';
 /**
@@ -113,9 +120,7 @@ export async function isAdminsTableEmpty(): Promise<boolean> {
   }
 }
 
-export async function startFoundingEnrollment(
-  email: string,
-): Promise<
+export async function startFoundingEnrollment(): Promise<
   AuthResult<{ options: Awaited<ReturnType<typeof generateRegistrationOptions>> }>
 > {
   const ip = await getClientIp();
@@ -124,13 +129,6 @@ export async function startFoundingEnrollment(
     logAuthFailure('rate_limited', { scope: 'found:start', ip });
     return authFailure();
   }
-
-  const parsed = emailSchema.safeParse(email);
-  if (!parsed.success) {
-    logAuthFailure('invalid_email', { scope: 'found:start' });
-    return authFailure();
-  }
-  const normalized = normalizeEmail(parsed.data);
 
   if (!(await isAdminsTableEmpty())) {
     logAuthFailure('admins_not_empty', { scope: 'found:start' });
@@ -141,8 +139,8 @@ export async function startFoundingEnrollment(
   const options = await generateRegistrationOptions({
     rpName,
     rpID,
-    userName: normalized,
-    userDisplayName: normalized,
+    userName: PASSKEY_USERNAME,
+    userDisplayName: PASSKEY_USERNAME,
     attestationType: 'none',
     authenticatorSelection: {
       residentKey: 'preferred',
@@ -150,12 +148,11 @@ export async function startFoundingEnrollment(
     },
   });
 
-  saveChallenge('foundAdmin', normalized, options.challenge);
+  saveChallenge('foundAdmin', PASSKEY_USERNAME, options.challenge);
   return authOk({ options });
 }
 
 export async function finishFoundingEnrollment(
-  email: string,
   name: string,
   response: RegistrationResponseJSON,
 ): Promise<
@@ -168,20 +165,13 @@ export async function finishFoundingEnrollment(
     return authFailure();
   }
 
-  const parsed = emailSchema.safeParse(email);
-  if (!parsed.success) {
-    logAuthFailure('invalid_email', { scope: 'found:finish' });
-    return authFailure();
-  }
-  const normalized = normalizeEmail(parsed.data);
-
   const trimmedName = typeof name === 'string' ? name.trim() : '';
   if (trimmedName.length < 1 || trimmedName.length > 100) {
     logAuthFailure('invalid_name', { scope: 'found:finish' });
     return authFailure();
   }
 
-  const expectedChallenge = consumeChallenge('foundAdmin', normalized);
+  const expectedChallenge = consumeChallenge('foundAdmin', PASSKEY_USERNAME);
   if (!expectedChallenge) {
     logAuthFailure('challenge_missing', { scope: 'found:finish' });
     return authFailure();
@@ -218,7 +208,6 @@ export async function finishFoundingEnrollment(
   const hashedRecovery = await hashCode(plaintextRecovery);
 
   const result = foundFirstAdmin(getSqlite(), getDb(), {
-    email: normalized,
     name: trimmedName,
     credential: {
       credentialId: cred.id,
@@ -346,7 +335,7 @@ export async function finalizeFoundingSession(
 
   try {
     await signIn('webauthn', {
-      email: admin.email,
+      adminId: admin.id,
       redirect: false,
       credentialId: cred.credentialId,
     });
@@ -360,3 +349,4 @@ export async function finalizeFoundingSession(
 
   return authOk();
 }
+

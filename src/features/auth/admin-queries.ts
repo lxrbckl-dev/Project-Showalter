@@ -1,34 +1,24 @@
 /**
- * DB lookups against the `admins` table.
+ * DB lookups against the `admins` and `credentials` tables.
  *
- * Ticket 1A (#29) owns the schema + reconciliation; this module is read-only
- * from the 1B side — it never inserts or soft-disables admins, that's 1A's
- * job via `reconcileAdmins()` on boot.
+ * Single-admin install: there's at most one row in `admins`, so all admin
+ * lookups boil down to "the lone admin". The pre-existing email-based
+ * helpers (`findAdminByEmail`, `classifyAdmin`) were retired in the
+ * single-admin refactor; callers that need to gate on active+enrolled now
+ * use `findSingleAdmin()`.
  */
 
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { admins, credentials, type AdminRow, type CredentialRow } from '@/db/schema';
 
-/** Look up an admin by email (case-insensitive). Returns null if not found. */
-export function findAdminByEmail(email: string): AdminRow | null {
-  const lower = email.toLowerCase();
-  const rows = getDb().select().from(admins).where(eq(admins.email, lower)).all();
-  return rows[0] ?? null;
-}
-
-export type AdminStatus = 'unknown' | 'disabled' | 'pending' | 'enrolled';
-
 /**
- * Classify an admin's state in one call. Used by server actions to gate
- * access paths (enrollment vs. login).
+ * Return the single admin row, or null if none exists. Single-admin install
+ * means LIMIT 1 is sufficient — there's no second row to disambiguate.
  */
-export function classifyAdmin(email: string): { status: AdminStatus; admin: AdminRow | null } {
-  const admin = findAdminByEmail(email);
-  if (!admin) return { status: 'unknown', admin: null };
-  if (!admin.active) return { status: 'disabled', admin };
-  if (!admin.enrolledAt) return { status: 'pending', admin };
-  return { status: 'enrolled', admin };
+export function findSingleAdmin(): AdminRow | null {
+  const rows = getDb().select().from(admins).limit(1).all();
+  return rows[0] ?? null;
 }
 
 /** All credentials rows for an admin. */

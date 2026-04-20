@@ -203,30 +203,32 @@ function DayPicker({
         </div>
       )}
       <h2 className="mb-4 text-lg font-semibold text-gray-900">Pick a day</h2>
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-        {availability.map((day) => {
-          const open = day.candidates.length > 0;
-          return (
-            <button
-              type="button"
-              key={day.date}
-              disabled={!open}
-              onClick={() => onPick(day.date)}
-              data-testid={`day-${day.date}`}
-              data-open={open ? '1' : '0'}
-              className={
-                open
-                  ? 'rounded-md border border-green-300 bg-green-50 px-3 py-3 text-center text-sm font-medium text-green-800 transition hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-400'
-                  : 'cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-3 text-center text-sm text-gray-400'
-              }
-            >
-              <span className="block">{formatDateLabel(day.date)}</span>
-              <span className="mt-0.5 block text-xs opacity-70">
-                {open ? `${day.candidates.length} open` : 'closed'}
-              </span>
-            </button>
-          );
-        })}
+      {/* Capped height + overflow-y-auto so the day grid is a fixed-size
+        scrollable region instead of pushing the rest of the page down.
+        Rows ~70px each; max-h-[24rem] shows ~5 rows before scrolling. */}
+      <div className="max-h-[24rem] overflow-y-auto rounded-md border border-gray-200 p-2">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {availability.map((day) => {
+            const open = day.candidates.length > 0;
+            return (
+              <button
+                type="button"
+                key={day.date}
+                disabled={!open}
+                onClick={() => onPick(day.date)}
+                data-testid={`day-${day.date}`}
+                data-open={open ? '1' : '0'}
+                className={
+                  open
+                    ? 'rounded-md border border-green-300 bg-green-50 px-3 py-3 text-center text-sm font-medium text-green-800 transition hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-400'
+                    : 'cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-3 text-center text-sm text-gray-400'
+                }
+              >
+                {formatDateLabel(day.date)}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
@@ -314,6 +316,11 @@ function BookingForm({
     | { kind: 'error'; message: string }
   >({ kind: 'idle' });
 
+  // Track form-level HTML5 validity so the submit button only enables once
+  // every required field is filled (and any optional Email is well-formed).
+  // Recomputed on every keystroke / select change via the form's onChange.
+  const [formValid, setFormValid] = useState(false);
+
   async function useMyLocation(): Promise<void> {
     if (!('geolocation' in navigator)) {
       setLocStatus({
@@ -381,6 +388,8 @@ function BookingForm({
 
       <form
         onSubmit={onSubmit}
+        onChange={(e) => setFormValid(e.currentTarget.checkValidity())}
+        onInput={(e) => setFormValid(e.currentTarget.checkValidity())}
         className="space-y-2.5"
         encType="multipart/form-data"
         data-testid="booking-form"
@@ -412,41 +421,43 @@ function BookingForm({
           )}
         />
 
-        <Field
-          label="Your name"
-          name="name"
-          required
-          error={err('name')}
-          render={(id) => (
-            <input
-              id={id}
-              name="name"
-              type="text"
-              required
-              maxLength={100}
-              autoComplete="name"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
-            />
-          )}
-        />
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <Field
+            label="Your name"
+            name="name"
+            required
+            error={err('name')}
+            render={(id) => (
+              <input
+                id={id}
+                name="name"
+                type="text"
+                required
+                maxLength={100}
+                autoComplete="name"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
+              />
+            )}
+          />
 
-        <Field
-          label="Phone"
-          name="phone"
-          required
-          error={err('phone')}
-          render={(id) => (
-            <input
-              id={id}
-              name="phone"
-              type="tel"
-              required
-              autoComplete="tel"
-              placeholder="(913) 309-7340"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
-            />
-          )}
-        />
+          <Field
+            label="Phone"
+            name="phone"
+            required
+            error={err('phone')}
+            render={(id) => (
+              <input
+                id={id}
+                name="phone"
+                type="tel"
+                required
+                autoComplete="tel"
+                placeholder="(913) 309-7340"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
+              />
+            )}
+          />
+        </div>
 
         <Field
           label="Email"
@@ -507,7 +518,7 @@ function BookingForm({
         />
 
         <Field
-          label="Notes (optional)"
+          label="Notes"
           name="notes"
           error={err('notes')}
           render={(id) => (
@@ -523,7 +534,7 @@ function BookingForm({
         />
 
         <Field
-          label="Photos (optional)"
+          label="Photos"
           name="photos"
           error={err('photos')}
           render={(id) => (
@@ -571,7 +582,7 @@ function BookingForm({
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formValid}
           data-testid="booking-submit"
           data-umami-event="booking_submitted"
           className="inline-flex items-center justify-center rounded-md bg-green-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:cursor-not-allowed disabled:opacity-60"

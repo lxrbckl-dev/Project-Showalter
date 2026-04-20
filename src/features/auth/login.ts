@@ -1,17 +1,19 @@
 'use server';
 
 /**
- * Passkey login server actions.
+ * Passkey login server actions — single-admin install.
  *
- * Two-step ceremony:
- *   1. `startLogin(email)` — gates on admin state (must be active + enrolled),
- *      returns authentication options for the browser.
- *   2. `finishLogin(email, response)` — verifies the assertion, bumps the
- *      credential counter, and establishes a DB-backed session via Auth.js.
+ * No email required from the client. The flow:
  *
- * Both paths return the single canonical `authFailure()` on any rejection.
- * The BOOTSTRAP flag is not checked here — bootstrap only controls enrollment;
- * login is driven entirely by `enrolled_at IS NOT NULL`.
+ *   1. `startLogin()` — resolves the lone enrolled admin server-side,
+ *      returns authentication options scoped to their credential set.
+ *   2. `finishLogin(response)` — verifies the assertion against the
+ *      credential identified by `response.id`, bumps the counter, and
+ *      establishes a DB-backed session keyed on `admin.id`.
+ *
+ * Both paths return the canonical `authFailure()` on any rejection. We
+ * key the challenge map on `admin.id` (instead of email) so the same
+ * single-admin assumption holds across the start → finish round trip.
  */
 
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
@@ -21,8 +23,8 @@ import {
 } from '@simplewebauthn/server';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
-import { credentials } from '@/db/schema';
-import { classifyAdmin, findCredentialById, listCredentialsForAdmin } from './admin-queries';
+import { admins, credentials, type AdminRow } from '@/db/schema';
+import { findCredentialById, listCredentialsForAdmin } from './admin-queries';
 import { consumeChallenge, saveChallenge } from './challenges';
 import { getClientIp } from './client-ip';
 import { getRelyingParty } from './relying-party';
@@ -34,9 +36,18 @@ const RATE_LIMIT_KEY = 'login';
 const RATE_LIMIT = 5;
 const RATE_WINDOW_MS = 10 * 60_000;
 
-export async function startLogin(
-  email: string,
-): Promise<
+/** Resolve the lone active+enrolled admin. Null when none is ready to log in. */
+function resolveAdmin(): AdminRow | null {
+  const rows = getDb().select().from(admins).all();
+  return rows.find((a) => a.active === 1 && a.enrolledAt !== null) ?? null;
+}
+
+/** Stable per-admin challenge key — replaces the per-email key from the multi-admin era. */
+function challengeKey(adminId: number): string {
+  return `admin:${adminId}`;
+}
+
+export async function startLogin(): Promise<
   AuthResult<{ options: Awaited<ReturnType<typeof generateAuthenticationOptions>> }>
 > {
   const ip = await getClientIp();
@@ -46,12 +57,9 @@ export async function startLogin(
     return authFailure();
   }
 
-  const normalized = email.trim().toLowerCase();
-  if (!normalized) return authFailure();
-
-  const { status, admin } = classifyAdmin(normalized);
-  if (status !== 'enrolled' || !admin) {
-    logAuthFailure('admin_not_enrolled', { scope: 'login', status });
+  const admin = resolveAdmin();
+  if (!admin) {
+    logAuthFailure('admin_not_enrolled', { scope: 'login' });
     return authFailure();
   }
 
@@ -63,12 +71,11 @@ export async function startLogin(
     userVerification: 'preferred',
   });
 
-  saveChallenge('login', normalized, options.challenge);
+  saveChallenge('login', challengeKey(admin.id), options.challenge);
   return authOk({ options });
 }
 
 export async function finishLogin(
-  email: string,
   response: AuthenticationResponseJSON,
 ): Promise<AuthResult> {
   const ip = await getClientIp();
@@ -78,16 +85,13 @@ export async function finishLogin(
     return authFailure();
   }
 
-  const normalized = email.trim().toLowerCase();
-  if (!normalized) return authFailure();
-
-  const { status, admin } = classifyAdmin(normalized);
-  if (status !== 'enrolled' || !admin) {
-    logAuthFailure('admin_not_enrolled', { scope: 'login:finish', status });
+  const admin = resolveAdmin();
+  if (!admin) {
+    logAuthFailure('admin_not_enrolled', { scope: 'login:finish' });
     return authFailure();
   }
 
-  const expectedChallenge = consumeChallenge('login', normalized);
+  const expectedChallenge = consumeChallenge('login', challengeKey(admin.id));
   if (!expectedChallenge) {
     logAuthFailure('challenge_missing', { scope: 'login:finish' });
     return authFailure();
@@ -139,7 +143,7 @@ export async function finishLogin(
   // this session cleanly if the credential is later removed.
   try {
     await signIn('webauthn', {
-      email: normalized,
+      adminId: admin.id,
       redirect: false,
       credentialId: credRow.credentialId,
     });

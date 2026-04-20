@@ -11,11 +11,9 @@ let booted = false;
  * exits the process with a non-zero code rather than serving a half-migrated
  * database.
  *
- * Phase 1C (issue #83) retired the env-driven admin reconciler. Admins now
- * bootstrap via the "first visitor claims founding admin" flow at
- * `/admin/login` and are added thereafter via single-use invite links
- * issued from `/admin/settings/admins`. No env-driven reconciliation runs
- * at boot.
+ * Single-admin install: the lone admin bootstraps via the "first visitor
+ * claims founding admin" flow at `/admin/login`. No env-driven
+ * reconciliation runs at boot.
  *
  * Safe to call multiple times — subsequent calls are no-ops.
  */

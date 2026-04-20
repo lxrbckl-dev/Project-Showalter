@@ -1,9 +1,9 @@
 /**
  * `/admin/settings` — top-level settings hub.
  *
- * Thin index that lists sub-sections. Current entries:
- *   - Devices: manage passkeys for your own account (#77)
- *   - Admins: manage the admin roster + invite links (#83)
+ * Single-admin install — no roster management. The Devices entry is the
+ * only sub-section here; left as a list for forward extensibility (so a
+ * future entry can drop in next to it).
  */
 
 import Link from 'next/link';
@@ -21,12 +21,6 @@ const ENTRIES: Entry[] = [
     label: 'Devices',
     description: 'Manage the passkeys you use to sign in.',
     testId: 'settings-devices-link',
-  },
-  {
-    href: '/admin/settings/admins',
-    label: 'Admins',
-    description: 'Invite and manage the people who can sign in.',
-    testId: 'settings-admins-link',
   },
 ];
 

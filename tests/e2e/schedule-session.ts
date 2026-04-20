@@ -1,20 +1,18 @@
 /**
  * Standalone tsx script invoked by tests/e2e/admin-schedule.spec.ts.
  *
- * Creates (if missing) a `session` row for the test admin and prints the
- * session token to stdout as JSON. The spec reads the token and injects
+ * Creates (if missing) a `session` row for the lone test admin and prints
+ * the session token to stdout as JSON. The spec reads the token and injects
  * it as the `swt-session` cookie — letting the E2E test skip the full
  * WebAuthn enrollment ceremony (which is context-scoped to the browser
  * that enrolled it) and focus on the schedule-editor UI.
  *
- * Keeping auth-bypass logic in a dedicated test-only script — rather than
- * adding test-mode code paths to production auth — keeps the production
- * auth surface unchanged.
+ * Single-admin install: there's only ever one admin row. We create it on
+ * the fly if missing. The auth.js `users` row is keyed on a synthetic
+ * `admin-{id}@local` sentinel email — same convention `signIn` uses in
+ * production code.
  *
- * Expects DATABASE_URL in env. Creates the admin row on the fly
- * if it does not yet exist — since #83 admins are no longer pre-seeded at
- * boot, so this helper is the source of truth for specs that need a
- * session without driving the full invite or founding flow.
+ * Expects DATABASE_URL in env. Never run in production.
  */
 import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
@@ -23,28 +21,21 @@ import { admins } from '@/db/schema/admins';
 import { sessions, users } from '@/db/schema/auth-sessions';
 
 async function main(): Promise<void> {
-  const rawEmail = (process.env.TEST_ADMIN_EMAIL ?? 'alex@test.com').toLowerCase();
   const db = getDb();
-
-  // Ensure the admin row exists + is flagged as enrolled so the rest of
-  // the app treats the session as a real logged-in admin. Since #83 admins
-  // are no longer pre-seeded at boot — create the row on the fly if missing.
   const nowIso = new Date().toISOString();
-  let adminRow = db
-    .select()
-    .from(admins)
-    .where(eq(admins.email, rawEmail))
-    .all()[0];
+
+  // Ensure the lone admin row exists + is flagged as enrolled.
+  let adminRow = db.select().from(admins).limit(1).all()[0];
   if (!adminRow) {
     db.insert(admins)
       .values({
-        email: rawEmail,
+        name: 'Test Admin',
         active: 1,
         enrolledAt: nowIso,
         createdAt: nowIso,
       })
       .run();
-    adminRow = db.select().from(admins).where(eq(admins.email, rawEmail)).all()[0];
+    adminRow = db.select().from(admins).limit(1).all()[0]!;
   }
   if (adminRow && !adminRow.enrolledAt) {
     db.update(admins)
@@ -53,11 +44,12 @@ async function main(): Promise<void> {
       .run();
   }
 
-  // Ensure a user row exists for session FK.
-  let user = db.select().from(users).where(eq(users.email, rawEmail)).all()[0];
+  // Ensure a user row exists for session FK — sentinel email keyed on adminId.
+  const sentinelEmail = `admin-${adminRow.id}@local`;
+  let user = db.select().from(users).where(eq(users.email, sentinelEmail)).all()[0];
   if (!user) {
     const id = crypto.randomUUID();
-    db.insert(users).values({ id, email: rawEmail, name: rawEmail }).run();
+    db.insert(users).values({ id, email: sentinelEmail, name: sentinelEmail }).run();
     user = db.select().from(users).where(eq(users.id, id)).all()[0]!;
   }
 
