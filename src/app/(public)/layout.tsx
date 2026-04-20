@@ -15,7 +15,12 @@ import { UmamiScript } from '@/components/public/UmamiScript';
  */
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    // Sticky-footer pattern: outer flex column with `min-h-screen` and a
+    // `flex-1` slot wrapping {children}. On short pages the slot stretches
+    // to fill the remaining viewport so the Footer sits at the bottom of
+    // the visible window; on long pages the slot grows past viewport and
+    // the Footer flows naturally beneath the content.
+    <div className="flex min-h-screen flex-col">
       <UmamiScript />
       <header className="flex items-center justify-center border-b border-gray-200 bg-gray-100 py-3">
         <Link href="/" aria-label="Go to homepage">
@@ -29,8 +34,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           />
         </Link>
       </header>
-      {children}
+      <div className="flex-1">{children}</div>
       <Footer />
-    </>
+    </div>
   );
 }

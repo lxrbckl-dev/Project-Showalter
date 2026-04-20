@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 
 // Umami analytics helper — no-op when umami is not loaded.
 function trackUmami(event: string): void {
@@ -302,6 +302,60 @@ function BookingForm({
     return fieldErrors[field]?.[0];
   }
 
+  // "Use my location" button — uses the browser's geolocation API to grab
+  // lat/lng (with permission), then reverse-geocodes via OSM Nominatim to
+  // get a street address and writes it into the address input. The input
+  // stays uncontrolled, so we mutate it via ref + dispatch an `input` event
+  // so any listeners (and React's diff) see the change.
+  const addressRef = useRef<HTMLInputElement>(null);
+  const [locStatus, setLocStatus] = useState<
+    | { kind: 'idle' }
+    | { kind: 'requesting' }
+    | { kind: 'error'; message: string }
+  >({ kind: 'idle' });
+
+  async function useMyLocation(): Promise<void> {
+    if (!('geolocation' in navigator)) {
+      setLocStatus({
+        kind: 'error',
+        message: 'Your browser does not support location.',
+      });
+      return;
+    }
+    setLocStatus({ kind: 'requesting' });
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10_000,
+        });
+      });
+      const { latitude, longitude } = pos.coords;
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${latitude}&lon=${longitude}`;
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(`reverse geocode failed (${res.status})`);
+      const data = (await res.json()) as { display_name?: string };
+      if (!data.display_name) throw new Error('no address returned');
+      // Trim trailing ", United States" — domestic users don't want it.
+      const cleaned = data.display_name.replace(/,\s*United States$/, '');
+      if (addressRef.current) {
+        addressRef.current.value = cleaned;
+        addressRef.current.dispatchEvent(
+          new Event('input', { bubbles: true }),
+        );
+      }
+      setLocStatus({ kind: 'idle' });
+    } catch (e) {
+      const code = (e as GeolocationPositionError | undefined)?.code;
+      let message = 'Could not get your location.';
+      if (code === 1) message = 'Location permission denied.';
+      else if (code === 2) message = 'Location unavailable.';
+      else if (code === 3) message = 'Location request timed out.';
+      else if (e instanceof Error) message = e.message;
+      setLocStatus({ kind: 'error', message });
+    }
+  }
+
   return (
     <section aria-label="Request details">
       <button
@@ -415,15 +469,40 @@ function BookingForm({
           required
           error={err('address')}
           render={(id) => (
-            <input
-              id={id}
-              name="address"
-              type="text"
-              required
-              maxLength={500}
-              autoComplete="street-address"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
-            />
+            <div>
+              <div className="flex gap-2">
+                <input
+                  ref={addressRef}
+                  id={id}
+                  name="address"
+                  type="text"
+                  required
+                  maxLength={500}
+                  autoComplete="street-address"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={useMyLocation}
+                  disabled={locStatus.kind === 'requesting'}
+                  data-testid="use-my-location"
+                  className="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-label="Use my current location"
+                  title="Use my current location"
+                >
+                  {locStatus.kind === 'requesting' ? '…' : '📍'}
+                </button>
+              </div>
+              {locStatus.kind === 'error' && (
+                <p
+                  role="alert"
+                  data-testid="location-error"
+                  className="mt-1 text-xs text-red-600"
+                >
+                  {locStatus.message}
+                </p>
+              )}
+            </div>
           )}
         />
 

@@ -28,12 +28,19 @@ export interface CancelByCustomerCore {
   token: string;
   db: Db;
   now?: Date;
+  /**
+   * Optional free-text reason the customer typed in the cancel form.
+   * Trimmed, capped at 500 chars, empty string normalized to NULL.
+   */
+  reason?: string | null;
 }
+
+const MAX_REASON_LEN = 500;
 
 export function cancelByCustomerCore(
   opts: CancelByCustomerCore,
 ): CancelResult {
-  const { token, db, now = new Date() } = opts;
+  const { token, db, now = new Date(), reason } = opts;
 
   const row = db
     .select()
@@ -49,12 +56,17 @@ export function cancelByCustomerCore(
     return { ok: false, kind: 'already_terminal', status: row.status };
   }
 
+  const trimmedReason =
+    typeof reason === 'string' ? reason.trim().slice(0, MAX_REASON_LEN) : '';
+  const cancelReason = trimmedReason.length > 0 ? trimmedReason : null;
+
   const nowIso = now.toISOString();
   db.update(bookings)
     .set({
       status: 'canceled',
       decidedAt: nowIso,
       updatedAt: nowIso,
+      cancelReason,
     })
     .where(eq(bookings.id, row.id))
     .run();

@@ -15,11 +15,12 @@ export function CancelButton({ token }: { token: string }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [reason, setReason] = useState('');
 
   function doCancel(): void {
     setError(null);
     startTransition(async () => {
-      const result = await cancelByCustomer(token);
+      const result = await cancelByCustomer(token, reason);
       if (!result.ok) {
         if (result.kind === 'not_found') {
           setError('This booking is no longer valid.');
@@ -37,21 +38,21 @@ export function CancelButton({ token }: { token: string }) {
 
   if (!confirming) {
     return (
-      <div className="rounded-lg border border-gray-800 bg-gray-950 p-6">
+      <div className="rounded-lg border border-red-200 bg-red-50 p-6">
         {error && (
-          <p role="alert" className="mb-3 text-sm text-red-300">
+          <p role="alert" className="mb-3 text-sm text-red-700">
             {error}
           </p>
         )}
-        <h2 className="mb-2 text-lg font-semibold">Need to cancel?</h2>
-        <p className="mb-4 text-sm text-gray-400">
+        <h2 className="mb-2 text-lg font-semibold text-red-900">Need to cancel?</h2>
+        <p className="mb-4 text-sm text-red-800/80">
           No hard feelings — canceling frees the slot for someone else.
         </p>
         <button
           type="button"
           onClick={() => setConfirming(true)}
           data-testid="cancel-open"
-          className="rounded-md border border-red-700 bg-red-950/60 px-4 py-2 text-sm font-medium text-red-100 transition hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-400"
+          className="rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400"
         >
           Cancel appointment
         </button>
@@ -60,11 +61,25 @@ export function CancelButton({ token }: { token: string }) {
   }
 
   return (
-    <div className="rounded-lg border border-red-700 bg-red-950/60 p-6">
-      <h2 className="mb-2 text-lg font-semibold text-red-100">Are you sure?</h2>
-      <p className="mb-4 text-sm text-red-200">
+    <div className="rounded-lg border border-red-300 bg-red-100 p-6">
+      <h2 className="mb-2 text-lg font-semibold text-red-900">Are you sure?</h2>
+      <p className="mb-4 text-sm text-red-800">
         This will cancel your request. You can always submit a new one.
       </p>
+      <label className="mb-4 block">
+        <span className="mb-1 block text-sm font-medium text-red-900">
+          Reason (optional)
+        </span>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={2}
+          maxLength={500}
+          placeholder="Letting Sawyer know why is helpful but optional."
+          data-testid="cancel-reason"
+          className="w-full rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-red-500 focus:outline-none"
+        />
+      </label>
       <div className="flex gap-3">
         <button
           type="button"
@@ -79,7 +94,7 @@ export function CancelButton({ token }: { token: string }) {
           type="button"
           onClick={() => setConfirming(false)}
           disabled={isPending}
-          className="rounded-md border border-gray-600 px-4 py-2 text-sm text-gray-200 hover:bg-gray-800"
+          className="rounded-md border border-red-300 bg-white px-4 py-2 text-sm text-red-700 hover:bg-red-50"
         >
           Keep it
         </button>

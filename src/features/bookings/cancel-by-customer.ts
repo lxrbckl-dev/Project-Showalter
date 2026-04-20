@@ -26,7 +26,10 @@ import { sendPushToAllAdmins } from '@/server/notifications/push';
 
 export type { CancelResult };
 
-export async function cancelByCustomer(token: string): Promise<CancelResult> {
+export async function cancelByCustomer(
+  token: string,
+  reason?: string | null,
+): Promise<CancelResult> {
   const db = getDb();
 
   // Capture identifying context BEFORE the cancel so we can build a useful
@@ -50,7 +53,7 @@ export async function cancelByCustomer(token: string): Promise<CancelResult> {
     };
   }
 
-  const result = cancelByCustomerCore({ token, db });
+  const result = cancelByCustomerCore({ token, db, reason });
   try {
     revalidatePath(`/bookings/${token}`);
   } catch {

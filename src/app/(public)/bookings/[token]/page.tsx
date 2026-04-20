@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
@@ -9,6 +8,7 @@ import { getBookingByToken } from '@/features/bookings/queries';
 import { formatUSPhone } from '@/lib/formatters/phone';
 import type { BookingStatus } from '@/db/schema/bookings';
 import { CancelButton } from '@/components/public/booking/CancelButton';
+import { BookingActions } from '@/components/public/booking/BookingActions';
 
 /**
  * Customer-facing booking page — Phase 5.
@@ -126,11 +126,15 @@ export default async function BookingPage({
     if (next) rescheduledTo = next;
   }
 
+  // Active bookings (still useful for the customer to track / save) get the
+  // Copy link + Add-to-calendar buttons. Terminal states don't.
+  const isActive = booking.status === 'pending' || booking.status === 'accepted';
+
   return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-2xl px-6 py-12">
+    <main className="bg-white text-gray-900">
+      <div className="mx-auto max-w-2xl px-6 py-8">
         <div className="mb-8">
-          <Link href="/" className="text-sm text-green-300 hover:text-green-100">
+          <Link href="/" className="text-sm text-green-700 hover:text-green-600">
             &larr; {siteTitle}
           </Link>
         </div>
@@ -138,12 +142,12 @@ export default async function BookingPage({
         {rescheduledTo && (
           <div
             data-testid="rescheduled-to"
-            className="mb-6 rounded-lg border border-yellow-700 bg-yellow-950/40 p-6"
+            className="mb-6 rounded-lg border border-yellow-300 bg-yellow-50 p-6"
           >
-            <h2 className="mb-2 text-lg font-semibold text-yellow-100">
+            <h2 className="mb-2 text-lg font-semibold text-yellow-900">
               This appointment was rescheduled
             </h2>
-            <p className="text-yellow-200">
+            <p className="text-yellow-800">
               Your updated confirmation is at{' '}
               <Link
                 href={`/bookings/${rescheduledTo.token}`}
@@ -160,13 +164,22 @@ export default async function BookingPage({
         <div
           data-testid="booking-status"
           data-status={booking.status}
-          className="mb-6 rounded-lg border border-green-800 bg-green-950/40 p-6"
+          className="mb-6 rounded-lg border border-green-300 bg-green-50 p-6"
         >
-          <h1 className="mb-2 text-2xl font-bold">{copy.heading}</h1>
-          <p className="text-green-200">{copy.body}</p>
+          <h1 className="mb-2 text-2xl font-bold text-gray-900">{copy.heading}</h1>
+          <p className="text-green-900">{copy.body}</p>
+          {booking.status === 'canceled' && booking.cancelReason && (
+            <p
+              className="mt-3 text-sm text-green-900/80"
+              data-testid="cancel-reason-display"
+            >
+              <span className="font-medium">Reason:</span>{' '}
+              {booking.cancelReason}
+            </p>
+          )}
         </div>
 
-        <dl className="mb-6 space-y-3 rounded-lg border border-gray-800 bg-gray-950 p-6 text-sm">
+        <dl className="mb-6 space-y-3 rounded-lg border border-gray-200 bg-white p-6 text-sm">
           <DetailRow label="Service" value={service?.name ?? '—'} />
           <DetailRow label="When" value={formatStartAt(booking.startAt, tz)} />
           <DetailRow label="Name" value={booking.customerName} />
@@ -188,7 +201,7 @@ export default async function BookingPage({
                   href={`/uploads/${a.filePath}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block overflow-hidden rounded-md border border-gray-800"
+                  className="block overflow-hidden rounded-md border border-gray-200"
                 >
                   {/* Plain <img>: Next.js Image needs static width/height for
                       remote paths served from /uploads. Customer-submitted
@@ -207,17 +220,17 @@ export default async function BookingPage({
           </section>
         )}
 
-        {copy.canCancel && <CancelButton token={booking.token} />}
+        {isActive && (
+          <div className="mb-6">
+            <BookingActions token={booking.token} />
+          </div>
+        )}
 
-        <div className="mt-10 flex justify-center">
-          <Image
-            src="/logo_secondary.png"
-            alt=""
-            width={110}
-            height={110}
-            className="h-auto w-auto max-w-[110px] opacity-70"
-          />
-        </div>
+        {isActive && copy.canCancel && (
+          <hr className="my-6 border-gray-200" />
+        )}
+
+        {copy.canCancel && <CancelButton token={booking.token} />}
       </div>
     </main>
   );
@@ -226,8 +239,8 @@ export default async function BookingPage({
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start gap-3">
-      <dt className="w-24 flex-shrink-0 text-gray-400">{label}</dt>
-      <dd className="flex-1 text-white">{value}</dd>
+      <dt className="w-24 flex-shrink-0 text-gray-500">{label}</dt>
+      <dd className="flex-1 text-gray-900">{value}</dd>
     </div>
   );
 }

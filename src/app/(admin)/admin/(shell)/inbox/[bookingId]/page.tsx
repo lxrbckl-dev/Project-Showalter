@@ -314,6 +314,18 @@ export default async function AdminBookingDetailPage({
         </div>
       )}
 
+      {row.status === 'canceled' && row.cancelReason && (
+        <div
+          data-testid="detail-cancel-reason"
+          className="rounded-md border border-red-200 bg-red-50 p-4 text-sm"
+        >
+          <div className="mb-1 text-xs font-medium uppercase text-red-900">
+            Customer cancel reason
+          </div>
+          <p className="text-red-900/90">{row.cancelReason}</p>
+        </div>
+      )}
+
       <section className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6">
         <h2 className="mb-4 text-lg font-semibold">Details</h2>
         <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">

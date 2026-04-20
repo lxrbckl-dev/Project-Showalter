@@ -77,6 +77,13 @@ export const bookings = sqliteTable(
      * are not reschedules). Added in 0007_admin_mgmt.sql.
      */
     rescheduledToId: integer('rescheduled_to_id'),
+    /**
+     * Optional free-text reason captured when the customer self-cancels.
+     * Surfaced on both the customer status page and the admin booking
+     * detail page so Sawyer can see why they canceled. NULL when omitted
+     * or when the cancel was admin-initiated.
+     */
+    cancelReason: text('cancel_reason'),
   },
   (table) => ({
     statusStartIdx: index('bookings_status_start_idx').on(
