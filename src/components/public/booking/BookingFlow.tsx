@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 
 // Umami analytics helper — no-op when umami is not loaded.
 function trackUmami(event: string): void {
@@ -192,6 +192,25 @@ function DayPicker({
   onPick: (date: string) => void;
   bannerError: string | null;
 }) {
+  // On mount, snap the scroll viewport so today's row is at the top of the
+  // visible region. We grab today as YYYY-MM-DD in the browser's local tz
+  // (matches `availability[].date` shape) and scroll that row's `offsetTop`.
+  // No-op if today isn't in the list — the natural top stays.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const todayIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const target = container.querySelector<HTMLElement>(
+      `[data-date="${todayIso}"]`,
+    );
+    if (target) {
+      container.scrollTop = target.offsetTop - container.offsetTop;
+    }
+  }, [availability]);
+
   return (
     <section aria-label="Pick a day">
       {bannerError && (
@@ -203,17 +222,20 @@ function DayPicker({
         </div>
       )}
       <h2 className="mb-4 text-lg font-semibold text-gray-900">Pick a day</h2>
-      {/* Capped height + overflow-y-auto so the day grid is a fixed-size
-        scrollable region instead of pushing the rest of the page down.
-        Rows ~70px each; max-h-[24rem] shows ~5 rows before scrolling. */}
-      <div className="max-h-[24rem] overflow-y-auto rounded-md border border-gray-200 p-2">
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+      {/* Single-column scrollable list. Capped height keeps the form below
+        anchored; the useEffect above scrolls today into view on mount. */}
+      <div
+        ref={scrollRef}
+        className="max-h-[24rem] overflow-y-auto rounded-md border border-gray-200 p-2"
+      >
+        <div className="flex flex-col gap-2">
           {availability.map((day) => {
             const open = day.candidates.length > 0;
             return (
               <button
                 type="button"
                 key={day.date}
+                data-date={day.date}
                 disabled={!open}
                 onClick={() => onPick(day.date)}
                 data-testid={`day-${day.date}`}
@@ -585,7 +607,7 @@ function BookingForm({
           disabled={isSubmitting || !formValid}
           data-testid="booking-submit"
           data-umami-event="booking_submitted"
-          className="inline-flex items-center justify-center rounded-md bg-green-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-center rounded-md bg-green-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? 'Sending…' : 'Send request'}
         </button>
