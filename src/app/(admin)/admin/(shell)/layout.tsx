@@ -17,10 +17,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { auth } from '@/features/auth/auth';
 import { getDb } from '@/db';
-import { Button } from '@/components/ui/button';
 import { unreadCount } from '@/features/notifications/queries';
 import { AdminNav } from './_components/AdminNav';
-import { logoutAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,32 +46,31 @@ export default async function AdminLayout({
       */}
       <div className="sticky top-0 z-30">
         <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-3">
-              <Link href="/admin" aria-label="Showalter Admin">
-                <Image
-                  src="/logo_primary.png"
-                  alt="Showalter Admin"
-                  width={120}
-                  height={120}
-                  className="h-auto w-auto max-h-[120px]"
-                  priority
-                />
-              </Link>
+          {/* 3-column grid keeps the logo perfectly centered relative to
+            the page no matter how wide the hamburger button is. The third
+            column is an empty spacer balancing the hamburger so the logo
+            stays optically dead-center. */}
+          <div className="mx-auto grid max-w-6xl grid-cols-3 items-center px-6 py-4">
+            <div className="justify-self-start">
+              <AdminNav unread={unread} />
             </div>
-            <div className="flex items-center gap-3">
-              <form action={logoutAction}>
-                <Button type="submit" size="sm" variant="outline">
-                  Logout
-                </Button>
-              </form>
-            </div>
+            <Link
+              href="/admin"
+              aria-label="Showalter Admin"
+              className="justify-self-center"
+            >
+              <Image
+                src="/logo_primary.png"
+                alt="Showalter Admin"
+                width={120}
+                height={120}
+                className="h-auto w-auto max-h-[120px]"
+                priority
+              />
+            </Link>
+            <div />
           </div>
         </header>
-
-        <nav className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-          <AdminNav unread={unread} />
-        </nav>
       </div>
 
       <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>

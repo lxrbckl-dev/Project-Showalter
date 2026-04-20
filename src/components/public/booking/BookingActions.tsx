@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar, Check, Copy } from 'lucide-react';
+import { Calendar, CalendarX, Check, Copy } from 'lucide-react';
 
 /**
  * Customer-facing action buttons on `/bookings/<token>`:
@@ -17,7 +17,19 @@ import { Calendar, Check, Copy } from 'lucide-react';
  * context (https or localhost) but the form action it powers is itself
  * gated behind the same context, so this is consistent.
  */
-export function BookingActions({ token }: { token: string }) {
+export function BookingActions({
+  token,
+  mode = 'add',
+}: {
+  token: string;
+  /**
+   * `'add'` (default) shows "Add to my schedule" → publish ICS.
+   * `'remove'` shows "Remove from my calendar" → cancel ICS, used on the
+   * canceled status page so customers can clean up a previously-added
+   * event. Reliable on iOS Calendar; iffy on Google/Outlook.
+   */
+  mode?: 'add' | 'remove';
+}) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,12 +46,14 @@ export function BookingActions({ token }: { token: string }) {
     }
   }
 
+  const intro =
+    mode === 'remove'
+      ? 'You can keep this link to reference the canceled booking, or remove the event from your calendar app.'
+      : 'Save this booking so you can come back any time to check its status, cancel it, or add it to your calendar.';
+
   return (
     <div data-testid="booking-actions" className="space-y-3">
-      <p className="text-sm text-gray-600">
-        Save this booking so you can come back any time to check its status,
-        cancel it, or add it to your calendar.
-      </p>
+      <p className="text-sm text-gray-600">{intro}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <button
@@ -64,19 +78,40 @@ export function BookingActions({ token }: { token: string }) {
           </p>
         </div>
         <div>
-          <a
-            href={`/bookings/${token}/ics`}
-            download
-            data-testid="add-to-calendar"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <Calendar className="h-4 w-4" aria-hidden="true" /> Add to my
-            schedule
-          </a>
-          <p className="mt-1 text-xs text-gray-500">
-            Drops this appointment into your phone&apos;s default calendar
-            app.
-          </p>
+          {mode === 'remove' ? (
+            <>
+              <a
+                href={`/bookings/${token}/ics?cancel=1`}
+                download
+                data-testid="remove-from-calendar"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <CalendarX className="h-4 w-4" aria-hidden="true" /> Remove
+                from my calendar
+              </a>
+              <p className="mt-1 text-xs text-gray-500">
+                Best on iPhone — Apple Calendar will offer to delete the
+                event. Google / Outlook may add a &ldquo;Canceled&rdquo;
+                entry instead, in which case delete it manually.
+              </p>
+            </>
+          ) : (
+            <>
+              <a
+                href={`/bookings/${token}/ics`}
+                download
+                data-testid="add-to-calendar"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <Calendar className="h-4 w-4" aria-hidden="true" /> Add to
+                my schedule
+              </a>
+              <p className="mt-1 text-xs text-gray-500">
+                Drops this appointment into your phone&apos;s default
+                calendar app.
+              </p>
+            </>
+          )}
         </div>
       </div>
       {error && (

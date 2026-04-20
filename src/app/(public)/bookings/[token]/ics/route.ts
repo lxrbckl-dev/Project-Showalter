@@ -20,13 +20,18 @@ import { buildIcs } from '@/features/calendar/ics';
 export const dynamic = 'force-dynamic';
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ token: string }> },
 ): Promise<Response> {
   const { token } = await params;
   if (!token) {
     return new Response('Not found', { status: 404 });
   }
+
+  // `?cancel=1` flips the file to METHOD:CANCEL + STATUS:CANCELLED with
+  // the same UID so a previously-imported event can be removed from the
+  // customer's calendar (best supported on iOS).
+  const wantCancel = new URL(request.url).searchParams.get('cancel') === '1';
 
   const db = getDb();
   const booking = db
@@ -60,13 +65,18 @@ export async function GET(
     location: booking.addressText,
     description: booking.notes ?? undefined,
     timezone,
+    method: wantCancel ? 'cancel' : 'publish',
   });
+
+  const filename = wantCancel
+    ? `appointment-${booking.token}-cancel.ics`
+    : `appointment-${booking.token}.ics`;
 
   return new Response(ics, {
     status: 200,
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': `attachment; filename="appointment-${booking.token}.ics"`,
+      'Content-Disposition': `attachment; filename="${filename}"`,
       'Cache-Control': 'no-store',
     },
   });

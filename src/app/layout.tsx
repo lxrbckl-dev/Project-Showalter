@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import Script from 'next/script';
 import { getSiteConfig } from '@/features/site-config/queries';
 import './globals.css';
 
@@ -66,21 +65,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
-        {children}
-        {/* Service worker stub — registration only. Push logic lands in Phase 8. */}
-        {process.env.NODE_ENV === 'production' && (
-          <Script id="sw-register" strategy="afterInteractive">{`
-            if ('serviceWorker' in navigator) {
-              window.addEventListener('load', function () {
-                navigator.serviceWorker
-                  .register('/sw.js')
-                  .catch(function (err) { console.error('[sw] registration failed', err); });
-              });
-            }
-          `}</Script>
-        )}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

@@ -1,12 +1,12 @@
 /**
- * Auto-expire pending bookings sweep — Phase 8B.
+ * Auto-expire pending bookings sweep.
  *
  * Schedule: every 15 minutes (`*\/15 * * * *`).
  *
- * For each booking with status='pending' AND created_at + 72h has passed:
- *   1. Set status='expired', decided_at=now
- *   2. Insert in-app notification (kind='booking_expired')
- *   3. Call sendPush
+ * For each booking with status='pending' AND created_at + 72h has passed,
+ * flips status='expired' and stamps decided_at=now. No notification fan-out
+ * by design — Sawyer's badge is scoped to "new pending bookings I haven't
+ * looked at" only.
  *
  * Idempotent: after a booking transitions to 'expired' its status is no
  * longer 'pending', so it's excluded from the query on subsequent runs.

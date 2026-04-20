@@ -42,6 +42,13 @@ export interface IcsBookingInput {
    * Exposed so tests can make DTSTAMP deterministic.
    */
   now?: Date;
+  /**
+   * `'publish'` (default) emits a normal event the calendar app adds.
+   * `'cancel'` emits METHOD:CANCEL + STATUS:CANCELLED + SEQUENCE:1 with the
+   * same UID. iOS Calendar honors this and offers "Remove from Calendar";
+   * Google / Outlook may render it as a separate "Canceled" event instead.
+   */
+  method?: 'publish' | 'cancel';
 }
 
 const CRLF = '\r\n';
@@ -134,7 +141,9 @@ export function buildIcs(input: IcsBookingInput): string {
     description,
     timezone,
     now = new Date(),
+    method = 'publish',
   } = input;
+  const isCancel = method === 'cancel';
 
   const start = new Date(startAtIso);
   if (Number.isNaN(start.getTime())) {
@@ -152,7 +161,7 @@ export function buildIcs(input: IcsBookingInput): string {
     'VERSION:2.0',
     'PRODID:-//Showalter Services//Booking//EN',
     'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
+    `METHOD:${isCancel ? 'CANCEL' : 'PUBLISH'}`,
     // Minimal VTIMEZONE stub — Apple Calendar / Google Calendar look up
     // the TZID string in their own tz database rather than parsing the
     // standard/daylight components, so this suffices.
@@ -164,22 +173,29 @@ export function buildIcs(input: IcsBookingInput): string {
     `DTSTAMP:${dtstamp}`,
     `DTSTART;TZID=${timezone}:${dtstart}`,
     `DTEND;TZID=${timezone}:${dtend}`,
-    `SUMMARY:${escapeText(summary)}`,
+    `SUMMARY:${isCancel ? 'Canceled: ' : ''}${escapeText(summary)}`,
     `LOCATION:${escapeText(location)}`,
   ];
   if (description) {
     lines.push(`DESCRIPTION:${escapeText(description)}`);
   }
-  // VALARM: 24-hour reminder (STACK.md § Conventions).
-  lines.push(
-    'BEGIN:VALARM',
-    'ACTION:DISPLAY',
-    'DESCRIPTION:Reminder',
-    'TRIGGER:-PT24H',
-    'END:VALARM',
-    'END:VEVENT',
-    'END:VCALENDAR',
-  );
+  if (isCancel) {
+    // STATUS:CANCELLED + SEQUENCE>0 are required for the calendar app to
+    // recognize this as an update to a previously-imported event with the
+    // same UID, rather than as a brand-new entry.
+    lines.push('STATUS:CANCELLED', 'SEQUENCE:1');
+  } else {
+    // VALARM: 24-hour reminder (STACK.md § Conventions). Skip on cancel —
+    // the event is going away, no point reminding.
+    lines.push(
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Reminder',
+      'TRIGGER:-PT24H',
+      'END:VALARM',
+    );
+  }
+  lines.push('END:VEVENT', 'END:VCALENDAR');
 
   return lines.map(foldLine).join(CRLF) + CRLF;
 }

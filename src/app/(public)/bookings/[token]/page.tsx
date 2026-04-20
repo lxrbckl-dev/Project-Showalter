@@ -126,9 +126,14 @@ export default async function BookingPage({
     if (next) rescheduledTo = next;
   }
 
-  // Active bookings (still useful for the customer to track / save) get the
-  // Copy link + Add-to-calendar buttons. Terminal states don't.
+  // Booking-actions visibility:
+  //   - Active (pending/accepted): show Copy link + Add to my schedule.
+  //   - Canceled: show Copy link + Remove from my calendar (CANCEL ICS).
+  //   - Other terminal states: hide entirely.
   const isActive = booking.status === 'pending' || booking.status === 'accepted';
+  const isCanceled = booking.status === 'canceled';
+  const showActions = isActive || isCanceled;
+  const actionsMode: 'add' | 'remove' = isActive ? 'add' : 'remove';
 
   return (
     <main className="bg-white text-gray-900">
@@ -220,9 +225,9 @@ export default async function BookingPage({
           </section>
         )}
 
-        {isActive && (
+        {showActions && (
           <div className="mb-6">
-            <BookingActions token={booking.token} />
+            <BookingActions token={booking.token} mode={actionsMode} />
           </div>
         )}
 

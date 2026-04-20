@@ -94,7 +94,8 @@ function makeDb(): { sqlite: Database.Database; db: Db } {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       decided_at TEXT,
-      rescheduled_to_id INTEGER
+      rescheduled_to_id INTEGER,
+      cancel_reason TEXT
     );
     CREATE UNIQUE INDEX bookings_active_start
       ON bookings(start_at) WHERE status IN ('pending', 'accepted');

@@ -13,7 +13,6 @@ import { upload } from '@/features/uploads/upload';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { bookingSubmitSchema } from './validate';
 import { isStartAtStillAvailable } from './availability-for-customer';
-import { sendPushToAllAdmins } from '@/server/notifications/push';
 
 /**
  * Booking submission server action — Phase 5.
@@ -306,43 +305,12 @@ export async function submitBookingCore(
 
 /**
  * Server-action entry point called by the <form action={submitBooking}> tag.
- * Wraps `submitBookingCore` with the Next-specific header/DB lookup and
- * fires the Web Push fan-out to all admins AFTER the core returns.
- *
- * Push is deliberately outside the core so the core stays a pure, unit-
- * testable pipeline. It is also wrapped in a try/catch — a push failure
- * must never reject the booking (the row is already committed; the admin
- * still sees it in the in-app inbox).
+ * Wraps `submitBookingCore` with the Next-specific header/DB lookup. The
+ * core handles the in-app inbox notification row that drives the admin
+ * Inbox-tab badge.
  */
 export async function submitBooking(formData: FormData): Promise<SubmitResult> {
   const db = getDb();
   const ip = await resolveRequestIp();
-  const result = await submitBookingCore({ formData, db, ip });
-  if (result.ok && typeof result.bookingId === 'number') {
-    try {
-      await sendPushToAllAdmins({
-        title: 'New booking request',
-        body: `${extractCustomerName(formData)} wants ${result.serviceName ?? 'a service'}`,
-        url: `/admin/inbox/${result.bookingId}`,
-      });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(
-        JSON.stringify({
-          level: 'warn',
-          msg: 'submit: push fan-out failed',
-          bookingId: result.bookingId,
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
-    }
-  }
-  return result;
-}
-
-/** Best-effort extract of the customer name for the push body. */
-function extractCustomerName(formData: FormData): string {
-  const raw = formData.get('name');
-  if (typeof raw === 'string' && raw.trim().length > 0) return raw.trim();
-  return 'A customer';
+  return submitBookingCore({ formData, db, ip });
 }

@@ -12,7 +12,7 @@
  *   Phase 4: availability.ts
  *   Phase 5: customers.ts, bookings.ts, booking-attachments.ts
  *   Phase 6: notifications.ts
- *   Phase 8: push-subscriptions.ts, cron-runs.ts
+ *   Phase 8: cron-runs.ts
  *   Phase 9: reviews.ts, review-photos.ts
  *
  * Conventions:
@@ -36,7 +36,6 @@ export * from './customer-addresses';
 export * from './bookings';
 export * from './booking-attachments';
 export * from './notifications';
-export * from './push-subscriptions';
 export * from './cron-runs';
 export * from './reviews';
 export * from './review-photos';

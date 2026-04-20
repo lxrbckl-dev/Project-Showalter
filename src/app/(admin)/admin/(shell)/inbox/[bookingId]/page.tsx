@@ -348,10 +348,23 @@ export default async function AdminBookingDetailPage({
               value={formatStartAt(row.decidedAt, tz)}
             />
           )}
-          <DetailRow
-            label="Customer token URL"
-            value={`/bookings/${row.token}`}
-          />
+          <div>
+            <dt className="text-xs uppercase text-[hsl(var(--muted-foreground))]">
+              Customer view
+            </dt>
+            <dd className="mt-0.5">
+              <Link
+                href={`/bookings/${row.token}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="customer-view-link"
+                className="inline-flex items-center gap-1 underline hover:text-[hsl(var(--foreground))]"
+              >
+                /bookings/{row.token}
+                <span aria-hidden="true">↗</span>
+              </Link>
+            </dd>
+          </div>
         </dl>
       </section>
 

@@ -39,7 +39,8 @@ function makeDb(): { sqlite: Database.Database; db: Db } {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       decided_at TEXT,
-      rescheduled_to_id INTEGER
+      rescheduled_to_id INTEGER,
+      cancel_reason TEXT
     );
     CREATE TABLE notifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -100,10 +101,6 @@ describe('auto-expire sweep', () => {
     const made = makeDb();
     sqlite = made.sqlite;
     db = made.db;
-    vi.mock('@/server/notifications/push', () => ({
-      sendPushToAllAdmins: vi.fn().mockResolvedValue({ attempted: 0, delivered: 0, removed: 0, failed: 0 }),
-      isPushConfigured: vi.fn().mockReturnValue(false),
-    }));
   });
 
   it('does not expire a booking under 72h old', async () => {
