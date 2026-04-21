@@ -68,7 +68,7 @@ export function CreateReviewLinkForm({ customers }: CreateReviewLinkFormProps) {
         className="space-y-4 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6"
         data-testid="create-review-link-generated"
       >
-        <h2 className="text-lg font-semibold">Review link created</h2>
+        <h2 className="text-lg font-semibold">Review Created</h2>
 
         <p className="text-sm">
           Customer:{' '}
@@ -77,31 +77,18 @@ export function CreateReviewLinkForm({ customers }: CreateReviewLinkFormProps) {
           </span>
         </p>
 
-        {/* URL display + copy */}
-        <div className="space-y-1">
-          <p className="text-xs uppercase text-[hsl(var(--muted-foreground))]">
-            Review link
-          </p>
-          <div className="flex flex-wrap items-center gap-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30 px-3 py-2">
-            <span
-              className="min-w-0 break-all font-mono text-sm"
-              data-testid="generated-review-link"
-            >
-              {generated.reviewLink}
-            </span>
-            <CopyButton text={generated.reviewLink} />
-          </div>
-        </div>
-
-        {/* Send via email / SMS */}
-        <div className="flex flex-wrap gap-2">
+        {/* Action row — Copy icon + SMS / email side-by-side. The raw URL
+          isn't surfaced; admins copy via the Copy button or open the
+          prefilled SMS / email directly. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <CopyButton text={generated.reviewLink} />
           {generated.emailHref && (
             <a
               href={generated.emailHref}
               target="_blank"
               rel="noopener noreferrer"
               data-testid="generated-email-link"
-              className="rounded-md bg-[hsl(var(--primary))] px-4 py-2 text-sm font-medium text-[hsl(var(--primary-foreground))] hover:opacity-90"
+              className="inline-flex h-9 items-center rounded-md bg-[hsl(var(--primary))] px-4 text-sm font-medium text-[hsl(var(--primary-foreground))] hover:opacity-90"
             >
               Open email
             </a>
@@ -112,7 +99,7 @@ export function CreateReviewLinkForm({ customers }: CreateReviewLinkFormProps) {
               target="_blank"
               rel="noopener noreferrer"
               data-testid="generated-sms-link"
-              className="rounded-md border border-[hsl(var(--border))] px-4 py-2 text-sm font-medium hover:bg-[hsl(var(--accent))]"
+              className="inline-flex h-9 items-center rounded-md border border-[hsl(var(--border))] px-4 text-sm font-medium hover:bg-[hsl(var(--accent))]"
             >
               Open SMS
             </a>

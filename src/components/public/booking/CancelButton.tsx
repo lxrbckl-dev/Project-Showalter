@@ -11,7 +11,14 @@ import { cancelByCustomer } from '@/features/bookings/cancel-by-customer';
  * parent server page re-renders with the canceled status banner via
  * `revalidatePath`.
  */
-export function CancelButton({ token }: { token: string }) {
+export function CancelButton({
+  token,
+  ownerFirstName,
+}: {
+  token: string;
+  ownerFirstName?: string | null;
+}) {
+  const host = ownerFirstName?.trim() || 'Sawyer';
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -75,7 +82,7 @@ export function CancelButton({ token }: { token: string }) {
           onChange={(e) => setReason(e.target.value)}
           rows={2}
           maxLength={500}
-          placeholder="Letting Sawyer know why is helpful but optional."
+          placeholder={`Letting ${host} know why is helpful but optional.`}
           data-testid="cancel-reason"
           className="w-full rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-red-500 focus:outline-none"
         />

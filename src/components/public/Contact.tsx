@@ -3,7 +3,10 @@ import { Mail, Phone } from 'lucide-react';
 import type { SiteConfigRow } from '@/db/schema/site-config';
 
 interface ContactProps {
-  siteConfig: Pick<SiteConfigRow, 'phone' | 'email' | 'tiktokUrl' | 'emailTemplateSubject' | 'emailTemplateBody'>;
+  siteConfig: Pick<
+    SiteConfigRow,
+    'phone' | 'email' | 'tiktokUrl' | 'emailTemplateSubject' | 'emailTemplateBody' | 'ownerFirstName'
+  >;
 }
 
 /**
@@ -35,6 +38,7 @@ function TikTokIcon() {
  * Contact section — icon buttons for phone, email, and TikTok.
  */
 export function Contact({ siteConfig }: ContactProps) {
+  const host = siteConfig.ownerFirstName?.trim() || 'Sawyer';
   const emailHref = siteConfig.email
     ? buildMailtoHref(siteConfig.email, siteConfig.emailTemplateSubject, siteConfig.emailTemplateBody)
     : null;
@@ -49,8 +53,8 @@ export function Contact({ siteConfig }: ContactProps) {
               href={`tel:${siteConfig.phone}`}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Call Sawyer"
-              title="Call Sawyer"
+              aria-label={`Call ${host}`}
+              title={`Call ${host}`}
               className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-green-700 shadow-sm ring-1 ring-gray-200 transition-colors duration-200 hover:bg-green-100 hover:text-green-800"
             >
               <Phone className="h-7 w-7" aria-hidden="true" />
@@ -61,8 +65,8 @@ export function Contact({ siteConfig }: ContactProps) {
               href={emailHref}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Email Sawyer"
-              title="Email Sawyer"
+              aria-label={`Email ${host}`}
+              title={`Email ${host}`}
               className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-green-700 shadow-sm ring-1 ring-gray-200 transition-colors duration-200 hover:bg-green-100 hover:text-green-800"
             >
               <Mail className="h-7 w-7" aria-hidden="true" />
@@ -73,8 +77,8 @@ export function Contact({ siteConfig }: ContactProps) {
               href={siteConfig.tiktokUrl}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Sawyer on TikTok"
-              title="Sawyer on TikTok"
+              aria-label={`${host} on TikTok`}
+              title={`${host} on TikTok`}
               className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-green-700 shadow-sm ring-1 ring-gray-200 transition-colors duration-200 hover:bg-green-100 hover:text-green-800"
             >
               <TikTokIcon />

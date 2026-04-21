@@ -136,6 +136,120 @@ function SortableRow({ service }: SortableRowProps) {
 }
 
 // ---------------------------------------------------------------------------
+// SortableCard — mobile-only card representation of an active service
+// ---------------------------------------------------------------------------
+
+function SortableCard({ service }: SortableRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: service.id,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 space-y-2"
+      data-testid={`service-card-${service.id}`}
+    >
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="mt-0.5 shrink-0 cursor-grab text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] active:cursor-grabbing"
+          aria-label={`Drag to reorder ${service.name}`}
+          data-testid="drag-handle-mobile"
+        >
+          <GripVertical size={18} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="truncate font-medium" data-testid="service-name-mobile">
+              {service.name}
+            </h3>
+            <Badge variant="default" className="shrink-0">
+              Active
+            </Badge>
+          </div>
+          {service.description && (
+            <p className="mt-1 line-clamp-2 text-xs text-[hsl(var(--muted-foreground))]">
+              {service.description}
+            </p>
+          )}
+          <p className="mt-1 text-sm tabular-nums text-[hsl(var(--foreground))]">
+            {formatPrice(service.priceCents, service.priceSuffix)}
+          </p>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Link href={`/admin/services/${service.id}/edit`} className="flex-1">
+          <Button size="sm" variant="outline" className="w-full" data-testid="edit-button-mobile">
+            Edit
+          </Button>
+        </Link>
+        <form action={archiveService.bind(null, service.id)} className="flex-1">
+          <Button
+            size="sm"
+            variant="outline"
+            type="submit"
+            className="w-full"
+            data-testid="archive-button-mobile"
+          >
+            Hide
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ArchivedCard — mobile-only card representation of a hidden service
+// ---------------------------------------------------------------------------
+
+function ArchivedCard({ service }: ArchivedRowProps) {
+  return (
+    <div
+      className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 space-y-2 opacity-60"
+      data-testid={`service-card-${service.id}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="truncate font-medium">{service.name}</h3>
+        <Badge variant="secondary" className="shrink-0">
+          Hidden
+        </Badge>
+      </div>
+      {service.description && (
+        <p className="line-clamp-2 text-xs text-[hsl(var(--muted-foreground))]">
+          {service.description}
+        </p>
+      )}
+      <p className="text-sm tabular-nums text-[hsl(var(--foreground))]">
+        {formatPrice(service.priceCents, service.priceSuffix)}
+      </p>
+      <div className="flex gap-2">
+        <Link href={`/admin/services/${service.id}/edit`} className="flex-1">
+          <Button size="sm" variant="outline" className="w-full">
+            Edit
+          </Button>
+        </Link>
+        <form action={restoreService.bind(null, service.id)} className="flex-1">
+          <Button size="sm" variant="outline" type="submit" className="w-full">
+            Show
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ArchivedRow — a non-draggable archived-service row inside the table
 // ---------------------------------------------------------------------------
 
@@ -266,7 +380,8 @@ export function UnifiedServicesTable({ services: initialServices }: UnifiedServi
         <p className="text-xs text-[hsl(var(--muted-foreground))]">Saving order…</p>
       )}
 
-      <div className="rounded-md border border-[hsl(var(--border))]">
+      {/* Desktop / tablet (md+): horizontal table. */}
+      <div className="hidden rounded-md border border-[hsl(var(--border))] md:block">
         {/* DndContext wraps the entire table so its accessibility <div> sits
             outside <table>, avoiding the invalid div-inside-table nesting. */}
         <DndContext
@@ -322,6 +437,39 @@ export function UnifiedServicesTable({ services: initialServices }: UnifiedServi
             </table>
           </SortableContext>
         </DndContext>
+      </div>
+
+      {/* Mobile (<md): stacked card list. Its own DndContext so dnd-kit
+          doesn't see two registrations for the same id. Only one of the two
+          DnD contexts is visible at a time (CSS), so pointer events resolve
+          unambiguously. */}
+      <div className="space-y-3 md:hidden" data-testid="mobile-services-list">
+        <DndContext
+          id="admin-services-sortable-mobile"
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={activeItems.map((s) => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {activeItems.map((service) => (
+              <SortableCard key={service.id} service={service} />
+            ))}
+          </SortableContext>
+        </DndContext>
+
+        {archivedItems.length > 0 && (
+          <>
+            <p className="pt-2 text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+              Hidden
+            </p>
+            {archivedItems.map((service) => (
+              <ArchivedCard key={service.id} service={service} />
+            ))}
+          </>
+        )}
       </div>
     </div>
   );

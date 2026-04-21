@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import Link from 'next/link';
 
 // Umami analytics helper — no-op when umami is not loaded.
 function trackUmami(event: string): void {
@@ -30,6 +31,8 @@ import { submitBooking, type SubmitResult } from '@/features/bookings/submit';
 export interface BookingFlowProps {
   availability: CustomerDay[];
   services: ServiceRow[];
+  /** Site-owner first name for placeholder copy. Falls back to "Sawyer". */
+  ownerFirstName?: string | null;
 }
 
 type Step = 'day' | 'slot' | 'form' | 'submitting';
@@ -48,7 +51,8 @@ function formatDateLabel(dateIso: string): string {
   });
 }
 
-export function BookingFlow({ availability, services }: BookingFlowProps) {
+export function BookingFlow({ availability, services, ownerFirstName }: BookingFlowProps) {
+  const host = ownerFirstName?.trim() || 'Sawyer';
   const [step, setStep] = useState<Step>('day');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -130,28 +134,55 @@ export function BookingFlow({ availability, services }: BookingFlowProps) {
     });
   }
 
+  // Render a single contextual back nav at the very top, then the page
+  // heading, then the step content. Keeping these stacked here (instead of
+  // each step component owning its own back button) lets the back link sit
+  // ABOVE the page title across all three steps.
+  let backLink: React.ReactNode;
   if (step === 'day') {
-    return (
+    backLink = (
+      <Link
+        href="/"
+        className="self-start text-sm text-green-700 hover:text-green-600"
+      >
+        &larr; Back to home
+      </Link>
+    );
+  } else if (step === 'slot') {
+    backLink = (
+      <button
+        type="button"
+        onClick={backToDay}
+        className="self-start text-sm text-green-700 hover:text-green-600"
+      >
+        &larr; Back to days
+      </button>
+    );
+  } else {
+    backLink = (
+      <button
+        type="button"
+        onClick={backToSlot}
+        className="self-start text-sm text-green-700 hover:text-green-600"
+      >
+        &larr; Back to times
+      </button>
+    );
+  }
+
+  let stepContent: React.ReactNode = null;
+  if (step === 'day') {
+    stepContent = (
       <DayPicker
         availability={availability}
         onPick={handleDayPick}
         bannerError={submitError}
       />
     );
-  }
-
-  if (step === 'slot' && selectedDay) {
-    return (
-      <SlotPicker
-        day={selectedDay}
-        onPick={handleSlotPick}
-        onBack={backToDay}
-      />
-    );
-  }
-
-  if ((step === 'form' || step === 'submitting') && selectedDate && selectedSlot) {
-    return (
+  } else if (step === 'slot' && selectedDay) {
+    stepContent = <SlotPicker day={selectedDay} onPick={handleSlotPick} />;
+  } else if ((step === 'form' || step === 'submitting') && selectedDate && selectedSlot) {
+    stepContent = (
       <BookingForm
         date={selectedDate}
         startAt={selectedSlot}
@@ -159,12 +190,25 @@ export function BookingFlow({ availability, services }: BookingFlowProps) {
           selectedDay?.candidates.find((c) => c.startAt === selectedSlot)?.label ?? ''
         }
         services={services}
-        onBack={backToSlot}
+        host={host}
         onSubmit={handleSubmit}
         submitError={submitError}
         fieldErrors={fieldErrors}
         isSubmitting={isPending || step === 'submitting'}
       />
+    );
+  }
+
+  if (stepContent) {
+    return (
+      <>
+        <div className="mb-3">{backLink}</div>
+        <h1 className="mb-1 text-3xl font-bold tracking-tight text-gray-900">Request service</h1>
+        <p className="mb-4 text-gray-600">
+          Pick a day and time, tell {host} about the job, and he&apos;ll confirm.
+        </p>
+        {stepContent}
+      </>
     );
   }
 
@@ -212,7 +256,7 @@ function DayPicker({
   }, [availability]);
 
   return (
-    <section aria-label="Pick a day">
+    <section aria-label="Pick a day" className="flex min-h-0 flex-1 flex-col">
       {bannerError && (
         <div
           role="alert"
@@ -221,12 +265,15 @@ function DayPicker({
           {bannerError}
         </div>
       )}
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">Pick a day</h2>
-      {/* Single-column scrollable list. Capped height keeps the form below
-        anchored; the useEffect above scrolls today into view on mount. */}
+      <h2 className="mb-3 text-lg font-semibold text-gray-900">Pick a day</h2>
+      {/* `flex-1 min-h-0` lets the card consume available space when the
+        parent chain is constrained; `max-h-[55dvh]` enforces a viewport-
+        relative cap so a long availability list (which exceeds the
+        layout's min-h-screen) can't push the footer off-screen. The
+        useEffect scrolls today into view on mount. */}
       <div
         ref={scrollRef}
-        className="max-h-[24rem] overflow-y-auto rounded-md border border-gray-200 p-2"
+        className="min-h-0 max-h-[55dvh] flex-1 overflow-y-auto rounded-md border border-gray-200 p-2"
       >
         <div className="flex flex-col gap-2">
           {availability.map((day) => {
@@ -262,38 +309,34 @@ function DayPicker({
 function SlotPicker({
   day,
   onPick,
-  onBack,
 }: {
   day: CustomerDay;
   onPick: (startAt: string) => void;
-  onBack: () => void;
 }) {
   return (
-    <section aria-label="Pick a start time">
-      <button
-        type="button"
-        onClick={onBack}
-        className="mb-4 text-sm text-green-700 hover:text-green-600"
-      >
-        &larr; Back to days
-      </button>
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">
+    <section aria-label="Pick a start time" className="flex min-h-0 flex-1 flex-col">
+      <h2 className="mb-3 text-lg font-semibold text-gray-900">
         Pick a start time — {formatDateLabel(day.date)}
       </h2>
-      <ul className="space-y-2">
-        {day.candidates.map((c) => (
-          <li key={c.startAt}>
-            <button
-              type="button"
-              onClick={() => onPick(c.startAt)}
-              data-testid={`slot-${c.startAt}`}
-              className="w-full rounded-md border border-green-300 bg-green-50 px-4 py-3 text-left font-medium text-green-800 transition hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-400"
-            >
-              {c.label}
-            </button>
-          </li>
-        ))}
-      </ul>
+      {/* `flex-1 min-h-0` lets the slot list fill the remaining viewport;
+        `max-h-[55dvh]` is a viewport-relative cap so very long slot lists
+        can't push the footer off-screen on tall days. */}
+      <div className="min-h-0 max-h-[55dvh] flex-1 overflow-y-auto rounded-md border border-gray-200 p-2">
+        <ul className="flex flex-col gap-2">
+          {day.candidates.map((c) => (
+            <li key={c.startAt}>
+              <button
+                type="button"
+                onClick={() => onPick(c.startAt)}
+                data-testid={`slot-${c.startAt}`}
+                className="w-full rounded-md border border-green-300 bg-green-50 px-4 py-3 text-left font-medium text-green-800 transition hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-400"
+              >
+                {c.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }
@@ -306,7 +349,7 @@ function BookingForm({
   startAt,
   slotLabel,
   services,
-  onBack,
+  host,
   onSubmit,
   submitError,
   fieldErrors,
@@ -316,7 +359,7 @@ function BookingForm({
   startAt: string;
   slotLabel: string;
   services: ServiceRow[];
-  onBack: () => void;
+  host: string;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
   submitError: string | null;
   fieldErrors: Record<string, string[]>;
@@ -404,13 +447,6 @@ function BookingForm({
 
   return (
     <section aria-label="Request details">
-      <button
-        type="button"
-        onClick={onBack}
-        className="mb-4 text-sm text-green-700 hover:text-green-600"
-      >
-        &larr; Back to times
-      </button>
       <h2 className="mb-1 text-lg font-semibold text-gray-900">Your details</h2>
       <p className="mb-4 text-sm text-gray-500">
         {formatDateLabel(date)} &middot; {slotLabel}
@@ -566,7 +602,7 @@ function BookingForm({
               name="notes"
               rows={2}
               maxLength={2000}
-              placeholder="Gate code, yard size, anything else Sawyer should know"
+              placeholder={`Gate code, yard size, anything else ${host} should know`}
               className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-green-500 focus:outline-none"
             />
           )}

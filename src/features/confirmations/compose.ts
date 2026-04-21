@@ -44,25 +44,22 @@ Add to calendar:
 • Google: [google_link]
 • Apple:  [ics_link]
 
-— Sawyer
-913-309-7340`,
-  confirmation_sms: `Hi [name], this is Sawyer — you're confirmed for [service] on [date] at [time]. Reply here if anything changes. Add to calendar: [shortlink]`,
+— [host]`,
+  confirmation_sms: `Hi [name], this is [host] — you're confirmed for [service] on [date] at [time]. Reply here if anything changes. Add to calendar: [shortlink]`,
   decline_email: `Hi [name],
 
 Thanks for reaching out about [service] on [date]. Unfortunately I'm not able to take it on that day — if a different date works, feel free to submit another request!
 
-— Sawyer
-913-309-7340`,
-  decline_sms: `Hi [name], Sawyer here — can't do [service] on [date], sorry! If another day works feel free to book again.`,
+— [host]`,
+  decline_sms: `Hi [name], [host] here — can't do [service] on [date], sorry! If another day works feel free to book again.`,
   review_request_email: `Hi [name],
 
 Thanks for letting me work on your [service] today! If you have a quick moment, I'd really appreciate a review — it helps a lot:
 
 [link]
 
-— Sawyer
-913-309-7340`,
-  review_request_sms: `Hi [name], thanks for the job today! If you have a sec, a quick review would mean a lot: [link] — Sawyer`,
+— [host]`,
+  review_request_sms: `Hi [name], thanks for the job today! If you have a sec, a quick review would mean a lot: [link] — [host]`,
   reschedule_email: `Hi [name],
 
 Quick update — I've rescheduled your [service] appointment.
@@ -77,9 +74,8 @@ Add to calendar:
 
 Sorry for any inconvenience!
 
-— Sawyer
-913-309-7340`,
-  reschedule_sms: `Hi [name], Sawyer here — heads up your [service] has been rescheduled to [date] at [time]. Add to calendar: [shortlink]`,
+— [host]`,
+  reschedule_sms: `Hi [name], [host] here — heads up your [service] has been rescheduled to [date] at [time]. Add to calendar: [shortlink]`,
 };
 
 /**
@@ -245,6 +241,7 @@ export function composeConfirmationForBooking(
     baseUrl,
     token: row.token,
     reviewLink: opts.reviewLink,
+    hostName: cfg?.ownerFirstName ?? null,
   });
 
   const body = renderTemplate(bodyTemplate, vars);

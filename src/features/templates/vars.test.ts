@@ -17,6 +17,7 @@ describe('buildTemplateVars', () => {
     const vars = buildTemplateVars(BASE_INPUT);
     for (const k of [
       'name',
+      'host',
       'service',
       'date',
       'time',
@@ -28,6 +29,17 @@ describe('buildTemplateVars', () => {
     ]) {
       expect(Object.prototype.hasOwnProperty.call(vars, k)).toBe(true);
     }
+  });
+
+  it('emits the configured host name when provided', () => {
+    const vars = buildTemplateVars({ ...BASE_INPUT, hostName: 'Mason' });
+    expect(vars.host).toBe('Mason');
+  });
+
+  it('falls back to "Sawyer" when hostName is null/blank', () => {
+    expect(buildTemplateVars({ ...BASE_INPUT, hostName: null }).host).toBe('Sawyer');
+    expect(buildTemplateVars({ ...BASE_INPUT, hostName: '   ' }).host).toBe('Sawyer');
+    expect(buildTemplateVars(BASE_INPUT).host).toBe('Sawyer');
   });
 
   it('formats date and time in the site timezone', () => {

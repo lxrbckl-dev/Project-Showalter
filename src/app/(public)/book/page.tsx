@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { getDb } from '@/db';
+import { siteConfig as siteConfigTable } from '@/db/schema/site-config';
 import type { ServiceRow } from '@/db/schema/services';
 import {
   availabilityForCustomer,
@@ -40,30 +40,40 @@ export default function BookPage() {
     services = [];
   }
 
+  const cfg = db
+    .select({ ownerFirstName: siteConfigTable.ownerFirstName })
+    .from(siteConfigTable)
+    .limit(1)
+    .all()[0];
+  const host = cfg?.ownerFirstName?.trim() || 'Sawyer';
+
   const anyAvailability = hasAnyAvailability(availability);
 
   return (
-    <main className="min-h-screen bg-white">
-      <div className="mx-auto max-w-2xl px-6 py-12">
-        <div className="mb-8">
-          <Link
-            href="/"
-            className="text-sm text-green-700 hover:text-green-600"
-          >
-            &larr; Back to home
-          </Link>
-        </div>
-        <h1 className="mb-2 text-3xl font-bold tracking-tight text-gray-900">Request service</h1>
-        <p className="mb-8 text-gray-600">
-          Pick a day and time, tell Sawyer about the job, and he&apos;ll confirm.
-        </p>
-
+    <main className="flex min-h-0 flex-1 flex-col bg-white">
+      <div className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col px-6 py-6">
         {services.length === 0 ? (
-          <EmptyServicesState />
+          <>
+            <h1 className="mb-1 text-3xl font-bold tracking-tight text-gray-900">Request service</h1>
+            <p className="mb-4 text-gray-600">
+              Pick a day and time, tell {host} about the job, and he&apos;ll confirm.
+            </p>
+            <EmptyServicesState />
+          </>
         ) : !anyAvailability ? (
-          <NoOpeningsState />
+          <>
+            <h1 className="mb-1 text-3xl font-bold tracking-tight text-gray-900">Request service</h1>
+            <p className="mb-4 text-gray-600">
+              Pick a day and time, tell {host} about the job, and he&apos;ll confirm.
+            </p>
+            <NoOpeningsState host={host} />
+          </>
         ) : (
-          <BookingFlow availability={availability} services={services} />
+          <BookingFlow
+            availability={availability}
+            services={services}
+            ownerFirstName={cfg?.ownerFirstName ?? null}
+          />
         )}
       </div>
     </main>
@@ -80,7 +90,7 @@ function EmptyServicesState() {
   );
 }
 
-function NoOpeningsState() {
+function NoOpeningsState({ host }: { host: string }) {
   return (
     <div
       role="status"
@@ -90,7 +100,7 @@ function NoOpeningsState() {
         No openings right now
       </h2>
       <p className="text-green-700">
-        Sawyer&apos;s schedule is full for the next few weeks — check back
+        {host}&apos;s schedule is full for the next few weeks — check back
         soon. If the job can&apos;t wait, text him directly from the
         home page.
       </p>

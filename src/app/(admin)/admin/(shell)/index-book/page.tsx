@@ -5,6 +5,7 @@ import {
   type CustomerSort,
 } from '@/features/customers/queries';
 import { formatUSPhone } from '@/lib/formatters/phone';
+import { RolodexCard } from './_components/RolodexCard';
 
 /**
  * Admin INDEX book — customer directory list view (Phase 10).
@@ -136,86 +137,124 @@ export default async function AdminIndexBookPage({
         )}
       </form>
 
-      {/* Results table */}
+      {/* Results */}
       {visible.length === 0 ? (
         <p className="text-sm text-[hsl(var(--muted-foreground))]" data-testid="index-book-empty">
           {q ? `No customers found for "${q}".` : 'No customers yet.'}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-[hsl(var(--border))]">
-          <table
-            className="min-w-full divide-y divide-[hsl(var(--border))] text-sm"
-            data-testid="index-book-table"
-          >
-            <thead className="bg-[hsl(var(--card))]">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-[hsl(var(--muted-foreground))]">
-                  Name
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-[hsl(var(--muted-foreground))]">
-                  Phone
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-[hsl(var(--muted-foreground))]">
-                  Email
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-[hsl(var(--muted-foreground))]">
-                  <Link
-                    href={sortHref}
-                    aria-sort={
-                      sort === 'bookings_desc'
-                        ? 'descending'
-                        : sort === 'bookings_asc'
-                          ? 'ascending'
-                          : 'none'
-                    }
-                    data-testid="sort-bookings"
-                    className="inline-flex items-center gap-1 hover:text-[hsl(var(--foreground))]"
-                  >
-                    Bookings{sortIndicator}
-                  </Link>
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-[hsl(var(--muted-foreground))]">
-                  Last booking
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[hsl(var(--border))] bg-[hsl(var(--background))]">
-              {visible.map(({ customer, totalBookings, lastBookingAt }) => (
-                <tr
-                  key={customer.id}
-                  data-testid="index-book-row"
-                  data-customer-id={customer.id}
-                  className="cursor-pointer hover:bg-[hsl(var(--accent))]"
-                >
-                  <td className="px-4 py-3">
+        <>
+          {/* Desktop / tablet (md+): table view. */}
+          <div className="hidden overflow-x-auto rounded-md border border-[hsl(var(--border))] md:block">
+            <table
+              className="min-w-full divide-y divide-[hsl(var(--border))] text-sm"
+              data-testid="index-book-table"
+            >
+              <thead className="bg-[hsl(var(--card))]">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium text-[hsl(var(--muted-foreground))]">
+                    Name
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-[hsl(var(--muted-foreground))]">
+                    Phone
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-[hsl(var(--muted-foreground))]">
+                    Email
+                  </th>
+                  <th className="px-4 py-3 text-right font-medium text-[hsl(var(--muted-foreground))]">
                     <Link
-                      href={`/admin/index-book/${customer.id}`}
-                      className="font-medium text-[hsl(var(--foreground))] hover:underline"
-                      data-testid="index-book-row-name"
+                      href={sortHref}
+                      aria-sort={
+                        sort === 'bookings_desc'
+                          ? 'descending'
+                          : sort === 'bookings_asc'
+                            ? 'ascending'
+                            : 'none'
+                      }
+                      data-testid="sort-bookings"
+                      className="inline-flex items-center gap-1 hover:text-[hsl(var(--foreground))]"
                     >
-                      {customer.name}
+                      Bookings{sortIndicator}
                     </Link>
-                  </td>
-                  <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
-                    {formatUSPhone(customer.phone)}
-                  </td>
-                  <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
-                    {customer.email ?? '—'}
-                  </td>
-                  <td
-                    className="px-4 py-3 text-right tabular-nums"
-                    data-testid="index-book-row-bookings"
-                  >
-                    {totalBookings}
-                  </td>
-                  <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
-                    {formatDate(lastBookingAt)}
-                  </td>
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-[hsl(var(--muted-foreground))]">
+                    Last booking
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-[hsl(var(--border))] bg-[hsl(var(--background))]">
+                {visible.map(({ customer, totalBookings, lastBookingAt }) => (
+                  <tr
+                    key={customer.id}
+                    data-testid="index-book-row"
+                    data-customer-id={customer.id}
+                    className="cursor-pointer hover:bg-[hsl(var(--accent))]"
+                  >
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/admin/index-book/${customer.id}`}
+                        className="font-medium text-[hsl(var(--foreground))] hover:underline"
+                        data-testid="index-book-row-name"
+                      >
+                        {customer.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
+                      {formatUSPhone(customer.phone)}
+                    </td>
+                    <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
+                      {customer.email ?? '—'}
+                    </td>
+                    <td
+                      className="px-4 py-3 text-right tabular-nums"
+                      data-testid="index-book-row-bookings"
+                    >
+                      {totalBookings}
+                    </td>
+                    <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
+                      {formatDate(lastBookingAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile (<md): stacked card list. The sort toggle is exposed as a
+              small bar above the list since the table-header sort link isn't
+              rendered on mobile. */}
+          <div className="space-y-3 md:hidden" data-testid="index-book-card-list">
+            <div className="flex items-center justify-end text-xs text-[hsl(var(--muted-foreground))]">
+              <Link
+                href={sortHref}
+                aria-sort={
+                  sort === 'bookings_desc'
+                    ? 'descending'
+                    : sort === 'bookings_asc'
+                      ? 'ascending'
+                      : 'none'
+                }
+                data-testid="sort-bookings-mobile"
+                className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-1.5 hover:bg-[hsl(var(--accent))]"
+              >
+                Sort: Bookings{sortIndicator || ' (recent)'}
+              </Link>
+            </div>
+            {visible.map(({ customer, totalBookings, lastBookingAt }) => (
+              <RolodexCard
+                key={customer.id}
+                customer={{
+                  id: customer.id,
+                  name: customer.name,
+                  phone: customer.phone,
+                  email: customer.email,
+                }}
+                totalBookings={totalBookings}
+                lastBookingLabel={formatDate(lastBookingAt)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {/* Pagination */}

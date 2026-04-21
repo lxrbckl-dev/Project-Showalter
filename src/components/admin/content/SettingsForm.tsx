@@ -318,7 +318,7 @@ export function SettingsForm({ config }: SettingsFormProps) {
           <p className="text-xs text-[hsl(var(--muted-foreground))]">
             One fact per line. Up to 50 lines, 200 characters each. Order is
             randomized on each page load and items scroll continuously across
-            the landing page above "About Sawyer".
+            the landing page above the About section.
           </p>
           <FieldError errors={err('hostFacts')} />
         </div>

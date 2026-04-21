@@ -99,7 +99,7 @@ export default function HomePage() {
       >
         <h2 className="mb-3 text-3xl font-bold text-gray-900 md:text-4xl">Request Service</h2>
         <p className="mb-6 text-gray-600">
-          Pick a day and time, tell Sawyer about the job.
+          Pick a day and time, tell {config.ownerFirstName?.trim() || 'Sawyer'} about the job.
         </p>
         <a
           href="/book"

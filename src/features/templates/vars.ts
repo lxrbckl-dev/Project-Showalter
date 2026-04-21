@@ -40,6 +40,12 @@ export interface TemplateVarsInput {
    * templates. Left undefined for confirmation/decline templates.
    */
   reviewLink?: string;
+  /**
+   * First name of the site owner — used for the `[host]` placeholder so
+   * message signoffs ("— [host]") follow whatever name the admin sets in
+   * Content → Contact. Falls back to "Sawyer" when null.
+   */
+  hostName?: string | null;
 }
 
 /**
@@ -81,6 +87,7 @@ export function buildTemplateVars(
     baseUrl,
     token,
     reviewLink,
+    hostName,
   } = input;
 
   const service = serviceName ?? 'Service';
@@ -104,5 +111,6 @@ export function buildTemplateVars(
     google_link: googleLink,
     ics_link: icsLink,
     shortlink,
+    host: hostName?.trim() || 'Sawyer',
   };
 }

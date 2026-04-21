@@ -143,7 +143,7 @@ function DayRow({
   return (
     <div
       data-testid={`template-day-${dow}`}
-      className="rounded-md border border-[hsl(var(--border))] p-3"
+      className="rounded-md border border-[hsl(var(--border))] p-4"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -176,7 +176,7 @@ function DayRow({
           {draft.map((w, idx) => (
             <li
               key={idx}
-              className="flex flex-wrap items-center gap-2"
+              className="flex flex-wrap items-center gap-3 py-1"
               data-testid={`template-day-${dow}-window-${idx}`}
             >
               <Input
@@ -184,7 +184,7 @@ function DayRow({
                 value={w.startTime}
                 onChange={(e) => updateWindow(idx, { startTime: e.target.value })}
                 aria-label="start time"
-                className="w-28"
+                className="w-32 px-4"
               />
               <span className="text-sm text-[hsl(var(--muted-foreground))]">–</span>
               <Input
@@ -192,7 +192,7 @@ function DayRow({
                 value={w.endTime}
                 onChange={(e) => updateWindow(idx, { endTime: e.target.value })}
                 aria-label="end time"
-                className="w-28"
+                className="w-32 px-4"
               />
               <Button
                 type="button"
@@ -446,14 +446,14 @@ function WindowListEditor({
           {windows.map((w, idx) => (
             <li
               key={idx}
-              className="flex flex-wrap items-center gap-2"
+              className="flex flex-wrap items-center gap-3 py-1"
               data-testid={`${testidPrefix}-window-${idx}`}
             >
               <Input
                 type="time"
                 value={w.startTime}
                 onChange={(e) => update(idx, { startTime: e.target.value })}
-                className="w-28"
+                className="w-32 px-4"
                 aria-label="start time"
               />
               <span className="text-sm text-[hsl(var(--muted-foreground))]">–</span>
@@ -461,7 +461,7 @@ function WindowListEditor({
                 type="time"
                 value={w.endTime}
                 onChange={(e) => update(idx, { endTime: e.target.value })}
-                className="w-28"
+                className="w-32 px-4"
                 aria-label="end time"
               />
               <Button

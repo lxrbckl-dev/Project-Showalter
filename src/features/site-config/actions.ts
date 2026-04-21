@@ -152,8 +152,6 @@ const ContactSchema = z.object({
     .or(z.literal('')),
   dateOfBirth: isoDate.optional().or(z.literal('')),
   ownerFirstName: ownerFirstName.optional(),
-  emailTemplateSubject: emailTemplateSubject.optional(),
-  emailTemplateBody: emailTemplateBody.optional(),
 });
 
 export async function updateContact(
@@ -167,8 +165,6 @@ export async function updateContact(
     bio: data.get('bio') as string,
     dateOfBirth: (data.get('dateOfBirth') as string) ?? '',
     ownerFirstName: (data.get('ownerFirstName') as string) ?? '',
-    emailTemplateSubject: (data.get('emailTemplateSubject') as string) ?? '',
-    emailTemplateBody: (data.get('emailTemplateBody') as string) ?? '',
   };
 
   const parsed = ContactSchema.safeParse(raw);
@@ -183,8 +179,6 @@ export async function updateContact(
       bio: parsed.data.bio || null,
       dateOfBirth: parsed.data.dateOfBirth || null,
       ownerFirstName: parsed.data.ownerFirstName ?? null,
-      emailTemplateSubject: parsed.data.emailTemplateSubject ?? null,
-      emailTemplateBody: parsed.data.emailTemplateBody ?? null,
     })
     .run();
 
@@ -219,6 +213,11 @@ export async function updateSmsTemplate(
 // ---------------------------------------------------------------------------
 
 const TemplatesSchema = z.object({
+  // Email pre-fills (mailto subject + body when a visitor taps Email on the
+  // public Contact section). Optional — both can be blank.
+  emailTemplateSubject: emailTemplateSubject.optional(),
+  emailTemplateBody: emailTemplateBody.optional(),
+  // Eight message-template bodies, all required.
   templateConfirmationEmail: z.string().trim().min(1, 'Template is required'),
   templateConfirmationSms: z.string().trim().min(1, 'Template is required'),
   templateDeclineEmail: z.string().trim().min(1, 'Template is required'),
@@ -234,6 +233,8 @@ export async function updateTemplates(
   data: FormData,
 ): Promise<ActionResult> {
   const raw = {
+    emailTemplateSubject: (data.get('emailTemplateSubject') as string) ?? '',
+    emailTemplateBody: (data.get('emailTemplateBody') as string) ?? '',
     templateConfirmationEmail: data.get('templateConfirmationEmail') as string,
     templateConfirmationSms: data.get('templateConfirmationSms') as string,
     templateDeclineEmail: data.get('templateDeclineEmail') as string,
@@ -248,7 +249,13 @@ export async function updateTemplates(
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
   const db = getDb();
-  db.update(siteConfig).set(parsed.data).run();
+  db.update(siteConfig)
+    .set({
+      ...parsed.data,
+      emailTemplateSubject: parsed.data.emailTemplateSubject ?? null,
+      emailTemplateBody: parsed.data.emailTemplateBody ?? null,
+    })
+    .run();
   revalidatePath('/');
   return { ok: true };
 }

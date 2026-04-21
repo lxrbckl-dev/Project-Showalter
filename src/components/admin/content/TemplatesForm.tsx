@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { updateTemplates, type ActionResult } from '@/features/site-config/actions';
 import {
@@ -45,11 +46,69 @@ const FORM_FIELD_MAP: Record<TemplateKey, string> = {
 export function TemplatesForm({ config }: TemplatesFormProps) {
   const [state, formAction, isPending] = useActionState(updateTemplates, initialState);
 
+  const prefillSubjectErrors =
+    state.ok === false ? (state.errors.emailTemplateSubject ?? []) : [];
+  const prefillBodyErrors =
+    state.ok === false ? (state.errors.emailTemplateBody ?? []) : [];
+
   return (
     <form action={formAction} className="space-y-8">
       {state.ok === false && state.errors._root && (
         <p className="text-sm text-[hsl(var(--destructive))]">{state.errors._root.join(', ')}</p>
       )}
+
+      {/* ── Email pre-fills ─────────────────────────────────────────────
+        Visitor-facing mailto pre-population when someone taps the Email
+        icon on the public Contact section. Plain text (no template
+        variables) — admin maintains it free-form. Both fields optional.
+      */}
+      <section className="space-y-4 rounded-lg border border-[hsl(var(--border))] p-4">
+        <header>
+          <h3 className="text-sm font-semibold">Email pre-fills</h3>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            Pre-populates the subject and body when a visitor taps the Email
+            icon on your Contact section. Both optional.
+          </p>
+        </header>
+
+        <div className="space-y-1.5">
+          <label htmlFor="emailTemplateSubject" className="block text-sm font-medium">
+            Subject line
+          </label>
+          <Input
+            id="emailTemplateSubject"
+            name="emailTemplateSubject"
+            type="text"
+            defaultValue={config.emailTemplateSubject ?? ''}
+            placeholder="Service inquiry"
+            data-testid="contact-email-template-subject"
+          />
+          {prefillSubjectErrors.length > 0 && (
+            <p className="text-xs text-[hsl(var(--destructive))]">
+              {prefillSubjectErrors.join(', ')}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="emailTemplateBody" className="block text-sm font-medium">
+            Body
+          </label>
+          <Textarea
+            id="emailTemplateBody"
+            name="emailTemplateBody"
+            defaultValue={config.emailTemplateBody ?? ''}
+            rows={6}
+            placeholder={"Hi,\n\nI'd like to inquire about a service for my home.\n\nDetails:\n\n\nThanks!"}
+            data-testid="contact-email-template-body"
+          />
+          {prefillBodyErrors.length > 0 && (
+            <p className="text-xs text-[hsl(var(--destructive))]">
+              {prefillBodyErrors.join(', ')}
+            </p>
+          )}
+        </div>
+      </section>
 
       {TEMPLATE_KEYS.map((key) => {
         const fieldKey = FIELD_MAP[key];

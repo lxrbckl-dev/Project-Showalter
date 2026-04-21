@@ -39,18 +39,19 @@ export default async function ReviewPage({
   const cfg = db.select().from(siteConfigTable).limit(1).all()[0];
   const maxPhotos = cfg?.maxBookingPhotos ?? 3;
   const maxBytes = cfg?.bookingPhotoMaxBytes ?? 10_485_760;
+  const host = cfg?.ownerFirstName?.trim() || 'Sawyer';
 
   const customerName = review.customerName ?? 'there';
 
   if (review.status === 'submitted') {
     return (
       <main
-        className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center bg-black px-6 py-16 text-center text-white"
+        className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center bg-black px-6 py-16 text-center text-white"
         data-testid="review-thankyou"
       >
         <h1 className="text-3xl font-bold">Thanks for your review!</h1>
         <p className="mt-4 text-green-300">
-          Your feedback has been submitted. Sawyer appreciates it.
+          Your feedback has been submitted. {host} appreciates it.
         </p>
         {review.rating !== null && (
           <p className="mt-6 text-lg" data-testid="review-rating-display">
@@ -72,12 +73,12 @@ export default async function ReviewPage({
   // Pending → show the form.
   return (
     <main
-      className="mx-auto min-h-screen max-w-xl bg-black px-6 py-12 text-white"
+      className="mx-auto w-full max-w-xl flex-1 bg-black px-6 py-12 text-white"
       data-testid="review-form-page"
     >
       <h1 className="text-3xl font-bold">Leave a review</h1>
       <p className="mt-2 text-green-300">
-        Hi {customerName} — thanks for letting Sawyer work on your service!
+        Hi {customerName} — thanks for letting {host} work on your service!
         How did it go?
       </p>
       <div className="mt-8">

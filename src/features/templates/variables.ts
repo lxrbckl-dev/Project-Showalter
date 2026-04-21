@@ -31,6 +31,7 @@ export interface TemplateVariable {
  */
 export const ALL_VARIABLES: TemplateVariable[] = [
   { placeholder: '[name]', description: "Customer's name" },
+  { placeholder: '[host]', description: "Site owner's first name (Content → Contact)" },
   { placeholder: '[service]', description: 'Service name' },
   { placeholder: '[date]', description: 'Appointment date' },
   { placeholder: '[time]', description: 'Appointment time' },
@@ -47,28 +48,28 @@ export const ALL_VARIABLES: TemplateVariable[] = [
  */
 const SUPPORT_MAP: Record<TemplateKey, Set<string>> = {
   confirmation_email: new Set([
-    '[name]', '[service]', '[date]', '[time]', '[address]', '[google_link]', '[ics_link]',
+    '[name]', '[host]', '[service]', '[date]', '[time]', '[address]', '[google_link]', '[ics_link]',
   ]),
   confirmation_sms: new Set([
-    '[name]', '[service]', '[date]', '[time]', '[shortlink]',
+    '[name]', '[host]', '[service]', '[date]', '[time]', '[shortlink]',
   ]),
   decline_email: new Set([
-    '[name]', '[service]', '[date]',
+    '[name]', '[host]', '[service]', '[date]',
   ]),
   decline_sms: new Set([
-    '[name]', '[service]', '[date]',
+    '[name]', '[host]', '[service]', '[date]',
   ]),
   review_request_email: new Set([
-    '[name]', '[service]', '[link]',
+    '[name]', '[host]', '[service]', '[link]',
   ]),
   review_request_sms: new Set([
-    '[name]', '[link]',
+    '[name]', '[host]', '[link]',
   ]),
   reschedule_email: new Set([
-    '[name]', '[service]', '[date]', '[time]', '[address]', '[google_link]', '[ics_link]',
+    '[name]', '[host]', '[service]', '[date]', '[time]', '[address]', '[google_link]', '[ics_link]',
   ]),
   reschedule_sms: new Set([
-    '[name]', '[service]', '[date]', '[time]', '[shortlink]',
+    '[name]', '[host]', '[service]', '[date]', '[time]', '[shortlink]',
   ]),
 };
 

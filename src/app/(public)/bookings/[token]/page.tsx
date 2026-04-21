@@ -25,23 +25,25 @@ export const dynamic = 'force-dynamic';
 
 // Status → copy for the top banner.
 // The `completed` body interpolates the admin-configurable site title so a
-// future rebrand flows through without a code change.
+// future rebrand flows through without a code change. `host` interpolates
+// `siteConfig.ownerFirstName` so signoff copy follows admin-set first name.
 function buildStatusCopy(
   siteTitle: string,
+  host: string,
 ): Record<BookingStatus, { heading: string; body: string; canCancel: boolean }> {
   return {
     pending: {
       heading: 'Request received',
-      body: 'Waiting for Sawyer to confirm. You can cancel below anytime before he responds.',
+      body: `Waiting for ${host} to confirm. You can cancel below anytime before he responds.`,
       canCancel: true,
     },
     accepted: {
       heading: 'Appointment confirmed',
-      body: 'Sawyer confirmed your appointment. See you then!',
+      body: `${host} confirmed your appointment. See you then!`,
       canCancel: true,
     },
     declined: {
-      heading: "Sawyer couldn't take this one",
+      heading: `${host} couldn't take this one`,
       body: 'Feel free to submit another request with a different day or service.',
       canCancel: false,
     },
@@ -100,14 +102,16 @@ export default async function BookingPage({
     .select({
       timezone: siteConfigTable.timezone,
       siteTitle: siteConfigTable.siteTitle,
+      ownerFirstName: siteConfigTable.ownerFirstName,
     })
     .from(siteConfigTable)
     .limit(1)
     .all()[0];
   const tz = cfg?.timezone ?? 'America/Chicago';
   const siteTitle = cfg?.siteTitle ?? 'Sawyer Showalter Service';
+  const host = cfg?.ownerFirstName?.trim() || 'Sawyer';
 
-  const copy = buildStatusCopy(siteTitle)[booking.status];
+  const copy = buildStatusCopy(siteTitle, host)[booking.status];
 
   // Reschedule forward pointer — Phase 6.
   // If this booking was canceled via the reschedule flow, show a banner linking
@@ -235,7 +239,9 @@ export default async function BookingPage({
           <hr className="my-6 border-gray-200" />
         )}
 
-        {copy.canCancel && <CancelButton token={booking.token} />}
+        {copy.canCancel && (
+          <CancelButton token={booking.token} ownerFirstName={cfg?.ownerFirstName ?? null} />
+        )}
       </div>
     </main>
   );

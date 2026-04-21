@@ -36,9 +36,8 @@ Thanks for letting me work on your [service] today! If you have a quick moment, 
 
 [link]
 
-— Sawyer
-913-309-7340`,
-  review_request_sms: `Hi [name], thanks for the job today! If you have a sec, a quick review would mean a lot: [link] — Sawyer`,
+— [host]`,
+  review_request_sms: `Hi [name], thanks for the job today! If you have a sec, a quick review would mean a lot: [link] — [host]`,
 };
 
 const DEFAULT_SUBJECT = 'Quick favor — leave a review?';
@@ -148,6 +147,7 @@ export function composeReviewRequest(
     baseUrl,
     token: bookingToken,
     reviewLink,
+    hostName: cfg?.ownerFirstName ?? null,
   });
 
   const body = renderTemplate(bodyTemplate, vars);

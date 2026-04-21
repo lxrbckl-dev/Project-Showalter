@@ -26,23 +26,21 @@ export default async function AdminReviewsNewPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Create review link
-          </h1>
-          <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-            Generate a standalone review link to share with any customer via
-            email, SMS, or any other channel.
-          </p>
-        </div>
+      <header>
         <Link
           href="/admin/reviews"
-          className="shrink-0 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+          className="mb-3 inline-block text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
           data-testid="back-to-reviews"
         >
           &larr; Reviews
         </Link>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Create review link
+        </h1>
+        <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
+          Generate a standalone review link to share with any customer via
+          email, SMS, or any other channel.
+        </p>
       </header>
 
       <CreateReviewLinkForm customers={customers} />

@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 
 /**
- * Small copy-to-clipboard button — shows "Copied!" for 2 seconds after clicking.
+ * Icon-only copy-to-clipboard button. Swaps to a green check for 2s after a
+ * successful copy. Renders a square button so it sits flush alongside the
+ * adjacent Open SMS / Open email action buttons in the same flex row.
  */
 export function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -28,14 +31,22 @@ export function CopyButton({ text }: { text: string }) {
     }
   }
 
+  const label = copied ? 'Copied!' : 'Copy link';
+
   return (
     <button
       type="button"
       onClick={handleCopy}
       data-testid="copy-review-link"
-      className="rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-xs font-medium hover:bg-[hsl(var(--accent))] transition-colors"
+      aria-label={label}
+      title={label}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[hsl(var(--border))] transition-colors hover:bg-[hsl(var(--accent))]"
     >
-      {copied ? 'Copied!' : 'Copy link'}
+      {copied ? (
+        <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
+      ) : (
+        <Copy className="h-4 w-4" aria-hidden="true" />
+      )}
     </button>
   );
 }

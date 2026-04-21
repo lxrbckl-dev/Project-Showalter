@@ -175,63 +175,15 @@ export function ContactForm({ config }: ContactFormProps) {
             name="bio"
             defaultValue={config.bio ?? ''}
             rows={6}
-            placeholder="Tell visitors about yourself... Use [age] to auto-fill Sawyer's current age."
+            placeholder="Tell visitors about yourself... Use [age] to auto-fill your current age."
             data-testid="contact-bio"
           />
           <p className="text-xs text-[hsl(var(--muted-foreground))]">
             Tip: insert <code>[age]</code> anywhere in the bio and it will be replaced with
-            Sawyer&rsquo;s current age (from the DOB above) on every page render.
+            your current age (from the DOB above) on every page render.
           </p>
           {fieldError('bio') && (
             <p className="text-xs text-[hsl(var(--destructive))]">{fieldError('bio')!.join(', ')}</p>
-          )}
-        </div>
-      </section>
-
-      {/* ── Email pre-fills ─────────────────────────────────────────── */}
-      <section className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 space-y-4">
-        <header>
-          <h2 className="text-base font-semibold">Email pre-fills</h2>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            Pre-populates the subject and body when a visitor taps the Email icon on your Contact section. Both optional.
-          </p>
-        </header>
-
-        <div className="space-y-1.5">
-          <label htmlFor="emailTemplateSubject" className="block text-sm font-medium">
-            Subject line
-          </label>
-          <Input
-            id="emailTemplateSubject"
-            name="emailTemplateSubject"
-            type="text"
-            defaultValue={config.emailTemplateSubject ?? ''}
-            placeholder="Service inquiry — Sawyer Showalter Services"
-            data-testid="contact-email-template-subject"
-          />
-          {fieldError('emailTemplateSubject') && (
-            <p className="text-xs text-[hsl(var(--destructive))]">
-              {fieldError('emailTemplateSubject')!.join(', ')}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          <label htmlFor="emailTemplateBody" className="block text-sm font-medium">
-            Body
-          </label>
-          <Textarea
-            id="emailTemplateBody"
-            name="emailTemplateBody"
-            defaultValue={config.emailTemplateBody ?? ''}
-            rows={6}
-            placeholder={"Hi Sawyer,\n\nI'd like to inquire about a service for my home.\n\nDetails:\n\n\nThanks!"}
-            data-testid="contact-email-template-body"
-          />
-          {fieldError('emailTemplateBody') && (
-            <p className="text-xs text-[hsl(var(--destructive))]">
-              {fieldError('emailTemplateBody')!.join(', ')}
-            </p>
           )}
         </div>
       </section>

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
  */
 export default function BookingNotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-white px-6 py-20 text-center">
+    <main className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-20 text-center">
       <div className="mx-auto max-w-md">
         <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-[hsl(152,61%,15%)]">
           404

@@ -18,7 +18,7 @@ export function SmsForm({ config }: SmsFormProps) {
   return (
     <form action={formAction} className="space-y-6 max-w-xl">
       <p className="text-sm text-[hsl(var(--muted-foreground))]">
-        The &ldquo;Text Sawyer directly&rdquo; fallback body shown in the landing page footer.
+        The &ldquo;Text directly&rdquo; fallback body shown in the landing page footer.
         Customers who tap the link will have this pre-filled in their Messages app.
       </p>
 
