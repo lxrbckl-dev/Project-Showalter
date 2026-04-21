@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -24,8 +24,30 @@ export function SettingsForm({ config }: SettingsFormProps) {
   const err = (field: string) =>
     state.ok === false ? (state.errors[field] ?? []) : [];
 
+  // Same dirty-state + sticky-save-bar pattern as ContactForm so all four
+  // Content tabs feel identical.
+  const formRef = useRef<HTMLFormElement>(null);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    if (state.ok === true && !isPending) {
+      setIsDirty(false);
+    }
+  }, [state, isPending]);
+
+  function discard(): void {
+    formRef.current?.reset();
+    setIsDirty(false);
+  }
+
   return (
-    <form action={formAction} className="space-y-8">
+    <form
+      ref={formRef}
+      action={formAction}
+      onChange={() => setIsDirty(true)}
+      className="space-y-8 pb-20"
+      data-testid="settings-form"
+    >
       {/* --- Business --- */}
       <section className="space-y-4">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
@@ -357,13 +379,34 @@ export function SettingsForm({ config }: SettingsFormProps) {
         </div>
       </section>
 
-      <div className="flex items-center gap-3">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? 'Saving…' : 'Save settings'}
-        </Button>
-        {state.ok === true && !isPending && (
-          <span className="text-sm text-[hsl(var(--muted-foreground))]">Saved</span>
-        )}
+      {/* ── Save bar ────────────────────────────────────────────────────── */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur md:left-72">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-3">
+          <span
+            className="text-sm text-[hsl(var(--muted-foreground))]"
+            data-testid="settings-saved-indicator"
+          >
+            {state.ok === true && !isPending && !isDirty ? 'Saved' : ''}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={discard}
+              disabled={!isDirty || isPending}
+              data-testid="settings-discard"
+            >
+              Discard
+            </Button>
+            <Button
+              type="submit"
+              disabled={!isDirty || isPending}
+              data-testid="settings-save"
+            >
+              {isPending ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </div>
       </div>
     </form>
   );

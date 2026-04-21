@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,8 +51,30 @@ export function TemplatesForm({ config }: TemplatesFormProps) {
   const prefillBodyErrors =
     state.ok === false ? (state.errors.emailTemplateBody ?? []) : [];
 
+  // Same dirty-state + sticky-save-bar pattern as ContactForm so all four
+  // Content tabs feel identical.
+  const formRef = useRef<HTMLFormElement>(null);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    if (state.ok === true && !isPending) {
+      setIsDirty(false);
+    }
+  }, [state, isPending]);
+
+  function discard(): void {
+    formRef.current?.reset();
+    setIsDirty(false);
+  }
+
   return (
-    <form action={formAction} className="space-y-8">
+    <form
+      ref={formRef}
+      action={formAction}
+      onChange={() => setIsDirty(true)}
+      className="space-y-8 pb-20"
+      data-testid="templates-form"
+    >
       {state.ok === false && state.errors._root && (
         <p className="text-sm text-[hsl(var(--destructive))]">{state.errors._root.join(', ')}</p>
       )}
@@ -159,13 +181,34 @@ export function TemplatesForm({ config }: TemplatesFormProps) {
         );
       })}
 
-      <div className="flex items-center gap-3">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? 'Saving…' : 'Save all templates'}
-        </Button>
-        {state.ok === true && !isPending && (
-          <span className="text-sm text-[hsl(var(--muted-foreground))]">Saved</span>
-        )}
+      {/* ── Save bar ────────────────────────────────────────────────────── */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur md:left-72">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-3">
+          <span
+            className="text-sm text-[hsl(var(--muted-foreground))]"
+            data-testid="templates-saved-indicator"
+          >
+            {state.ok === true && !isPending && !isDirty ? 'Saved' : ''}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={discard}
+              disabled={!isDirty || isPending}
+              data-testid="templates-discard"
+            >
+              Discard
+            </Button>
+            <Button
+              type="submit"
+              disabled={!isDirty || isPending}
+              data-testid="templates-save"
+            >
+              {isPending ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </div>
       </div>
     </form>
   );
