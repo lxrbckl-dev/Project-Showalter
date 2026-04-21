@@ -1,15 +1,17 @@
 /**
  * Admin Content page — Phase 3A.
  *
- * Multi-tab editor for all non-service site_config fields plus the six
- * message templates. Server component that fetches the current config and
- * passes it to the client-side form components.
+ * Multi-tab editor for the customer-facing contact details and message
+ * templates. Server component that fetches the current config and passes
+ * it to the client-side form components.
  *
  * Tabs:
  *   - Contact      — phone, email, tiktok_url, bio
  *   - SMS fallback — sms_template
  *   - Templates    — six message template bodies with variable-reference hints
- *   - Settings     — booking knobs, photo caps, stats toggles, timezone
+ *
+ * Site-wide settings (booking knobs, photo caps, stats toggles, timezone,
+ * host facts marquee) live on /admin/settings instead.
  */
 
 import { redirect } from 'next/navigation';
@@ -19,7 +21,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ContactForm } from '@/components/admin/content/ContactForm';
 import { SmsForm } from '@/components/admin/content/SmsForm';
 import { TemplatesForm } from '@/components/admin/content/TemplatesForm';
-import { SettingsForm } from '@/components/admin/content/SettingsForm';
 
 export const metadata = { title: 'Content — Showalter Admin' };
 
@@ -45,16 +46,15 @@ export default async function AdminContentPage() {
       <section>
         <h1 className="text-2xl font-semibold tracking-tight">Content</h1>
         <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-          Manage your contact details, message templates, and site settings.
+          Manage your contact details and message templates.
         </p>
       </section>
 
       <Tabs defaultValue="contact">
-        <TabsList className="mb-6 grid h-auto w-full grid-cols-4 p-1">
+        <TabsList className="mb-6 grid h-auto w-full grid-cols-3 p-1">
           <TabsTrigger value="contact" className="py-2">Contact</TabsTrigger>
           <TabsTrigger value="sms" className="py-2">SMS fallback</TabsTrigger>
           <TabsTrigger value="templates" className="py-2">Templates</TabsTrigger>
-          <TabsTrigger value="settings" className="py-2">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="contact" data-testid="tab-contact">
@@ -67,10 +67,6 @@ export default async function AdminContentPage() {
 
         <TabsContent value="templates" data-testid="tab-templates">
           <TemplatesForm config={config} />
-        </TabsContent>
-
-        <TabsContent value="settings" data-testid="tab-settings">
-          <SettingsForm config={config} />
         </TabsContent>
       </Tabs>
     </div>
