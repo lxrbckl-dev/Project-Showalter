@@ -278,7 +278,7 @@ export function SettingsForm({ config }: SettingsFormProps) {
               placeholder="Leave blank to use founding year"
             />
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              When set, "Years in Business" is computed from this date (month/day precise).
+              When set, &quot;Years in Business&quot; is computed from this date (month/day precise).
               Leave blank to fall back to Year Founded.
             </p>
             <FieldError errors={err('businessStartDate')} />

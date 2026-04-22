@@ -3,6 +3,7 @@
 import { useActionState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { createCustomerFromAdmin } from '@/features/customers/actions';
 import type { CreateCustomerResult } from '@/features/customers/actions';
 
@@ -162,13 +163,13 @@ export function NewCustomerForm() {
         >
           {isPending ? 'Saving…' : 'Add customer'}
         </button>
-        <a
+        <Link
           href="/admin/index-book"
           className="text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
           data-testid="new-customer-cancel"
         >
           Cancel
-        </a>
+        </Link>
       </div>
     </form>
   );

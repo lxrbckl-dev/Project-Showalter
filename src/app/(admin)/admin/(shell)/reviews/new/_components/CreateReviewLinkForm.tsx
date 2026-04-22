@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { requestStandaloneReview } from '@/features/reviews/request';
 import {
   composeStandaloneReview,
@@ -143,12 +144,12 @@ export function CreateReviewLinkForm({ customers }: CreateReviewLinkFormProps) {
         {customers.length === 0 ? (
           <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]" data-testid="no-customers-message">
             No customers on file yet. Add a customer first via the{' '}
-            <a
+            <Link
               href="/admin/index-book"
               className="underline hover:text-[hsl(var(--foreground))]"
             >
               Rolodex
-            </a>
+            </Link>
             .
           </p>
         ) : (
