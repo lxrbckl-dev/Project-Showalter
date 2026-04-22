@@ -228,11 +228,6 @@ openssl rand -base64 32         # → AUTH_SECRET
 # VAPID keypair (Web Push)
 npx web-push generate-vapid-keys
 # outputs VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY
-
-# Umami secrets
-openssl rand -base64 32         # → UMAMI_APP_SECRET
-openssl rand -base64 32         # → UMAMI_DB_PASSWORD
-# UMAMI_DATABASE_URL is constructed from the password (see step 2)
 ```
 
 **Never commit these values to git.** Store them in a password manager alongside the recovery codes.
@@ -256,14 +251,6 @@ SEED_FROM_BRIEF=true          # first boot only — idempotent after that
 VAPID_PUBLIC_KEY=<from npx web-push generate-vapid-keys>
 VAPID_PRIVATE_KEY=<from npx web-push generate-vapid-keys>
 VAPID_SUBJECT=mailto:sshowalterservices@gmail.com
-
-# ─── Umami ──────────────────────────────────────────────────────────────────
-UMAMI_APP_SECRET=<output of openssl above>
-UMAMI_DB_PASSWORD=<output of openssl above>
-UMAMI_DATABASE_URL=postgresql://umami:<UMAMI_DB_PASSWORD>@umami-db:5432/umami
-# Leave these two blank until you complete section 7:
-NEXT_PUBLIC_UMAMI_SRC=
-NEXT_PUBLIC_UMAMI_WEBSITE_ID=
 ```
 
 Verify the file is only readable by your user:
@@ -284,38 +271,31 @@ Docker Compose resolves the `.env` file automatically when both files are in the
 
 #### Step 4 — Point Porkbun DNS
 
-Create two `A` records in the Porkbun dashboard:
+Create an `A` record in the Porkbun dashboard:
 
 | Hostname                      | Type | Value                        | TTL  |
 |-------------------------------|------|------------------------------|------|
 | `showalter.business`          | A    | `<homelab public IP>`        | 600  |
-| `analytics.showalter.business`| A    | `<homelab public IP>`        | 600  |
 
 Verify propagation (wait a few minutes, then):
 
 ```bash
 dig showalter.business +short
-dig analytics.showalter.business +short
-# both should return your homelab's public IP
+# should return your homelab's public IP
 ```
 
 #### Step 5 — Add Caddyfile blocks
 
-Add both blocks to the homelab's Caddyfile (typically `/etc/caddy/Caddyfile`):
+Add the block to the homelab's Caddyfile (typically `/etc/caddy/Caddyfile`):
 
 ```caddy
 showalter.business, www.showalter.business {
     encode zstd gzip
     reverse_proxy localhost:5827
 }
-
-analytics.showalter.business {
-    encode zstd gzip
-    reverse_proxy localhost:3001
-}
 ```
 
-Caddy auto-provisions TLS via Let's Encrypt for both hostnames.
+Caddy auto-provisions TLS via Let's Encrypt.
 
 Reload Caddy to pick up the new blocks:
 
@@ -339,14 +319,10 @@ docker compose pull
 docker compose up -d
 ```
 
-This starts all three services: `showalter`, `umami`, and `umami-db`.
-
-Wait ~15 seconds for `umami-db` to initialise, then check logs:
+Check logs:
 
 ```bash
 docker logs showalter --tail 50    # look for "server listening on port 5827"
-docker logs umami --tail 50        # look for "server started on port 3000"
-docker logs umami-db --tail 50     # look for "database system is ready to accept connections"
 ```
 
 #### Step 7 — First-time admin enrollment (passkeys)
@@ -383,21 +359,6 @@ Also confirm:
 - `https://showalter.business` loads the public landing page.
 - `https://showalter.business/admin` redirects to `/admin/login` (not a 500).
 - An admin can log in with their passkey.
-
-#### Step 9 — Complete Umami setup
-
-Perform the one-time Umami configuration from section 7, then come back here and set the tracking env vars in `/srv/showalter/.env`:
-
-```bash
-NEXT_PUBLIC_UMAMI_SRC=https://analytics.showalter.business/script.js
-NEXT_PUBLIC_UMAMI_WEBSITE_ID=<website ID from the Umami dashboard>
-```
-
-Restart the main app to pick up the new vars:
-
-```bash
-docker compose up -d showalter
-```
 
 ---
 
@@ -443,12 +404,6 @@ Every CI build pushes an immutable `:<sha>` tag to GHCR. To roll back:
 
 4. Verify health, then file a bug to fix `main` before reverting the pin.
 
-Umami updates are independent:
-
-```bash
-docker compose pull umami && docker compose up -d umami
-```
-
 ---
 
 ## 6d. Pre-deploy checklist
@@ -459,109 +414,33 @@ Run through this before any first-time deploy or major homelab change.
 
 - [ ] `AUTH_SECRET` set and non-empty (32+ random bytes)
 - [ ] `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` all set
-- [ ] `UMAMI_APP_SECRET`, `UMAMI_DB_PASSWORD`, `UMAMI_DATABASE_URL` all set
 - [ ] `.env` file is `chmod 600` (not world-readable)
 
 ### DNS
 
 - [ ] `dig showalter.business +short` returns the homelab's public IP
-- [ ] `dig analytics.showalter.business +short` returns the homelab's public IP
 - [ ] `dig www.showalter.business +short` returns the homelab's public IP (if applicable)
 
 ### Homelab ports
 
 - [ ] Port 443 (HTTPS) open inbound on the router / firewall
 - [ ] Port 80 (HTTP) open inbound — Caddy needs it for the ACME TLS-ALPN challenge
-- [ ] Internal ports 5827 (showalter) and 3001 (umami) accessible from Caddy on the host
+- [ ] Internal port 5827 (showalter) accessible from Caddy on the host
 
 ### Docker and Caddy
 
 - [ ] Docker daemon running: `docker info`
 - [ ] Caddy running and config validates: `caddy validate --config /etc/caddy/Caddyfile`
-- [ ] Caddyfile has both `showalter.business` and `analytics.showalter.business` blocks
+- [ ] Caddyfile has the `showalter.business` block
 
 ### Storage
 
 - [ ] `/srv/showalter/data/` directory exists and is writable by Docker
-- [ ] `/srv/showalter/umami-db/` directory exists and is writable by Docker
 - [ ] `df -h /srv/showalter` — at least a few GB free (SQLite + uploads + 14-day backups)
 
 ### Image availability
 
 - [ ] `docker pull ghcr.io/lxrbckl-dev/project-showalter:latest` succeeds (confirms GHCR auth + CI built the image)
-
----
-
-## 7. Setting up Umami (one-time)
-
-Umami runs as two containers (`umami` and `umami-db`) alongside the main `showalter` container. Perform this setup once on a fresh homelab deploy.
-
-**Prerequisites.** Fill in the three Umami secrets in `/srv/showalter/.env` before bringing the containers up:
-
-```bash
-# Generate strong secrets — one per command, paste each into .env
-openssl rand -base64 32   # → UMAMI_APP_SECRET
-openssl rand -base64 32   # → UMAMI_DB_PASSWORD
-
-# UMAMI_DATABASE_URL format (use the same password as UMAMI_DB_PASSWORD):
-# postgresql://umami:<UMAMI_DB_PASSWORD>@umami-db:5432/umami
-```
-
-**Steps:**
-
-1. Bring up the Umami containers:
-
-   ```bash
-   cd /srv/showalter
-   docker compose up -d umami-db umami
-   ```
-
-   Wait ~10 seconds for the DB to initialise, then verify:
-
-   ```bash
-   docker logs umami --tail 50
-   # should show "server started on port 3000" (or similar)
-   ```
-
-2. Visit `https://analytics.showalter.business` in your browser.
-   - Log in with the default credentials: **username** `admin`, **password** `umami`.
-   - **Change the password immediately** (Settings → Profile → Change password).
-
-3. Add a website entry in Umami:
-   - Settings → Websites → Add website.
-   - Name: `Showalter Services`, domain: `showalter.business`.
-   - Copy the generated **Website ID**.
-
-4. Set the tracking vars in `/srv/showalter/.env`:
-
-   ```bash
-   NEXT_PUBLIC_UMAMI_SRC=https://analytics.showalter.business/script.js
-   NEXT_PUBLIC_UMAMI_WEBSITE_ID=<paste website ID here>
-   ```
-
-5. Rebuild and redeploy the main app so it picks up the new env vars:
-
-   ```bash
-   docker compose pull showalter
-   docker compose up -d showalter
-   ```
-
-6. Verify tracking is working:
-   - Open `https://showalter.business` in a private/incognito window.
-   - Return to `https://analytics.showalter.business` → the dashboard should record the page view within a few seconds.
-
-**Caddyfile block for `analytics.showalter.business`.** Add this block to the homelab Caddyfile alongside the existing `showalter.business` block:
-
-```caddy
-analytics.showalter.business {
-    encode zstd gzip
-    reverse_proxy localhost:3001
-}
-```
-
-Reload Caddy after saving: `caddy reload --config /etc/caddy/Caddyfile` (or `systemctl reload caddy`).
-
-**Umami is non-critical.** If Umami or `umami-db` goes down, the main site is unaffected. See section 10 (Incident response) for restart steps.
 
 ---
 
@@ -636,18 +515,6 @@ docker compose up -d showalter
 The container restarts cleanly; the rate limit takes effect immediately. Dial back up once the abuse subsides.
 
 If the honeypot field is being filled (check `cron_runs` / app logs for spam patterns), it's already silently rejecting — no action needed.
-
-### Umami / analytics down
-
-Umami is independent of the main app. If `analytics.showalter.business` stops responding but the main site is fine:
-
-```bash
-docker logs umami --tail 200
-docker logs umami-db --tail 200
-docker compose restart umami umami-db
-```
-
-Never prioritize Umami over the main app — analytics outages are cosmetic.
 
 ---
 

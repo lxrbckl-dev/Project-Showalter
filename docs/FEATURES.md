@@ -178,14 +178,6 @@ All runs are idempotent — the sweep queries for due-but-unprocessed records; r
 
 ---
 
-## Analytics
-
-Umami is deployed as a side-by-side Docker container (`analytics.showalter.business`). The Next.js app injects the Umami script tag via `NEXT_PUBLIC_UMAMI_SRC` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` env vars.
-
-Umami is privacy-friendly and GDPR-compliant by default — no cookies, no personal data stored. It tracks QR-scan → site-visit conversion and general page views. The Umami dashboard is accessible only to Alex at `analytics.showalter.business` (Caddyfile-restricted). See [`STACK.md`](./STACK.md) for the compose and Caddyfile setup.
-
----
-
 ## Security
 
 Key security controls implemented across the app:

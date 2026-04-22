@@ -43,7 +43,6 @@ Showalter Services is a real, production website built for Sawyer Showalter's 15
 ### Ops
 - Single Docker container; SQLite on a bind-mounted `/data` volume; Caddy reverse proxy
 - Scheduled jobs via `node-cron`: nightly SQLite backups (14-day retention), photo retention cleanup, 24h/48h pending-booking reminders, 72h auto-expire
-- Umami analytics (self-hosted, side-by-side container)
 - Structured stdout logging captured by Docker
 - Full test suite: 435 unit + 54 E2E (Playwright with virtual WebAuthn authenticators)
 
@@ -159,7 +158,7 @@ See [`docs/RUNBOOK.md`](./docs/RUNBOOK.md) §6a for the full deploy procedure �
 
 ## Tech stack
 
-Next.js 15 · React · TypeScript · Tailwind · shadcn/ui · Drizzle + better-sqlite3 · Auth.js + SimpleWebAuthn · node-cron · web-push · Umami · Caddy · Docker
+Next.js 15 · React · TypeScript · Tailwind · shadcn/ui · Drizzle + better-sqlite3 · Auth.js + SimpleWebAuthn · node-cron · web-push · Caddy · Docker
 
 ---
 

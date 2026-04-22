@@ -3,12 +3,6 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 
-// Umami analytics helper — no-op when umami is not loaded.
-function trackUmami(event: string): void {
-  if (typeof window !== 'undefined' && typeof (window as Window & { umami?: { track: (e: string) => void } }).umami?.track === 'function') {
-    (window as Window & { umami?: { track: (e: string) => void } }).umami!.track(event);
-  }
-}
 import type { ServiceRow } from '@/db/schema/services';
 import type { CustomerDay } from '@/features/bookings/availability-for-customer';
 import { submitBooking, type SubmitResult } from '@/features/bookings/submit';
@@ -99,8 +93,6 @@ export function BookingFlow({ availability, services, ownerFirstName }: BookingF
     startTransition(async () => {
       const result: SubmitResult = await submitBooking(formData);
       if (result.ok) {
-        // Track successful booking submission before redirect.
-        trackUmami('booking_submitted');
         // Redirect to the tokenized customer booking page. Using
         // window.location so the page is a fresh request — the server
         // component on /bookings/[token] re-reads the DB.
@@ -659,7 +651,6 @@ function BookingForm({
           type="submit"
           disabled={isSubmitting || !formValid}
           data-testid="booking-submit"
-          data-umami-event="booking_submitted"
           className="flex w-full items-center justify-center rounded-md bg-green-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? 'Sending…' : 'Send request'}

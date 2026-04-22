@@ -13,7 +13,7 @@
 > - Phase 9: #68
 > - Phase 10: #74
 > - Phase 11: #76
-> - Phase 12 (split): #52 (SEO), #53 (PWA), #57 (Umami), #67 (error pages + a11y), #73 (deploy runbook)
+> - Phase 12 (split): #52 (SEO), #53 (PWA), #67 (error pages + a11y), #73 (deploy runbook)
 > - Post-phase: #78 (multi-device passkey)
 
 Each phase maps to one PR and one shippable milestone. A phase is not "done" until it can be deployed and exercised end-to-end — partial work stays on its branch until the whole phase is ready. This keeps main always green and deployable and gives QA a clean unit of review at every step.
@@ -126,7 +126,7 @@ Each phase maps to one PR and one shippable milestone. A phase is not "done" unt
 
 ### Phase 12 — Polish + cutover
 
-**Ships:** SEO (robots.txt + sitemap.xml + meta title/description + 1200×630 OG image + Twitter card tags); 404/500/invalid-token branded pages (invalid-token is vague to avoid enumeration); accessibility pass (keyboard nav, contrast, alt text, ARIA landmarks, WCAG 2.1 AA best-effort, `axe-core` wired into Playwright CI); PWA manifest + icons + favicon finalized; **Umami analytics container in docker-compose + Caddyfile block for `analytics.showalter.business`**; final image build → push → homelab deploy → Caddyfile update (main domain + umami subdomain).
+**Ships:** SEO (robots.txt + sitemap.xml + meta title/description + 1200×630 OG image + Twitter card tags); 404/500/invalid-token branded pages (invalid-token is vague to avoid enumeration); accessibility pass (keyboard nav, contrast, alt text, ARIA landmarks, WCAG 2.1 AA best-effort, `axe-core` wired into Playwright CI); PWA manifest + icons + favicon finalized; final image build → push → homelab deploy → Caddyfile update.
 
 **Depends on:** all prior
 

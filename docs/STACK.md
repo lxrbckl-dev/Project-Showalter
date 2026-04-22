@@ -13,7 +13,7 @@ This document captures the tech-stack decision for the Showalter Services site. 
 | Auth               | **Auth.js + WebAuthn (passkeys); founding admin on first visit + invite links for everyone else** | One-tap biometric login. No passwords, no external email/SMS dependency for login. First person to hit `/admin/login` on a fresh deploy claims the founding admin; subsequent admins onboard via single-use, email-bound, 24-hour invite links generated from `/admin/settings/admins`. No env configuration required. |
 | UI                 | **Tailwind + shadcn/ui**                  | Fast to style. Pre-built calendar/date-picker, table, dialog components. Dark-green / black / white theme is trivially configurable via CSS variables. |
 | Images             | **Next.js `Image`** (plain, no `sharp`)   | Good enough for one hero photo + a small gallery. Skipping `sharp` keeps the image pipeline simple. |
-| Analytics          | **Umami** (self-hosted)                   | Privacy-friendly, lightweight, Dockerable. Tracks QR-scan → site-visit conversion without tracking individual visitors. |
+| Analytics          | —                                         | Removed (was Umami, decommissioned). |
 | Email / SMS delivery | **Client-side `mailto:` and `sms:` URIs** | Sawyer sends confirmations from his own Gmail / phone. No server-side email provider, no from-address setup. |
 | Container          | **Single Docker image**                   | Multi-stage build, runs on internal port **5827**. |
 | Calendar integration | **Public `.ics` endpoint + Google render URL** | `.ics` served from `/bookings/<token>/ics`; Google via `calendar.google.com/calendar/render?...`. Both links embedded in the prefilled email body. |
@@ -326,53 +326,9 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       SEED_FROM_BRIEF: ${SEED_FROM_BRIEF:-false}
       BOOKING_RATE_LIMIT_PER_HOUR: ${BOOKING_RATE_LIMIT_PER_HOUR:-30}
-      NEXT_PUBLIC_UMAMI_SRC: ${NEXT_PUBLIC_UMAMI_SRC:-}
-      NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
       VAPID_SUBJECT: ${VAPID_SUBJECT}
-    networks:
-      - showalter-net
-
-  umami:
-    image: ghcr.io/umami-software/umami:postgresql-latest
-    container_name: umami
-    restart: unless-stopped
-    ports:
-      - "3001:3000"
-    environment:
-      DATABASE_URL: ${UMAMI_DATABASE_URL}
-      APP_SECRET: ${UMAMI_APP_SECRET}
-    depends_on:
-      - umami-db
-    networks:
-      - showalter-net
-
-  umami-db:
-    image: postgres:16-alpine
-    container_name: umami-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: umami
-      POSTGRES_USER: umami
-      POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD}
-    volumes:
-      - /srv/showalter/umami-db:/var/lib/postgresql/data
-    networks:
-      - showalter-net
-
-networks:
-  showalter-net:
-    driver: bridge
-```
-
-A separate Caddyfile block reverse-proxies `analytics.showalter.business` to `localhost:3001` for admin-only access to the Umami dashboard:
-
-```caddy
-analytics.showalter.business {
-    encode zstd gzip
-    reverse_proxy localhost:3001
-}
 ```
 
 ## Environment variables
