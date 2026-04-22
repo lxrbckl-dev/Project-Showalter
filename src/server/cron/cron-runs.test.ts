@@ -9,39 +9,22 @@
  *   - withCronRun convenience wrapper covers start/finish/fail lifecycle
  */
 
-import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '@/db/schema';
 import { cronRuns } from '@/db/schema/cron-runs';
+import { createTestDb } from '@/db/test-helpers';
 import { startRun, finishRun, failRun, withCronRun } from './cron-runs';
 
 type Db = BetterSQLite3Database<typeof schema>;
 
-function makeDb(): { sqlite: Database.Database; db: Db } {
-  const sqlite = new Database(':memory:');
-  sqlite.exec(`
-    CREATE TABLE cron_runs (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      task          TEXT    NOT NULL,
-      started_at    TEXT    NOT NULL,
-      ended_at      TEXT,
-      status        TEXT    NOT NULL DEFAULT 'running',
-      error_message TEXT
-    );
-    CREATE INDEX cron_runs_task_started_idx ON cron_runs(task, started_at);
-  `);
-  return { sqlite, db: drizzle(sqlite, { schema }) as Db };
-}
+let testHandle: ReturnType<typeof createTestDb>;
+let db: Db;
 
 describe('cron-runs bookkeeping', () => {
-  let sqlite: Database.Database;
-  let db: Db;
-
   beforeEach(() => {
-    const made = makeDb();
-    sqlite = made.sqlite;
-    db = made.db;
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
   });
 
   it('startRun inserts a row with status=running and returns its id', () => {
@@ -53,7 +36,7 @@ describe('cron-runs bookkeeping', () => {
     expect(row?.task).toBe('test_task');
     expect(row?.status).toBe('running');
     expect(row?.endedAt).toBeNull();
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('finishRun sets status=ok and endedAt', () => {
@@ -64,7 +47,7 @@ describe('cron-runs bookkeeping', () => {
     expect(row?.status).toBe('ok');
     expect(row?.endedAt).toBeTypeOf('string');
     expect(row?.errorMessage).toBeNull();
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('failRun sets status=error and errorMessage', () => {
@@ -75,7 +58,7 @@ describe('cron-runs bookkeeping', () => {
     expect(row?.status).toBe('error');
     expect(row?.endedAt).toBeTypeOf('string');
     expect(row?.errorMessage).toContain('something went wrong');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('failRun accepts non-Error values', () => {
@@ -85,7 +68,7 @@ describe('cron-runs bookkeeping', () => {
     const row = db.select().from(cronRuns).get();
     expect(row?.status).toBe('error');
     expect(row?.errorMessage).toBe('string error');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('startRun returns null when a run is already in-flight (idempotency guard)', () => {
@@ -100,7 +83,7 @@ describe('cron-runs bookkeeping', () => {
     // Only one row exists
     const rows = db.select().from(cronRuns).all();
     expect(rows).toHaveLength(1);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('startRun allows a new run after the previous one finished', () => {
@@ -113,7 +96,7 @@ describe('cron-runs bookkeeping', () => {
 
     const rows = db.select().from(cronRuns).all();
     expect(rows).toHaveLength(2);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('startRun allows different tasks to run concurrently', () => {
@@ -124,7 +107,7 @@ describe('cron-runs bookkeeping', () => {
 
     const rows = db.select().from(cronRuns).all();
     expect(rows).toHaveLength(2);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('withCronRun resolves and marks ok on success', async () => {
@@ -140,7 +123,7 @@ describe('cron-runs bookkeeping', () => {
     const row = db.select().from(cronRuns).get();
     expect(row?.status).toBe('ok');
     expect(row?.endedAt).toBeTypeOf('string');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('withCronRun marks error and rethrows on failure', async () => {
@@ -153,7 +136,7 @@ describe('cron-runs bookkeeping', () => {
     const row = db.select().from(cronRuns).get();
     expect(row?.status).toBe('error');
     expect(row?.errorMessage).toContain('boom');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('withCronRun returns null when task is already in-flight', async () => {
@@ -173,6 +156,6 @@ describe('cron-runs bookkeeping', () => {
     const rows = db.select().from(cronRuns).all();
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe('running');
-    sqlite.close();
+    testHandle.cleanup();
   });
 });

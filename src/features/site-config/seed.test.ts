@@ -1,88 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { createTestDb } from '@/db/test-helpers';
 import * as schema from '@/db/schema';
 import { seedFromBrief } from './seed';
 
-/**
- * Creates an isolated in-memory database with migrations applied.
- * We monkey-patch the module-level singletons in @/db to point at the
- * in-memory DB so that migrate() and seedFromBrief() share the same
- * connection.
- *
- * Each test gets a fresh DB via beforeEach.
- */
-function makeTestDb() {
-  const sqlite = new Database(':memory:');
-  sqlite.pragma('journal_mode = WAL');
-  sqlite.pragma('foreign_keys = ON');
-  const db = drizzle(sqlite, { schema });
-  return { sqlite, db };
-}
-
 describe('seedFromBrief()', () => {
   it('does nothing when SEED_FROM_BRIEF is not "true"', () => {
-    const { sqlite, db } = makeTestDb();
-
-    // Apply migrations manually
-    sqlite.exec(`
-      CREATE TABLE IF NOT EXISTS _migrations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE NOT NULL,
-        applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-      CREATE TABLE site_config (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT,
- date_of_birth TEXT, sms_template TEXT,
-        booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
-        min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
-        start_time_increment_minutes INTEGER NOT NULL DEFAULT 30,
-        booking_spacing_minutes INTEGER NOT NULL DEFAULT 60,
-        max_booking_photos INTEGER NOT NULL DEFAULT 3,
-        booking_photo_max_bytes INTEGER NOT NULL DEFAULT 10485760,
-        photo_retention_days_after_resolve INTEGER NOT NULL DEFAULT 30,
-        timezone TEXT NOT NULL DEFAULT 'America/Chicago',
-        business_founded_year INTEGER NOT NULL DEFAULT 2023,
-        site_title TEXT NOT NULL DEFAULT 'Sawyer Showalter Service',
-        show_landing_stats INTEGER NOT NULL DEFAULT 1,
-        min_reviews_for_landing_stats INTEGER NOT NULL DEFAULT 3,
-        min_rating_for_auto_publish INTEGER NOT NULL DEFAULT 4,
-        auto_publish_top_review_photos INTEGER NOT NULL DEFAULT 1,
-        template_confirmation_email TEXT,
-        template_confirmation_sms TEXT,
-        template_decline_email TEXT,
-        template_decline_sms TEXT,
-        template_review_request_email TEXT,
-        template_review_request_sms TEXT,
-        owner_first_name TEXT,
-        email_template_subject TEXT,
-        email_template_body TEXT,
-        stats_jobs_completed_override INTEGER,
-        stats_customers_served_override INTEGER,
-        business_start_date TEXT
-      );
-      CREATE TABLE services (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        name TEXT NOT NULL,
-        description TEXT NOT NULL,
-        price_cents INTEGER,
-        price_suffix TEXT NOT NULL DEFAULT '',
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        active INTEGER NOT NULL DEFAULT 1
-      );
-      CREATE TABLE site_photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_path TEXT NOT NULL,
-        caption TEXT,
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        active INTEGER NOT NULL DEFAULT 1,
-        source_review_id INTEGER,
-        source_review_rating INTEGER,
-        created_at TEXT NOT NULL
-      );
-      INSERT INTO site_config (timezone) VALUES ('America/Chicago');
-    `);
+    const { db, cleanup } = createTestDb({ inMemory: true });
 
     const originalEnv = process.env.SEED_FROM_BRIEF;
     delete process.env.SEED_FROM_BRIEF;
@@ -97,113 +20,12 @@ describe('seedFromBrief()', () => {
       expect(serviceRows).toHaveLength(0);
     } finally {
       process.env.SEED_FROM_BRIEF = originalEnv;
-      sqlite.close();
+      cleanup();
     }
   });
 
   it('seeds personal data and services when flag is true and tables are empty', () => {
-    const { sqlite, db } = makeTestDb();
-
-    sqlite.exec(`
-      CREATE TABLE site_config (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT,
- date_of_birth TEXT, sms_template TEXT,
-        booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
-        min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
-        start_time_increment_minutes INTEGER NOT NULL DEFAULT 30,
-        booking_spacing_minutes INTEGER NOT NULL DEFAULT 60,
-        max_booking_photos INTEGER NOT NULL DEFAULT 3,
-        booking_photo_max_bytes INTEGER NOT NULL DEFAULT 10485760,
-        photo_retention_days_after_resolve INTEGER NOT NULL DEFAULT 30,
-        timezone TEXT NOT NULL DEFAULT 'America/Chicago',
-        business_founded_year INTEGER NOT NULL DEFAULT 2023,
-        site_title TEXT NOT NULL DEFAULT 'Sawyer Showalter Service',
-        show_landing_stats INTEGER NOT NULL DEFAULT 1,
-        min_reviews_for_landing_stats INTEGER NOT NULL DEFAULT 3,
-        min_rating_for_auto_publish INTEGER NOT NULL DEFAULT 4,
-        auto_publish_top_review_photos INTEGER NOT NULL DEFAULT 1,
-        template_confirmation_email TEXT,
-        template_confirmation_sms TEXT,
-        template_decline_email TEXT,
-        template_decline_sms TEXT,
-        template_review_request_email TEXT,
-        template_review_request_sms TEXT,
-        owner_first_name TEXT,
-        email_template_subject TEXT,
-        email_template_body TEXT,
-        stats_jobs_completed_override INTEGER,
-        stats_customers_served_override INTEGER,
-        business_start_date TEXT
-      );
-      CREATE TABLE services (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        name TEXT NOT NULL,
-        description TEXT NOT NULL,
-        price_cents INTEGER,
-        price_suffix TEXT NOT NULL DEFAULT '',
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        active INTEGER NOT NULL DEFAULT 1
-      );
-      CREATE TABLE site_photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_path TEXT NOT NULL,
-        caption TEXT,
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        active INTEGER NOT NULL DEFAULT 1,
-        source_review_id INTEGER,
-        source_review_rating INTEGER,
-        created_at TEXT NOT NULL
-      );
-      CREATE TABLE customers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        name TEXT NOT NULL,
-        phone TEXT NOT NULL UNIQUE,
-        email TEXT,
-        notes TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        last_booking_at TEXT
-      );
-      CREATE UNIQUE INDEX customers_email_unique ON customers(email) WHERE email IS NOT NULL;
-      CREATE TABLE customer_addresses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        customer_id INTEGER NOT NULL,
-        address TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        last_used_at TEXT NOT NULL
-      );
-      CREATE TABLE bookings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        token TEXT NOT NULL UNIQUE,
-        customer_id INTEGER NOT NULL,
-        address_id INTEGER NOT NULL,
-        address_text TEXT NOT NULL,
-        customer_name TEXT NOT NULL,
-        customer_phone TEXT NOT NULL,
-        customer_email TEXT,
-        service_id INTEGER NOT NULL,
-        start_at TEXT NOT NULL,
-        notes TEXT,
-        status TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        decided_at TEXT,
-        rescheduled_to_id INTEGER
-      );
-      CREATE TABLE reviews (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        booking_id INTEGER,
-        customer_id INTEGER NOT NULL,
-        token TEXT NOT NULL UNIQUE,
-        status TEXT NOT NULL DEFAULT 'pending',
-        rating INTEGER,
-        review_text TEXT,
-        requested_at TEXT NOT NULL,
-        submitted_at TEXT
-      );
-      INSERT INTO site_config (timezone) VALUES ('America/Chicago');
-    `);
+    const { db, cleanup } = createTestDb({ inMemory: true });
 
     const originalEnv = process.env.SEED_FROM_BRIEF;
     process.env.SEED_FROM_BRIEF = 'true';
@@ -234,113 +56,12 @@ describe('seedFromBrief()', () => {
       expect(serviceRows[4].priceCents).toBeNull();
     } finally {
       process.env.SEED_FROM_BRIEF = originalEnv;
-      sqlite.close();
+      cleanup();
     }
   });
 
   it('is idempotent — second call with flag true makes no changes', () => {
-    const { sqlite, db } = makeTestDb();
-
-    sqlite.exec(`
-      CREATE TABLE site_config (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT,
- date_of_birth TEXT, sms_template TEXT,
-        booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
-        min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
-        start_time_increment_minutes INTEGER NOT NULL DEFAULT 30,
-        booking_spacing_minutes INTEGER NOT NULL DEFAULT 60,
-        max_booking_photos INTEGER NOT NULL DEFAULT 3,
-        booking_photo_max_bytes INTEGER NOT NULL DEFAULT 10485760,
-        photo_retention_days_after_resolve INTEGER NOT NULL DEFAULT 30,
-        timezone TEXT NOT NULL DEFAULT 'America/Chicago',
-        business_founded_year INTEGER NOT NULL DEFAULT 2023,
-        site_title TEXT NOT NULL DEFAULT 'Sawyer Showalter Service',
-        show_landing_stats INTEGER NOT NULL DEFAULT 1,
-        min_reviews_for_landing_stats INTEGER NOT NULL DEFAULT 3,
-        min_rating_for_auto_publish INTEGER NOT NULL DEFAULT 4,
-        auto_publish_top_review_photos INTEGER NOT NULL DEFAULT 1,
-        template_confirmation_email TEXT,
-        template_confirmation_sms TEXT,
-        template_decline_email TEXT,
-        template_decline_sms TEXT,
-        template_review_request_email TEXT,
-        template_review_request_sms TEXT,
-        owner_first_name TEXT,
-        email_template_subject TEXT,
-        email_template_body TEXT,
-        stats_jobs_completed_override INTEGER,
-        stats_customers_served_override INTEGER,
-        business_start_date TEXT
-      );
-      CREATE TABLE services (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        name TEXT NOT NULL,
-        description TEXT NOT NULL,
-        price_cents INTEGER,
-        price_suffix TEXT NOT NULL DEFAULT '',
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        active INTEGER NOT NULL DEFAULT 1
-      );
-      CREATE TABLE site_photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_path TEXT NOT NULL,
-        caption TEXT,
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        active INTEGER NOT NULL DEFAULT 1,
-        source_review_id INTEGER,
-        source_review_rating INTEGER,
-        created_at TEXT NOT NULL
-      );
-      CREATE TABLE customers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        name TEXT NOT NULL,
-        phone TEXT NOT NULL UNIQUE,
-        email TEXT,
-        notes TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        last_booking_at TEXT
-      );
-      CREATE UNIQUE INDEX customers_email_unique ON customers(email) WHERE email IS NOT NULL;
-      CREATE TABLE customer_addresses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        customer_id INTEGER NOT NULL,
-        address TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        last_used_at TEXT NOT NULL
-      );
-      CREATE TABLE bookings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        token TEXT NOT NULL UNIQUE,
-        customer_id INTEGER NOT NULL,
-        address_id INTEGER NOT NULL,
-        address_text TEXT NOT NULL,
-        customer_name TEXT NOT NULL,
-        customer_phone TEXT NOT NULL,
-        customer_email TEXT,
-        service_id INTEGER NOT NULL,
-        start_at TEXT NOT NULL,
-        notes TEXT,
-        status TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        decided_at TEXT,
-        rescheduled_to_id INTEGER
-      );
-      CREATE TABLE reviews (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        booking_id INTEGER,
-        customer_id INTEGER NOT NULL,
-        token TEXT NOT NULL UNIQUE,
-        status TEXT NOT NULL DEFAULT 'pending',
-        rating INTEGER,
-        review_text TEXT,
-        requested_at TEXT NOT NULL,
-        submitted_at TEXT
-      );
-      INSERT INTO site_config (timezone) VALUES ('America/Chicago');
-    `);
+    const { db, cleanup } = createTestDb({ inMemory: true });
 
     const originalEnv = process.env.SEED_FROM_BRIEF;
     process.env.SEED_FROM_BRIEF = 'true';
@@ -359,7 +80,7 @@ describe('seedFromBrief()', () => {
       expect(config[0].phone).toBe('+19133097340');
     } finally {
       process.env.SEED_FROM_BRIEF = originalEnv;
-      sqlite.close();
+      cleanup();
     }
   });
 });

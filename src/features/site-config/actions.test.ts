@@ -180,6 +180,8 @@ const VALID_TEMPLATES = {
   templateDeclineSms: 'Hi [name], declined SMS.',
   templateReviewRequestEmail: 'Hi [name], review [link].',
   templateReviewRequestSms: 'Hi [name], review [link].',
+  templateRescheduleEmail: 'Hi [name], rescheduled.',
+  templateRescheduleSms: 'Hi [name], rescheduled SMS.',
 };
 
 describe('updateTemplates', () => {

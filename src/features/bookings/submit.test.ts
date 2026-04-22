@@ -1,9 +1,10 @@
-import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '@/db/schema';
 import { siteConfig as siteConfigTable } from '@/db/schema/site-config';
 import { bookings } from '@/db/schema/bookings';
+import { services } from '@/db/schema/services';
+import { createTestDb } from '@/db/test-helpers';
 import { __resetRateLimitStore } from '@/lib/rate-limit';
 import { submitBookingCore } from './submit';
 
@@ -18,106 +19,17 @@ import { submitBookingCore } from './submit';
 
 type Db = BetterSQLite3Database<typeof schema>;
 
-function makeDb(): { sqlite: Database.Database; db: Db } {
-  const sqlite = new Database(':memory:');
-  sqlite.pragma('foreign_keys = ON');
-  // Minimal schema subset required by the submit action.
-  sqlite.exec(`
-    CREATE TABLE site_config (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      phone TEXT, email TEXT, tiktok_url TEXT, bio TEXT,
-      date_of_birth TEXT,
-      sms_template TEXT,
-      booking_horizon_weeks INTEGER NOT NULL DEFAULT 4,
-      min_advance_notice_hours INTEGER NOT NULL DEFAULT 36,
-      start_time_increment_minutes INTEGER NOT NULL DEFAULT 30,
-      booking_spacing_minutes INTEGER NOT NULL DEFAULT 60,
-      max_booking_photos INTEGER NOT NULL DEFAULT 3,
-      booking_photo_max_bytes INTEGER NOT NULL DEFAULT 10485760,
-      photo_retention_days_after_resolve INTEGER NOT NULL DEFAULT 30,
-      timezone TEXT NOT NULL DEFAULT 'America/Chicago',
-      business_founded_year INTEGER NOT NULL DEFAULT 2023,
-      site_title TEXT NOT NULL DEFAULT 'Sawyer Showalter Service',
-      show_landing_stats INTEGER NOT NULL DEFAULT 1,
-      min_reviews_for_landing_stats INTEGER NOT NULL DEFAULT 3,
-      min_rating_for_auto_publish INTEGER NOT NULL DEFAULT 4,
-      auto_publish_top_review_photos INTEGER NOT NULL DEFAULT 1,
-      template_confirmation_email TEXT,
-      template_confirmation_sms TEXT,
-      template_decline_email TEXT,
-      template_decline_sms TEXT,
-      template_review_request_email TEXT,
-      template_review_request_sms TEXT
-    );
-    INSERT INTO site_config (min_advance_notice_hours, booking_spacing_minutes, timezone)
-      VALUES (0, 30, 'UTC');
-
-    CREATE TABLE services (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT NOT NULL,
-      price_cents INTEGER,
-      price_suffix TEXT NOT NULL DEFAULT '',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      active INTEGER NOT NULL DEFAULT 1
-    );
-    INSERT INTO services (name, description, active) VALUES ('Mowing', 'Mow the lawn', 1);
-    INSERT INTO services (name, description, active) VALUES ('Retired Service', 'Old thing', 0);
-
-    CREATE TABLE customers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      name TEXT NOT NULL, phone TEXT NOT NULL UNIQUE, email TEXT,
-      notes TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-      last_booking_at TEXT
-    );
-    CREATE UNIQUE INDEX customers_email_unique ON customers(email) WHERE email IS NOT NULL;
-
-    CREATE TABLE customer_addresses (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      customer_id INTEGER NOT NULL REFERENCES customers(id),
-      address TEXT NOT NULL, created_at TEXT NOT NULL, last_used_at TEXT NOT NULL
-    );
-
-    CREATE TABLE bookings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      token TEXT NOT NULL UNIQUE,
-      customer_id INTEGER NOT NULL,
-      address_id INTEGER NOT NULL,
-      address_text TEXT NOT NULL,
-      customer_name TEXT NOT NULL,
-      customer_phone TEXT NOT NULL,
-      customer_email TEXT,
-      service_id INTEGER NOT NULL,
-      start_at TEXT NOT NULL,
-      notes TEXT,
-      status TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      decided_at TEXT,
-      rescheduled_to_id INTEGER,
-      cancel_reason TEXT
-    );
-    CREATE UNIQUE INDEX bookings_active_start
-      ON bookings(start_at) WHERE status IN ('pending', 'accepted');
-
-    CREATE TABLE booking_attachments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      booking_id INTEGER NOT NULL,
-      file_path TEXT NOT NULL,
-      original_filename TEXT NOT NULL,
-      mime_type TEXT NOT NULL,
-      size_bytes INTEGER NOT NULL,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      kind TEXT NOT NULL, payload_json TEXT NOT NULL,
-      read INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
-      booking_id INTEGER
-    );
-  `);
-  return { sqlite, db: drizzle(sqlite, { schema }) as Db };
+function makeDb(): ReturnType<typeof createTestDb> & { db: Db } {
+  const handle = createTestDb({ inMemory: true });
+  const db = handle.db as Db;
+  // Migrations pre-insert site_config with id=1. Override for test constraints.
+  db.update(siteConfigTable)
+    .set({ minAdvanceNoticeHours: 0, bookingSpacingMinutes: 30, timezone: 'UTC' })
+    .run();
+  // Seed services (migrations don't seed data).
+  db.insert(services).values({ name: 'Mowing', description: 'Mow the lawn', active: 1 }).run();
+  db.insert(services).values({ name: 'Retired Service', description: 'Old thing', active: 0 }).run();
+  return { ...handle, db };
 }
 
 function buildForm(overrides: Record<string, string> = {}): FormData {
@@ -153,7 +65,7 @@ describe('submitBookingCore', () => {
   });
 
   it('happy path: creates customer, address, booking; returns token', async () => {
-    const { sqlite, db } = makeDb();
+    const { db, cleanup } = makeDb();
     const result = await submitBookingCore({
       formData: buildForm(),
       db,
@@ -173,11 +85,11 @@ describe('submitBookingCore', () => {
     expect(rows[0].customerEmail).toBe('jane@example.com');
     expect(rows[0].status).toBe('pending');
     expect(rows[0].addressText).toBe('123 Main St');
-    sqlite.close();
+    cleanup();
   });
 
   it('validation: rejects short name + invalid phone', async () => {
-    const { sqlite, db } = makeDb();
+    const { db, cleanup } = makeDb();
     const result = await submitBookingCore({
       formData: buildForm({ name: '', phone: '555' }),
       db,
@@ -188,11 +100,11 @@ describe('submitBookingCore', () => {
     expect(result.kind).toBe('validation');
     expect(result.fieldErrors.name?.[0]).toMatch(/name/i);
     expect(result.fieldErrors.phone?.[0]).toMatch(/US phone/i);
-    sqlite.close();
+    cleanup();
   });
 
   it('honeypot: fills honeypot → returns ok with random token; no booking row', async () => {
-    const { sqlite, db } = makeDb();
+    const { db, cleanup } = makeDb();
     const result = await submitBookingCore({
       formData: buildForm({ honeypot: 'bot was here' }),
       db,
@@ -206,11 +118,11 @@ describe('submitBookingCore', () => {
     // Honeypot path omits bookingId/serviceName — it never created a row.
     expect(result.bookingId).toBeUndefined();
     expect(db.select().from(bookings).all()).toHaveLength(0);
-    sqlite.close();
+    cleanup();
   });
 
   it('rate limit: blocks after N submissions from the same IP', async () => {
-    const { sqlite, db } = makeDb();
+    const { db, cleanup } = makeDb();
     // Use a very small limit for the test.
     const submit = (token: string) =>
       submitBookingCore({
@@ -230,11 +142,11 @@ describe('submitBookingCore', () => {
     if (third.ok) throw new Error('expected rate-limit block');
     expect(third.kind).toBe('rate_limited');
     expect(third.retryAfterMs).toBeGreaterThan(0);
-    sqlite.close();
+    cleanup();
   });
 
   it('inactive service: returns service_inactive', async () => {
-    const { sqlite, db } = makeDb();
+    const { db, cleanup } = makeDb();
     const result = await submitBookingCore({
       formData: buildForm({ serviceId: '2' }),
       db,
@@ -243,11 +155,11 @@ describe('submitBookingCore', () => {
     });
     if (result.ok) throw new Error('expected service_inactive');
     expect(result.kind).toBe('service_inactive');
-    sqlite.close();
+    cleanup();
   });
 
   it('double-book: second concurrent submit for same slot returns slot_taken', async () => {
-    const { sqlite, db } = makeDb();
+    const { db, cleanup } = makeDb();
     const first = await submitBookingCore({
       formData: buildForm(),
       db,
@@ -267,11 +179,11 @@ describe('submitBookingCore', () => {
     });
     if (second.ok) throw new Error('expected slot_taken');
     expect(second.kind).toBe('slot_taken');
-    sqlite.close();
+    cleanup();
   });
 
   it('slot re-bookable after the first booking is canceled', async () => {
-    const { sqlite, db } = makeDb();
+    const { sqlite, db, cleanup } = makeDb();
     const first = await submitBookingCore({
       formData: buildForm(),
       db,
@@ -297,11 +209,11 @@ describe('submitBookingCore', () => {
     expect(second.ok).toBe(true);
     if (!second.ok) throw new Error('expected ok');
     expect(second.token).toBe('replacement');
-    sqlite.close();
+    cleanup();
   });
 
   it('Zod default + honeypot absent: empty honeypot passes', async () => {
-    const { sqlite, db } = makeDb();
+    const { db, cleanup } = makeDb();
     const fd = buildForm();
     fd.delete('honeypot'); // simulate missing field
     const result = await submitBookingCore({
@@ -314,11 +226,11 @@ describe('submitBookingCore', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected ok');
     expect(result.token).toBe('tok');
-    sqlite.close();
+    cleanup();
   });
 
   it('photos over the max_booking_photos cap are silently dropped', async () => {
-    const { sqlite, db } = makeDb();
+    const { db, cleanup } = makeDb();
     // Lower the cap to 1 for this test.
     db.update(siteConfigTable).set({ maxBookingPhotos: 1 }).run();
 
@@ -340,11 +252,11 @@ describe('submitBookingCore', () => {
       generateToken: () => 'with-photos',
     });
     expect(calls).toBe(1);
-    sqlite.close();
+    cleanup();
   });
 
   it('uploader errors on a single photo do NOT fail the booking', async () => {
-    const { sqlite, db } = makeDb();
+    const { db, cleanup } = makeDb();
     const fd = buildForm();
     fd.append('photos', new File(['x'], 'a.jpg', { type: 'image/jpeg' }));
 
@@ -363,6 +275,6 @@ describe('submitBookingCore', () => {
     if (!result.ok) throw new Error('expected ok');
     expect(result.token).toBe('survives');
     expect(db.select().from(bookings).all()).toHaveLength(1);
-    sqlite.close();
+    cleanup();
   });
 });

@@ -1,10 +1,13 @@
-import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '@/db/schema';
 import { customers } from '@/db/schema/customers';
+import { customerAddresses } from '@/db/schema/customer-addresses';
+import { services } from '@/db/schema/services';
+import { bookings } from '@/db/schema/bookings';
 import { reviews } from '@/db/schema/reviews';
 import { reviewPhotos } from '@/db/schema/review-photos';
+import { createTestDb } from '@/db/test-helpers';
 import {
   findPendingReviewForBooking,
   getReviewById,
@@ -14,35 +17,10 @@ import {
 
 type Db = BetterSQLite3Database<typeof schema>;
 
-function makeDb(): { sqlite: Database.Database; db: Db } {
-  const sqlite = new Database(':memory:');
-  sqlite.exec(`
-    CREATE TABLE customers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      name TEXT NOT NULL, phone TEXT NOT NULL UNIQUE, email TEXT,
-      notes TEXT,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL, last_booking_at TEXT
-    );
-    CREATE TABLE reviews (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      booking_id INTEGER, customer_id INTEGER NOT NULL,
-      token TEXT NOT NULL UNIQUE,
-      status TEXT NOT NULL DEFAULT 'pending',
-      rating INTEGER, review_text TEXT,
-      requested_at TEXT NOT NULL, submitted_at TEXT
-    );
-    CREATE TABLE review_photos (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      review_id INTEGER NOT NULL, file_path TEXT NOT NULL,
-      mime_type TEXT NOT NULL, size_bytes INTEGER NOT NULL,
-      created_at TEXT NOT NULL
-    );
-  `);
-  return { sqlite, db: drizzle(sqlite, { schema }) as Db };
-}
+let testHandle: ReturnType<typeof createTestDb>;
+let db: Db;
 
 function seedCustomer(
-  db: Db,
   name: string,
   phone: string,
   email?: string,
@@ -64,7 +42,6 @@ function seedCustomer(
 }
 
 function seedReview(
-  db: Db,
   customerId: number,
   opts: {
     status: 'pending' | 'submitted';
@@ -92,19 +69,55 @@ function seedReview(
   return rows[0].id;
 }
 
+/**
+ * Seed a minimal booking row for FK compliance when a review references a
+ * booking_id. Returns the booking's id.
+ */
+function seedBookingForFk(customerId: number): number {
+  // Ensure service row exists (idempotent).
+  testHandle.sqlite.exec(
+    `INSERT OR IGNORE INTO services (id, name, description, active) VALUES (1, 'Test', 'Test', 1)`,
+  );
+  const addrRows = db.insert(customerAddresses)
+    .values({
+      customerId,
+      address: '1 Test St',
+      createdAt: '2026-01-01T00:00:00Z',
+      lastUsedAt: '2026-01-01T00:00:00Z',
+    })
+    .returning()
+    .all();
+  const bRows = db.insert(bookings)
+    .values({
+      token: `bk-${Math.random().toString(36).slice(2)}`,
+      customerId,
+      addressId: addrRows[0].id,
+      addressText: '1 Test St',
+      customerName: 'Test',
+      customerPhone: '+19130000000',
+      customerEmail: null,
+      serviceId: 1,
+      startAt: '2026-06-01T12:00:00Z',
+      notes: null,
+      status: 'accepted',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    })
+    .returning()
+    .all();
+  return bRows[0].id;
+}
+
 describe('listReviews', () => {
-  let sqlite: Database.Database;
-  let db: Db;
   beforeEach(() => {
-    const made = makeDb();
-    sqlite = made.sqlite;
-    db = made.db;
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
   });
 
   it('returns only submitted reviews, excludes pending', () => {
-    const c = seedCustomer(db, 'Alice', '+19130000001');
-    seedReview(db, c, { status: 'pending' });
-    seedReview(db, c, {
+    const c = seedCustomer('Alice', '+19130000001');
+    seedReview(c, { status: 'pending' });
+    seedReview(c, {
       status: 'submitted',
       rating: 5,
       submittedAt: '2026-04-18T00:00:00.000Z',
@@ -112,17 +125,17 @@ describe('listReviews', () => {
     const rows = listReviews(db);
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe('submitted');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('filters by exact rating', () => {
-    const c = seedCustomer(db, 'Alice', '+19130000002');
-    seedReview(db, c, {
+    const c = seedCustomer('Alice', '+19130000002');
+    seedReview(c, {
       status: 'submitted',
       rating: 5,
       submittedAt: '2026-04-18T00:00:00.000Z',
     });
-    seedReview(db, c, {
+    seedReview(c, {
       status: 'submitted',
       rating: 3,
       submittedAt: '2026-04-18T01:00:00.000Z',
@@ -130,17 +143,17 @@ describe('listReviews', () => {
     const fiveStars = listReviews(db, { rating: 5 });
     expect(fiveStars).toHaveLength(1);
     expect(fiveStars[0].rating).toBe(5);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('filters by date range (inclusive)', () => {
-    const c = seedCustomer(db, 'Alice', '+19130000003');
-    seedReview(db, c, {
+    const c = seedCustomer('Alice', '+19130000003');
+    seedReview(c, {
       status: 'submitted',
       rating: 5,
       submittedAt: '2026-04-10T00:00:00.000Z',
     });
-    seedReview(db, c, {
+    seedReview(c, {
       status: 'submitted',
       rating: 5,
       submittedAt: '2026-04-20T00:00:00.000Z',
@@ -151,18 +164,18 @@ describe('listReviews', () => {
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].submittedAt).toBe('2026-04-20T00:00:00.000Z');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('filters by customer q (LIKE name/phone/email)', () => {
-    const a = seedCustomer(db, 'Alice Smith', '+19131111111', 'alice@example.com');
-    const b = seedCustomer(db, 'Bob Jones', '+19132222222');
-    seedReview(db, a, {
+    const a = seedCustomer('Alice Smith', '+19131111111', 'alice@example.com');
+    const b = seedCustomer('Bob Jones', '+19132222222');
+    seedReview(a, {
       status: 'submitted',
       rating: 5,
       submittedAt: '2026-04-18T00:00:00.000Z',
     });
-    seedReview(db, b, {
+    seedReview(b, {
       status: 'submitted',
       rating: 4,
       submittedAt: '2026-04-18T01:00:00.000Z',
@@ -177,12 +190,12 @@ describe('listReviews', () => {
 
     const byPhone = listReviews(db, { q: '1111' });
     expect(byPhone).toHaveLength(1);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('joins customer data + photo counts', () => {
-    const c = seedCustomer(db, 'Carla', '+19133333333', 'carla@example.com');
-    const rid = seedReview(db, c, {
+    const c = seedCustomer('Carla', '+19133333333', 'carla@example.com');
+    const rid = seedReview(c, {
       status: 'submitted',
       rating: 5,
       submittedAt: '2026-04-18T00:00:00.000Z',
@@ -200,15 +213,16 @@ describe('listReviews', () => {
     expect(rows[0].customerName).toBe('Carla');
     expect(rows[0].customerEmail).toBe('carla@example.com');
     expect(rows[0].photoCount).toBe(1);
-    sqlite.close();
+    testHandle.cleanup();
   });
 });
 
 describe('getReviewById', () => {
   it('returns review with customer + photos', () => {
-    const { sqlite, db } = makeDb();
-    const c = seedCustomer(db, 'Dan', '+19134444444');
-    const rid = seedReview(db, c, {
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
+    const c = seedCustomer('Dan', '+19134444444');
+    const rid = seedReview(c, {
       status: 'submitted',
       rating: 4,
       submittedAt: '2026-04-18T00:00:00.000Z',
@@ -228,59 +242,66 @@ describe('getReviewById', () => {
     expect(detail?.reviewText).toBe('Nice!');
     expect(detail?.customer?.name).toBe('Dan');
     expect(detail?.photos).toHaveLength(1);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('returns null for missing id', () => {
-    const { sqlite, db } = makeDb();
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
     expect(getReviewById(db, 999)).toBeNull();
-    sqlite.close();
+    testHandle.cleanup();
   });
 });
 
 describe('getReviewByToken', () => {
   it('returns review + customer name when token matches', () => {
-    const { sqlite, db } = makeDb();
-    const c = seedCustomer(db, 'Ellie', '+19135555555');
-    seedReview(db, c, { status: 'pending', token: 'ellie-token' });
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
+    const c = seedCustomer('Ellie', '+19135555555');
+    seedReview(c, { status: 'pending', token: 'ellie-token' });
     const result = getReviewByToken(db, 'ellie-token');
     expect(result?.customerName).toBe('Ellie');
     expect(result?.status).toBe('pending');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('returns null for unknown token', () => {
-    const { sqlite, db } = makeDb();
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
     expect(getReviewByToken(db, 'does-not-exist')).toBeNull();
-    sqlite.close();
+    testHandle.cleanup();
   });
 });
 
 describe('findPendingReviewForBooking', () => {
   it('returns the pending row when one exists', () => {
-    const { sqlite, db } = makeDb();
-    const c = seedCustomer(db, 'Fred', '+19136666666');
-    const rid = seedReview(db, c, {
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
+    const c = seedCustomer('Fred', '+19136666666');
+    const bookingId = seedBookingForFk(c);
+    const rid = seedReview(c, {
       status: 'pending',
-      bookingId: 42,
+      bookingId,
       token: 'fred-token',
     });
-    const found = findPendingReviewForBooking(db, 42);
+    const found = findPendingReviewForBooking(db, bookingId);
     expect(found?.id).toBe(rid);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('returns null when booking only has submitted reviews', () => {
-    const { sqlite, db } = makeDb();
-    const c = seedCustomer(db, 'Fred', '+19136666667');
-    seedReview(db, c, {
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
+    const c = seedCustomer('Fred', '+19136666667');
+    const bookingId = seedBookingForFk(c);
+    seedReview(c, {
       status: 'submitted',
       rating: 5,
-      bookingId: 43,
+      bookingId,
       submittedAt: '2026-04-18T00:00:00.000Z',
     });
-    const found = findPendingReviewForBooking(db, 43);
+    const found = findPendingReviewForBooking(db, bookingId);
     expect(found).toBeNull();
-    sqlite.close();
+    testHandle.cleanup();
   });
 });

@@ -1,54 +1,34 @@
-import { unlinkSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import Database from 'better-sqlite3';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { createTestDb } from '@/db/test-helpers';
 
-let tmpDbPath: string;
-
-function setupDb(): Database.Database {
-  const dir = mkdtempSync(join(tmpdir(), 'shortlink-test-'));
-  tmpDbPath = join(dir, 'test.db');
-  process.env.DATABASE_URL = `file:${tmpDbPath}`;
-
-  const sqlite = new Database(tmpDbPath);
-  sqlite.exec(`
-    CREATE TABLE bookings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      token TEXT NOT NULL UNIQUE,
-      customer_id INTEGER NOT NULL, address_id INTEGER NOT NULL,
-      address_text TEXT NOT NULL, customer_name TEXT NOT NULL,
-      customer_phone TEXT NOT NULL, customer_email TEXT,
-      service_id INTEGER NOT NULL, start_at TEXT NOT NULL,
-      notes TEXT, status TEXT NOT NULL,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL, decided_at TEXT,
-      rescheduled_to_id INTEGER
-    );
-    INSERT INTO bookings
-      (token, customer_id, address_id, address_text, customer_name, customer_phone, customer_email,
-       service_id, start_at, notes, status, created_at, updated_at)
-      VALUES ('known-token', 1, 1, '1 Main', 'Jane', '+19135551212', null,
-              1, '2026-05-01T14:30:00.000Z', null, 'accepted',
-              '2026-04-17T00:00:00.000Z', '2026-04-17T00:00:00.000Z');
-  `);
-  return sqlite;
-}
+let testHandle: ReturnType<typeof createTestDb>;
 
 describe('GET /c/<token>', () => {
-  let sqlite: Database.Database;
-
   beforeEach(() => {
     vi.resetModules();
-    sqlite = setupDb();
+    testHandle = createTestDb();
+    process.env.DATABASE_URL = `file:${testHandle.dbPath}`;
+
+    const { sqlite } = testHandle;
+    // Seed fixture data (site_config row already exists from migration)
+    sqlite.exec(`
+      INSERT INTO services (name, description) VALUES ('Test Service', 'desc');
+      INSERT INTO customers (name, phone, created_at, updated_at)
+        VALUES ('Jane', '+19135551212', '2026-04-17T00:00:00.000Z', '2026-04-17T00:00:00.000Z');
+      INSERT INTO customer_addresses (customer_id, address, created_at, last_used_at)
+        VALUES (1, '1 Main', '2026-04-17T00:00:00.000Z', '2026-04-17T00:00:00.000Z');
+      INSERT INTO bookings
+        (token, customer_id, address_id, address_text, customer_name, customer_phone, customer_email,
+         service_id, start_at, notes, status, created_at, updated_at)
+        VALUES ('known-token', 1, 1, '1 Main', 'Jane', '+19135551212', null,
+                1, '2026-05-01T14:30:00.000Z', null, 'accepted',
+                '2026-04-17T00:00:00.000Z', '2026-04-17T00:00:00.000Z');
+    `);
   });
 
   afterEach(() => {
-    try {
-      sqlite.close();
-      unlinkSync(tmpDbPath);
-    } catch {
-      // best-effort
-    }
+    testHandle.cleanup();
+    delete process.env.DATABASE_URL;
   });
 
   it('302s to /bookings/<token>/ics for a known token', async () => {

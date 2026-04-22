@@ -1,13 +1,12 @@
 /**
  * services/actions.test.ts — unit tests for Zod validation and action logic.
  *
- * We use an in-memory SQLite DB and stub next/cache so no Next.js runtime is needed.
+ * We use an in-memory SQLite DB with real migrations applied.
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '@/db/schema';
+import { createTestDb } from '@/db/test-helpers';
 
 // Stub next/cache before importing actions
 vi.mock('next/cache', () => ({
@@ -15,25 +14,10 @@ vi.mock('next/cache', () => ({
 }));
 
 // Stub @/db so actions use our in-memory DB
-const SERVICES_DDL = `
-  CREATE TABLE IF NOT EXISTS services (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    price_cents INTEGER,
-    price_suffix TEXT NOT NULL DEFAULT '',
-    sort_order INTEGER NOT NULL DEFAULT 0,
-    active INTEGER NOT NULL DEFAULT 1
-  );
-`;
-
-function makeTestDb() {
-  const sqlite = new Database(':memory:');
-  sqlite.pragma('journal_mode = WAL');
-  sqlite.exec(SERVICES_DDL);
-  const db = drizzle(sqlite, { schema });
-  return { sqlite, db };
-}
+let testHandle: ReturnType<typeof createTestDb>;
+vi.mock('@/db', () => ({
+  getDb: () => testHandle.db,
+}));
 
 // ---- Zod validation tests (no DB) ----
 
@@ -174,14 +158,12 @@ describe('ServiceSchema validation', () => {
 // ---- Archive / restore logic tests ----
 
 describe('archive and restore logic', () => {
-  let testDb: ReturnType<typeof makeTestDb>;
-
   beforeEach(() => {
-    testDb = makeTestDb();
+    testHandle = createTestDb({ inMemory: true });
   });
 
   it('archive sets active=0 but row still exists', () => {
-    const { sqlite, db } = testDb;
+    const { sqlite, db } = testHandle;
 
     // Insert a service directly (bypassing actions which need full Next context)
     sqlite.exec(
@@ -202,7 +184,7 @@ describe('archive and restore logic', () => {
   });
 
   it('restore sets active=1', () => {
-    const { sqlite, db } = testDb;
+    const { sqlite, db } = testHandle;
 
     sqlite.exec(
       `INSERT INTO services (name, description, price_cents, price_suffix, sort_order, active)
@@ -223,7 +205,7 @@ describe('archive and restore logic', () => {
 
 describe('reorder updates sort_order monotonically', () => {
   it('assigns sort_order = index + 1 in given order', () => {
-    const { sqlite, db } = makeTestDb();
+    const { sqlite, db } = createTestDb({ inMemory: true });
 
     // Insert 3 services with arbitrary sort orders
     sqlite.exec(`

@@ -1,9 +1,12 @@
-import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '@/db/schema';
 import { bookings, type BookingStatus } from '@/db/schema/bookings';
+import { services } from '@/db/schema/services';
+import { customers } from '@/db/schema/customers';
+import { customerAddresses } from '@/db/schema/customer-addresses';
+import { createTestDb } from '@/db/test-helpers';
 import { decideBookingCore } from './decide-core';
 
 /**
@@ -22,27 +25,6 @@ import { decideBookingCore } from './decide-core';
  */
 
 type Db = BetterSQLite3Database<typeof schema>;
-
-function makeDb(): { sqlite: Database.Database; db: Db } {
-  const sqlite = new Database(':memory:');
-  sqlite.exec(`
-    CREATE TABLE bookings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      token TEXT NOT NULL UNIQUE,
-      customer_id INTEGER NOT NULL, address_id INTEGER NOT NULL,
-      address_text TEXT NOT NULL, customer_name TEXT NOT NULL,
-      customer_phone TEXT NOT NULL, customer_email TEXT,
-      service_id INTEGER NOT NULL, start_at TEXT NOT NULL,
-      notes TEXT, status TEXT NOT NULL,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL, decided_at TEXT,
-      rescheduled_to_id INTEGER,
-      cancel_reason TEXT
-    );
-    CREATE UNIQUE INDEX bookings_active_start
-      ON bookings(start_at) WHERE status IN ('pending', 'accepted');
-  `);
-  return { sqlite, db: drizzle(sqlite, { schema }) as Db };
-}
 
 function seed(db: Db, status: BookingStatus, overrides: Partial<{ startAt: string; updatedAt: string }> = {}): number {
   const updatedAt = overrides.updatedAt ?? '2026-04-17T00:00:00.000Z';
@@ -69,12 +51,34 @@ function seed(db: Db, status: BookingStatus, overrides: Partial<{ startAt: strin
 }
 
 describe('decideBookingCore', () => {
-  let sqlite: Database.Database;
+  let testHandle: ReturnType<typeof createTestDb>;
   let db: Db;
   beforeEach(() => {
-    const made = makeDb();
-    sqlite = made.sqlite;
-    db = made.db;
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
+    // Seed FK parent rows required by bookings constraints.
+    db.insert(services).values({ name: 'Test Service', description: 'Test', active: 1 }).run();
+    const custRows = db.insert(customers).values({
+      name: 'Jane', phone: '+19133097340', email: null,
+      createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+    }).returning().all();
+    db.insert(customerAddresses).values({
+      customerId: custRows[0].id,
+      address: '1 Main',
+      createdAt: '2026-01-01T00:00:00Z',
+      lastUsedAt: '2026-01-01T00:00:00Z',
+    }).run();
+    // Second customer for 'decline releases slot' test.
+    const cust2Rows = db.insert(customers).values({
+      name: 'Second', phone: '+19133097341', email: null,
+      createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+    }).returning().all();
+    db.insert(customerAddresses).values({
+      customerId: cust2Rows[0].id,
+      address: '1 Main',
+      createdAt: '2026-01-01T00:00:00Z',
+      lastUsedAt: '2026-01-01T00:00:00Z',
+    }).run();
   });
 
   it('happy path: pending + correct updatedAt + accept → ok', () => {
@@ -92,7 +96,7 @@ describe('decideBookingCore', () => {
       expect(result.booking.decidedAt).toBe('2026-04-17T12:00:00.000Z');
       expect(result.booking.updatedAt).toBe('2026-04-17T12:00:00.000Z');
     }
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('stale updatedAt → conflict; row untouched', () => {
@@ -112,7 +116,7 @@ describe('decideBookingCore', () => {
     }
     const row = db.select().from(bookings).where(eq(bookings.id, id)).all()[0];
     expect(row.status).toBe('pending');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('invalid transition (declined → accepted) → invalid_transition', () => {
@@ -130,7 +134,7 @@ describe('decideBookingCore', () => {
         expect(result.currentStatus).toBe('declined');
       }
     }
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('invalid transition completed → anything → invalid_transition', () => {
@@ -145,7 +149,7 @@ describe('decideBookingCore', () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.kind).toBe('invalid_transition');
     }
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('missing id → not_found', () => {
@@ -157,7 +161,7 @@ describe('decideBookingCore', () => {
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.kind).toBe('not_found');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('mid-flight race: row mutated between SELECT and UPDATE → conflict', () => {
@@ -193,7 +197,7 @@ describe('decideBookingCore', () => {
         expect(stale.currentUpdatedAt).toBe('2026-04-17T01:00:00.000Z');
       }
     }
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('decline releases the slot (row exits partial UNIQUE index)', () => {
@@ -229,7 +233,7 @@ describe('decideBookingCore', () => {
       .returning()
       .all();
     expect(second).toHaveLength(1);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('markCompleted on accepted → completed (terminal)', () => {
@@ -242,7 +246,7 @@ describe('decideBookingCore', () => {
     });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.booking.status).toBe('completed');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('markNoShow on accepted → no_show (terminal)', () => {
@@ -255,6 +259,6 @@ describe('decideBookingCore', () => {
     });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.booking.status).toBe('no_show');
-    sqlite.close();
+    testHandle.cleanup();
   });
 });

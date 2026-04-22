@@ -1,10 +1,10 @@
-import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '@/db/schema';
 import { customers } from '@/db/schema/customers';
 import { customerAddresses } from '@/db/schema/customer-addresses';
+import { createTestDb } from '@/db/test-helpers';
 import { matchOrCreateCustomer, normalizeAddress } from './match';
 
 type Db = BetterSQLite3Database<typeof schema>;
@@ -12,38 +12,10 @@ type Db = BetterSQLite3Database<typeof schema>;
 /**
  * Exhaustive match-or-create tests — every branch in the 3-step customer
  * match + 2-step address match described in STACK.md § INDEX book.
- *
- * Uses an in-memory SQLite with the same DDL as the 0006 migration — kept
- * inline rather than importing the SQL file to keep tests fast + self-
- * contained.
  */
-function makeDb(): { sqlite: Database.Database; db: Db } {
-  const sqlite = new Database(':memory:');
-  sqlite.pragma('foreign_keys = ON');
-  sqlite.exec(`
-    CREATE TABLE customers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      name TEXT NOT NULL,
-      phone TEXT NOT NULL UNIQUE,
-      email TEXT,
-      notes TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      last_booking_at TEXT
-    );
-    CREATE UNIQUE INDEX customers_email_unique
-      ON customers(email) WHERE email IS NOT NULL;
 
-    CREATE TABLE customer_addresses (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      customer_id INTEGER NOT NULL REFERENCES customers(id),
-      address TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      last_used_at TEXT NOT NULL
-    );
-  `);
-  return { sqlite, db: drizzle(sqlite, { schema }) as Db };
-}
+let testHandle: ReturnType<typeof createTestDb>;
+let db: Db;
 
 describe('normalizeAddress', () => {
   it('collapses whitespace, trims, and lowercases', () => {
@@ -60,11 +32,9 @@ describe('normalizeAddress', () => {
 });
 
 describe('matchOrCreateCustomer', () => {
-  let sqlite: Database.Database;
-  let db: Db;
-
   beforeEach(() => {
-    ({ sqlite, db } = makeDb());
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
   });
 
   it('branch 1: phone match → reuses existing customer, inserts new address', () => {
@@ -99,7 +69,7 @@ describe('matchOrCreateCustomer', () => {
     // will hold the snapshot of what the customer typed this time.
     const after = db.select().from(customers).where(eq(customers.id, seedId)).all();
     expect(after[0].name).toBe('Jane Doe');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('branch 2: email match (case-insensitive) → reuses existing customer', () => {
@@ -127,7 +97,7 @@ describe('matchOrCreateCustomer', () => {
 
     expect(result.createdCustomer).toBe(false);
     expect(result.customerId).toBe(seed[0].id);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('branch 3: no match → inserts new customer + new address', () => {
@@ -147,7 +117,7 @@ describe('matchOrCreateCustomer', () => {
     const rows = db.select().from(customers).all();
     expect(rows).toHaveLength(1);
     expect(rows[0].phone).toBe('+19133093333');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('branch 4: address reuse → bumps last_used_at, does not insert', () => {
@@ -198,7 +168,7 @@ describe('matchOrCreateCustomer', () => {
       .all();
     expect(addrs).toHaveLength(1);
     expect(addrs[0].lastUsedAt).toBe('2026-04-17T12:00:00Z');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('branch 5: same customer, different address → inserts new address row', () => {
@@ -238,7 +208,7 @@ describe('matchOrCreateCustomer', () => {
       .where(eq(customerAddresses.customerId, seed[0].id))
       .all();
     expect(addrs).toHaveLength(2);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('phone match takes precedence over email match', () => {
@@ -278,7 +248,7 @@ describe('matchOrCreateCustomer', () => {
     );
 
     expect(result.customerId).toBe(a[0].id);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('null / empty email is handled (no unique-constraint clash)', () => {
@@ -303,6 +273,6 @@ describe('matchOrCreateCustomer', () => {
     );
 
     expect(db.select().from(customers).all()).toHaveLength(2);
-    sqlite.close();
+    testHandle.cleanup();
   });
 });

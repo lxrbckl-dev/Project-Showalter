@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import * as schema from '@/db/schema';
 import {
@@ -8,8 +6,7 @@ import {
   availabilityOverrides,
   weeklyTemplateWindows,
 } from '@/db/schema/availability';
-
-type Db = BetterSQLite3Database<typeof schema>;
+import { createTestDb } from '@/db/test-helpers';
 
 /**
  * Action-level tests. We stub out `@/db` and `@/features/auth/auth` with
@@ -24,42 +21,13 @@ type Db = BetterSQLite3Database<typeof schema>;
  */
 
 // Fresh in-memory DB per test, shared with the module under test via mock.
-let sqlite: Database.Database;
-let db: Db;
-
-function setupDb() {
-  sqlite = new Database(':memory:');
-  sqlite.pragma('journal_mode = WAL');
-  sqlite.pragma('foreign_keys = ON');
-  sqlite.exec(`
-    CREATE TABLE weekly_template_windows (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      day_of_week INTEGER NOT NULL,
-      start_time TEXT NOT NULL,
-      end_time TEXT NOT NULL,
-      note TEXT
-    );
-    CREATE TABLE availability_overrides (
-      date TEXT PRIMARY KEY NOT NULL,
-      mode TEXT NOT NULL,
-      note TEXT,
-      created_at TEXT NOT NULL
-    );
-    CREATE TABLE availability_override_windows (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      date TEXT NOT NULL REFERENCES availability_overrides(date),
-      start_time TEXT NOT NULL,
-      end_time TEXT NOT NULL
-    );
-  `);
-  db = drizzle(sqlite, { schema }) as Db;
-}
+let testHandle: ReturnType<typeof createTestDb>;
 
 vi.mock('@/db', async () => {
   return {
-    getDb: () => db,
+    getDb: () => testHandle.db,
     resolveDatabasePath: () => ':memory:',
-    getSqlite: () => sqlite,
+    getSqlite: () => testHandle.sqlite,
     schema,
   };
 });
@@ -86,7 +54,7 @@ import { auth } from '@/features/auth/auth';
 
 describe('availability actions', () => {
   beforeEach(() => {
-    setupDb();
+    testHandle = createTestDb({ inMemory: true });
     vi.mocked(auth).mockImplementation(async () => ({
       user: { id: 'u1', name: 'admin' },
       credentialId: null,
@@ -127,10 +95,10 @@ describe('availability actions', () => {
     it('replaces all windows for the weekday atomically', async () => {
       // Seed pre-existing windows for Sat + Sun so we can verify only Sat is
       // touched.
-      db.insert(weeklyTemplateWindows)
+      testHandle.db.insert(weeklyTemplateWindows)
         .values({ dayOfWeek: 6, startTime: '08:00', endTime: '09:00' })
         .run();
-      db.insert(weeklyTemplateWindows)
+      testHandle.db.insert(weeklyTemplateWindows)
         .values({ dayOfWeek: 0, startTime: '10:00', endTime: '11:00' })
         .run();
 
@@ -140,7 +108,7 @@ describe('availability actions', () => {
       ]);
       expect(res).toEqual({ ok: true });
 
-      const sat = db
+      const sat = testHandle.db
         .select()
         .from(weeklyTemplateWindows)
         .where(eq(weeklyTemplateWindows.dayOfWeek, 6))
@@ -149,7 +117,7 @@ describe('availability actions', () => {
       expect(sat.map((r) => r.startTime).sort()).toEqual(['10:00', '15:00']);
       expect(sat.find((r) => r.startTime === '15:00')?.note).toBe('evening');
 
-      const sun = db
+      const sun = testHandle.db
         .select()
         .from(weeklyTemplateWindows)
         .where(eq(weeklyTemplateWindows.dayOfWeek, 0))
@@ -160,13 +128,13 @@ describe('availability actions', () => {
     });
 
     it('empty array clears the weekday', async () => {
-      db.insert(weeklyTemplateWindows)
+      testHandle.db.insert(weeklyTemplateWindows)
         .values({ dayOfWeek: 6, startTime: '08:00', endTime: '09:00' })
         .run();
       const res = await setTemplateDay(6, []);
       expect(res).toEqual({ ok: true });
       expect(
-        db
+        testHandle.db
           .select()
           .from(weeklyTemplateWindows)
           .where(eq(weeklyTemplateWindows.dayOfWeek, 6))
@@ -188,21 +156,21 @@ describe('availability actions', () => {
     });
 
     it('upserts a closed override, wiping prior open windows', async () => {
-      db.insert(availabilityOverrides)
+      testHandle.db.insert(availabilityOverrides)
         .values({
           date: '2026-04-18',
           mode: 'open',
           createdAt: '2026-04-17T00:00:00Z',
         })
         .run();
-      db.insert(availabilityOverrideWindows)
+      testHandle.db.insert(availabilityOverrideWindows)
         .values({ date: '2026-04-18', startTime: '10:00', endTime: '14:00' })
         .run();
 
       const res = await closeDate('2026-04-18', 'out of town');
       expect(res).toEqual({ ok: true });
 
-      const override = db
+      const override = testHandle.db
         .select()
         .from(availabilityOverrides)
         .where(eq(availabilityOverrides.date, '2026-04-18'))
@@ -211,7 +179,7 @@ describe('availability actions', () => {
       expect(override[0].mode).toBe('closed');
       expect(override[0].note).toBe('out of town');
 
-      const windows = db
+      const windows = testHandle.db
         .select()
         .from(availabilityOverrideWindows)
         .where(eq(availabilityOverrideWindows.date, '2026-04-18'))
@@ -243,7 +211,7 @@ describe('availability actions', () => {
       ]);
       expect(res2).toEqual({ ok: true });
 
-      const windows = db
+      const windows = testHandle.db
         .select()
         .from(availabilityOverrideWindows)
         .where(eq(availabilityOverrideWindows.date, '2026-04-18'))
@@ -251,7 +219,7 @@ describe('availability actions', () => {
       expect(windows).toHaveLength(1);
       expect(windows[0].startTime).toBe('13:00');
 
-      const override = db
+      const override = testHandle.db
         .select()
         .from(availabilityOverrides)
         .where(eq(availabilityOverrides.date, '2026-04-18'))
@@ -263,7 +231,7 @@ describe('availability actions', () => {
     it('allows an open override with no windows', async () => {
       const res = await openDateWithWindows('2026-04-18', []);
       expect(res).toEqual({ ok: true });
-      const override = db
+      const override = testHandle.db
         .select()
         .from(availabilityOverrides)
         .where(eq(availabilityOverrides.date, '2026-04-18'))
@@ -280,14 +248,14 @@ describe('availability actions', () => {
     });
 
     it('deletes override + child windows in one transaction', async () => {
-      db.insert(availabilityOverrides)
+      testHandle.db.insert(availabilityOverrides)
         .values({
           date: '2026-04-18',
           mode: 'open',
           createdAt: '2026-04-17T00:00:00Z',
         })
         .run();
-      db.insert(availabilityOverrideWindows)
+      testHandle.db.insert(availabilityOverrideWindows)
         .values({ date: '2026-04-18', startTime: '10:00', endTime: '14:00' })
         .run();
 
@@ -295,14 +263,14 @@ describe('availability actions', () => {
       expect(res).toEqual({ ok: true });
 
       expect(
-        db
+        testHandle.db
           .select()
           .from(availabilityOverrides)
           .where(eq(availabilityOverrides.date, '2026-04-18'))
           .all(),
       ).toHaveLength(0);
       expect(
-        db
+        testHandle.db
           .select()
           .from(availabilityOverrideWindows)
           .where(eq(availabilityOverrideWindows.date, '2026-04-18'))

@@ -9,58 +9,19 @@
  *   - Non-pending bookings are not touched
  */
 
-import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import * as schema from '@/db/schema';
 import { bookings } from '@/db/schema/bookings';
 import { notifications } from '@/db/schema/notifications';
+import { services } from '@/db/schema/services';
+import { customers } from '@/db/schema/customers';
+import { customerAddresses } from '@/db/schema/customer-addresses';
+import { createTestDb } from '@/db/test-helpers';
 import { runAutoExpire } from './auto-expire';
 
 type Db = BetterSQLite3Database<typeof schema>;
-
-function makeDb(): { sqlite: Database.Database; db: Db } {
-  const sqlite = new Database(':memory:');
-  sqlite.exec(`
-    CREATE TABLE bookings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      token TEXT NOT NULL UNIQUE,
-      customer_id INTEGER NOT NULL,
-      address_id INTEGER NOT NULL,
-      address_text TEXT NOT NULL,
-      customer_name TEXT NOT NULL,
-      customer_phone TEXT NOT NULL,
-      customer_email TEXT,
-      service_id INTEGER NOT NULL,
-      start_at TEXT NOT NULL,
-      notes TEXT,
-      status TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      decided_at TEXT,
-      rescheduled_to_id INTEGER,
-      cancel_reason TEXT
-    );
-    CREATE TABLE notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      kind TEXT NOT NULL,
-      payload_json TEXT NOT NULL,
-      read INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL,
-      booking_id INTEGER
-    );
-    CREATE TABLE cron_runs (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      task          TEXT    NOT NULL,
-      started_at    TEXT    NOT NULL,
-      ended_at      TEXT,
-      status        TEXT    NOT NULL DEFAULT 'running',
-      error_message TEXT
-    );
-  `);
-  return { sqlite, db: drizzle(sqlite, { schema }) as Db };
-}
 
 function hoursAgo(h: number): string {
   return new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
@@ -82,7 +43,7 @@ function insertBooking(
       customerName: 'Test Customer',
       customerPhone: '+15551234567',
       serviceId: 1,
-      startAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      startAt: new Date(Date.now() + (24 + seq) * 60 * 60 * 1000).toISOString(),
       status: (opts.status ?? 'pending') as schema.BookingStatus,
       createdAt: opts.createdAt,
       updatedAt: opts.createdAt,
@@ -93,14 +54,25 @@ function insertBooking(
 }
 
 describe('auto-expire sweep', () => {
-  let sqlite: Database.Database;
+  let testHandle: ReturnType<typeof createTestDb>;
   let db: Db;
 
   beforeEach(() => {
     seq = 0;
-    const made = makeDb();
-    sqlite = made.sqlite;
-    db = made.db;
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
+    // Seed FK parent rows required by bookings constraints.
+    db.insert(services).values({ name: 'Test Service', description: 'Test', active: 1 }).run();
+    const custRows = db.insert(customers).values({
+      name: 'Test Customer', phone: '+15551234567', email: null,
+      createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+    }).returning().all();
+    db.insert(customerAddresses).values({
+      customerId: custRows[0].id,
+      address: '123 Main St',
+      createdAt: '2026-01-01T00:00:00Z',
+      lastUsedAt: '2026-01-01T00:00:00Z',
+    }).run();
   });
 
   it('does not expire a booking under 72h old', async () => {
@@ -110,7 +82,7 @@ describe('auto-expire sweep', () => {
 
     const row = db.select().from(bookings).where(eq(bookings.id, id)).get();
     expect(row?.status).toBe('pending');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('expires a booking over 72h old', async () => {
@@ -121,7 +93,7 @@ describe('auto-expire sweep', () => {
     const row = db.select().from(bookings).where(eq(bookings.id, id)).get();
     expect(row?.status).toBe('expired');
     expect(row?.decidedAt).toBeTypeOf('string');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('expires the booking but writes no notification (notifications scoped to booking_submitted only)', async () => {
@@ -138,7 +110,7 @@ describe('auto-expire sweep', () => {
       .where(eq(notifications.bookingId, id))
       .all();
     expect(notifs).toHaveLength(0);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('idempotency: running twice does not flip an already-expired row again', async () => {
@@ -155,7 +127,7 @@ describe('auto-expire sweep', () => {
     // brand-new pending requests he hasn't viewed.
     const notifs = db.select().from(notifications).all();
     expect(notifs).toHaveLength(0);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('does not touch non-pending bookings', async () => {
@@ -167,7 +139,7 @@ describe('auto-expire sweep', () => {
     expect(row?.status).toBe('accepted');
     const notifs = db.select().from(notifications).all();
     expect(notifs).toHaveLength(0);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('expires multiple eligible bookings in one run', async () => {
@@ -187,6 +159,6 @@ describe('auto-expire sweep', () => {
 
     const notifs = db.select().from(notifications).all();
     expect(notifs).toHaveLength(0);
-    sqlite.close();
+    testHandle.cleanup();
   });
 });

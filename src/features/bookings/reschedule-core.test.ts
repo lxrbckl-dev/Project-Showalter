@@ -1,9 +1,12 @@
-import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '@/db/schema';
 import { bookings } from '@/db/schema/bookings';
+import { services } from '@/db/schema/services';
+import { customers } from '@/db/schema/customers';
+import { customerAddresses } from '@/db/schema/customer-addresses';
+import { createTestDb } from '@/db/test-helpers';
 import { rescheduleBookingCore } from './reschedule-core';
 
 /**
@@ -21,27 +24,6 @@ import { rescheduleBookingCore } from './reschedule-core';
  */
 
 type Db = BetterSQLite3Database<typeof schema>;
-
-function makeDb(): { sqlite: Database.Database; db: Db } {
-  const sqlite = new Database(':memory:');
-  sqlite.exec(`
-    CREATE TABLE bookings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      token TEXT NOT NULL UNIQUE,
-      customer_id INTEGER NOT NULL, address_id INTEGER NOT NULL,
-      address_text TEXT NOT NULL, customer_name TEXT NOT NULL,
-      customer_phone TEXT NOT NULL, customer_email TEXT,
-      service_id INTEGER NOT NULL, start_at TEXT NOT NULL,
-      notes TEXT, status TEXT NOT NULL,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL, decided_at TEXT,
-      rescheduled_to_id INTEGER,
-      cancel_reason TEXT
-    );
-    CREATE UNIQUE INDEX bookings_active_start
-      ON bookings(start_at) WHERE status IN ('pending', 'accepted');
-  `);
-  return { sqlite, db: drizzle(sqlite, { schema }) as Db };
-}
 
 function seedAccepted(db: Db, startAt = '2026-05-01T12:00:00.000Z'): number {
   const rows = db
@@ -68,12 +50,34 @@ function seedAccepted(db: Db, startAt = '2026-05-01T12:00:00.000Z'): number {
 }
 
 describe('rescheduleBookingCore', () => {
-  let sqlite: Database.Database;
+  let testHandle: ReturnType<typeof createTestDb>;
   let db: Db;
   beforeEach(() => {
-    const made = makeDb();
-    sqlite = made.sqlite;
-    db = made.db;
+    testHandle = createTestDb({ inMemory: true });
+    db = testHandle.db as Db;
+    // Seed FK parent rows required by bookings constraints.
+    db.insert(services).values({ name: 'Test Service', description: 'Test', active: 1 }).run();
+    const custRows = db.insert(customers).values({
+      name: 'Jane', phone: '+19133097340', email: 'jane@example.com',
+      createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+    }).returning().all();
+    db.insert(customerAddresses).values({
+      customerId: custRows[0].id,
+      address: '1 Elm',
+      createdAt: '2026-01-01T00:00:00Z',
+      lastUsedAt: '2026-01-01T00:00:00Z',
+    }).run();
+    // Second customer + address for the "blocker" booking in rollback test.
+    const cust2Rows = db.insert(customers).values({
+      name: 'Other', phone: '+19133097341', email: null,
+      createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+    }).returning().all();
+    db.insert(customerAddresses).values({
+      customerId: cust2Rows[0].id,
+      address: '2 Elm',
+      createdAt: '2026-01-01T00:00:00Z',
+      lastUsedAt: '2026-01-01T00:00:00Z',
+    }).run();
   });
 
   it('happy path: cancels old + creates new + links forward pointer', () => {
@@ -112,7 +116,7 @@ describe('rescheduleBookingCore', () => {
     expect(persisted.status).toBe('canceled');
     expect(persisted.rescheduledToId).toBe(result.newBooking.id);
 
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('rollback when the new slot is already held — neither row changes', () => {
@@ -157,7 +161,7 @@ describe('rescheduleBookingCore', () => {
 
     // Only 2 rows total (old + blocker) — the new one was rolled back.
     expect(db.select().from(bookings).all()).toHaveLength(2);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('stale updatedAt → conflict; nothing changes', () => {
@@ -177,7 +181,7 @@ describe('rescheduleBookingCore', () => {
       .all()[0];
     expect(row.status).toBe('accepted');
     expect(db.select().from(bookings).all()).toHaveLength(1);
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('terminal source (completed) → invalid_transition', () => {
@@ -208,7 +212,7 @@ describe('rescheduleBookingCore', () => {
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.kind).toBe('invalid_transition');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('same-slot reschedule: old row releases inside tx before new INSERT', () => {
@@ -225,7 +229,7 @@ describe('rescheduleBookingCore', () => {
       expect(result.newBooking.startAt).toBe('2026-05-01T12:00:00.000Z');
       expect(result.oldBooking.status).toBe('canceled');
     }
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('invalid newStartAt shape → invalid_start_at', () => {
@@ -238,7 +242,7 @@ describe('rescheduleBookingCore', () => {
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.kind).toBe('invalid_start_at');
-    sqlite.close();
+    testHandle.cleanup();
   });
 
   it('missing id → not_found', () => {
@@ -250,6 +254,6 @@ describe('rescheduleBookingCore', () => {
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.kind).toBe('not_found');
-    sqlite.close();
+    testHandle.cleanup();
   });
 });
