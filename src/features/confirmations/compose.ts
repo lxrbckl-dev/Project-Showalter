@@ -16,6 +16,7 @@ import { getDb } from '@/db';
 import { bookings } from '@/db/schema/bookings';
 import { services } from '@/db/schema/services';
 import { siteConfig } from '@/db/schema/site-config';
+import { getBaseUrl } from '@/lib/env';
 import { renderTemplate } from '@/features/templates/render';
 import { buildTemplateVars } from '@/features/templates/vars';
 
@@ -219,10 +220,7 @@ export function composeConfirmationForBooking(
 
   const timezone = cfg?.timezone ?? 'America/Chicago';
   const siteTitle = cfg?.siteTitle ?? 'Sawyer Showalter Service';
-  const baseUrl = (opts.baseUrl ?? process.env.BASE_URL ?? 'https://showalter.business').replace(
-    /\/+$/,
-    '',
-  );
+  const baseUrl = (opts.baseUrl ?? getBaseUrl()).replace(/\/+$/, '');
 
   // Body: admin override column (if set) or shipped default.
   const field = templateFieldFor(kind);

@@ -5,6 +5,7 @@ import { getDb } from '@/db';
 import { auth } from '@/features/auth/auth';
 import { customers } from '@/db/schema/customers';
 import { reviews } from '@/db/schema/reviews';
+import { getBaseUrl } from '@/lib/env';
 import { composeReviewRequest } from './compose';
 
 /**
@@ -53,10 +54,7 @@ export async function composeStandaloneReview(
     .all()[0];
   if (!customer) return { ok: false, error: 'Customer not found.' };
 
-  const baseUrl = (process.env.BASE_URL ?? 'https://showalter.business').replace(
-    /\/+$/,
-    '',
-  );
+  const baseUrl = getBaseUrl().replace(/\/+$/, '');
   const reviewLink = `${baseUrl}/review/${row.token}`;
 
   let emailHref: string | null = null;

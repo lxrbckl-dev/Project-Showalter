@@ -275,12 +275,12 @@ Create an `A` record in the Porkbun dashboard:
 
 | Hostname                      | Type | Value                        | TTL  |
 |-------------------------------|------|------------------------------|------|
-| `showalter.business`          | A    | `<homelab public IP>`        | 600  |
+| `sawyer.showalter.business`   | A    | `<homelab public IP>`        | 600  |
 
 Verify propagation (wait a few minutes, then):
 
 ```bash
-dig showalter.business +short
+dig sawyer.showalter.business +short
 # should return your homelab's public IP
 ```
 
@@ -289,7 +289,7 @@ dig showalter.business +short
 Add the block to the homelab's Caddyfile (typically `/etc/caddy/Caddyfile`):
 
 ```caddy
-showalter.business, www.showalter.business {
+sawyer.showalter.business {
     encode zstd gzip
     reverse_proxy localhost:5827
 }
@@ -329,7 +329,7 @@ docker logs showalter --tail 50    # look for "server listening on port 5827"
 
 After `docker compose up -d` the `admins` table is empty. The first person to visit `/admin/login` claims the founding admin slot — no env toggle required.
 
-1. **Founding admin.** Open `https://showalter.business/admin/login` in a browser on the founding admin's device. The page detects the empty admins table and renders the founding-admin form.
+1. **Founding admin.** Open `https://sawyer.showalter.business/admin/login` in a browser on the founding admin's device. The page detects the empty admins table and renders the founding-admin form.
    - The founding admin types their email and follows the biometric prompt.
    - The server shows a **recovery code once** — save it to a password manager immediately.
 2. **Invite the rest of the team.** Still as the founding admin, go to `/admin/settings/admins`:
@@ -350,14 +350,14 @@ After `docker compose up -d` the `admins` table is empty. The first person to vi
 #### Step 8 — Verify health
 
 ```bash
-curl -sf https://showalter.business/api/health
+curl -sf https://sawyer.showalter.business/api/health
 # expected: {"ok":true}
 ```
 
 Also confirm:
 
-- `https://showalter.business` loads the public landing page.
-- `https://showalter.business/admin` redirects to `/admin/login` (not a 500).
+- `https://sawyer.showalter.business` loads the public landing page.
+- `https://sawyer.showalter.business/admin` redirects to `/admin/login` (not a 500).
 - An admin can log in with their passkey.
 
 ---
@@ -377,7 +377,7 @@ Caddy keeps the prior container serving while the new one starts. The app's 30-s
 **Verify after every release:**
 
 ```bash
-curl -sf https://showalter.business/api/health
+curl -sf https://sawyer.showalter.business/api/health
 # expected: {"ok":true}
 ```
 
@@ -412,14 +412,15 @@ Run through this before any first-time deploy or major homelab change.
 
 ### Secrets and config
 
+- [ ] `.env` created from `.env.example` (`cp .env.example /srv/showalter/.env`) and every blank value filled in
+- [ ] `BASE_URL` set to the production URL (e.g. `https://sawyer.showalter.business`)
 - [ ] `AUTH_SECRET` set and non-empty (32+ random bytes)
 - [ ] `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` all set
 - [ ] `.env` file is `chmod 600` (not world-readable)
 
 ### DNS
 
-- [ ] `dig showalter.business +short` returns the homelab's public IP
-- [ ] `dig www.showalter.business +short` returns the homelab's public IP (if applicable)
+- [ ] `dig sawyer.showalter.business +short` returns the homelab's public IP
 
 ### Homelab ports
 
@@ -431,7 +432,7 @@ Run through this before any first-time deploy or major homelab change.
 
 - [ ] Docker daemon running: `docker info`
 - [ ] Caddy running and config validates: `caddy validate --config /etc/caddy/Caddyfile`
-- [ ] Caddyfile has the `showalter.business` block
+- [ ] Caddyfile has the `sawyer.showalter.business` block
 
 ### Storage
 

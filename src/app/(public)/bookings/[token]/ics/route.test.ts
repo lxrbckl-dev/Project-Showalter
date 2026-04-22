@@ -58,7 +58,7 @@ describe('GET /bookings/<token>/ics', () => {
     expect(body).toContain('BEGIN:VALARM');
     expect(body).toContain('TRIGGER:-PT24H');
     // UID derives from the token.
-    expect(body).toContain('UID:booking-tok-abc@showalter.business');
+    expect(body).toContain('UID:booking-tok-abc@sawyer.showalter.business');
   });
 
   it('returns 404 for an unknown token', async () => {

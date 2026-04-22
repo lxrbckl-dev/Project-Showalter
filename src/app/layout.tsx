@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { getSiteConfig } from '@/features/site-config/queries';
+import { getBaseUrl } from '@/lib/env';
 import './globals.css';
 
-const BASE_URL = process.env.BASE_URL ?? 'https://showalter.business';
+const BASE_URL = getBaseUrl();
 
 // Tagline is still hardcoded (not part of the admin-editable brand); the
 // leading business name comes from `site_config.site_title`.

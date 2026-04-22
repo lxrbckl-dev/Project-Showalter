@@ -15,7 +15,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5827
-      BASE_URL: https://showalter.business
+      BASE_URL: ${BASE_URL}
       AUTH_SECRET: ${AUTH_SECRET}
       SEED_FROM_BRIEF: ${SEED_FROM_BRIEF:-false}
       BOOKING_RATE_LIMIT_PER_HOUR: ${BOOKING_RATE_LIMIT_PER_HOUR:-30}

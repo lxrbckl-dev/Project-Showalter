@@ -24,6 +24,7 @@ import { customers } from '@/db/schema/customers';
 import { reviews } from '@/db/schema/reviews';
 import { services } from '@/db/schema/services';
 import { siteConfig } from '@/db/schema/site-config';
+import { getBaseUrl } from '@/lib/env';
 import { renderTemplate } from '@/features/templates/render';
 import { buildTemplateVars } from '@/features/templates/vars';
 
@@ -91,10 +92,7 @@ export function composeReviewRequest(
 
   const cfg = db.select().from(siteConfig).limit(1).all()[0];
   const tz = cfg?.timezone ?? 'America/Chicago';
-  const baseUrl = (opts.baseUrl ?? process.env.BASE_URL ?? 'https://showalter.business').replace(
-    /\/+$/,
-    '',
-  );
+  const baseUrl = (opts.baseUrl ?? getBaseUrl()).replace(/\/+$/, '');
 
   // Optional: for booking-tied reviews, pull service name + start_at for
   // better template substitution. Standalone reviews fall back.

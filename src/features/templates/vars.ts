@@ -31,7 +31,7 @@ export interface TemplateVarsInput {
   notes: string | null;
   /** IANA timezone for date/time rendering. */
   timezone: string;
-  /** Absolute URL root (e.g. "https://showalter.business"). No trailing slash. */
+  /** Absolute URL root (e.g. "https://sawyer.showalter.business"). No trailing slash. */
   baseUrl: string;
   /** Unguessable booking token. */
   token: string;

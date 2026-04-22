@@ -151,7 +151,7 @@ export function buildIcs(input: IcsBookingInput): string {
   }
   const end = new Date(start.getTime() + durationMinutes * 60_000);
 
-  const uid = `booking-${token}@showalter.business`;
+  const uid = `booking-${token}@sawyer.showalter.business`;
   const dtstamp = formatUtcStamp(now);
   const dtstart = formatLocalStampInTz(start, timezone);
   const dtend = formatLocalStampInTz(end, timezone);

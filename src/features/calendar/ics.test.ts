@@ -36,7 +36,7 @@ describe('buildIcs', () => {
 
   it('uses the booking token in the UID', () => {
     const ics = buildIcs(INPUT);
-    expect(ics).toContain('UID:booking-tok-abc123@showalter.business');
+    expect(ics).toContain('UID:booking-tok-abc123@sawyer.showalter.business');
   });
 
   it('emits DTSTART with TZID from site_config', () => {

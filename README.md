@@ -8,7 +8,7 @@ Status: **Built · 12 phases · 435 unit + 54 E2E tests**
 
 ## What this is
 
-Showalter Services is a real, production website built for Sawyer Showalter's 15-year-old lawn-care business. Customers scan a QR code on a door hanger, land on `showalter.business`, and can book an appointment in under a minute. Sawyer gets a push notification, reviews the request from his phone, taps Accept, and fires off a confirmation SMS or email from his own number and Gmail — no server-side email provider required. Self-hosted on Alex's homelab behind Caddy + Docker, the whole thing is under his full control and costs nothing beyond the domain.
+Showalter Services is a real, production website built for Sawyer Showalter's 15-year-old lawn-care business. Customers scan a QR code on a door hanger, land on `sawyer.showalter.business`, and can book an appointment in under a minute. Sawyer gets a push notification, reviews the request from his phone, taps Accept, and fires off a confirmation SMS or email from his own number and Gmail — no server-side email provider required. Self-hosted on Alex's homelab behind Caddy + Docker, the whole thing is under his full control and costs nothing beyond the domain.
 
 ---
 
@@ -55,7 +55,7 @@ Showalter Services is a real, production website built for Sawyer Showalter's 15
              │
              ▼
    ┌────────────────────┐
-   │   Porkbun DNS      │  showalter.business → Alex's homelab public IP
+   │   Porkbun DNS      │  sawyer.showalter.business → Alex's homelab public IP
    └─────────┬──────────┘
              │
              ▼
@@ -88,9 +88,9 @@ See [`docs/STACK.md`](./docs/STACK.md) for the full deployment topology, `docker
    ```
    pnpm install
    ```
-3. Copy the env file (it has sane dev defaults and inline comments):
+3. Copy the dev env template (it has sane dev defaults and inline comments):
    ```
-   cp .env.example .env.local
+   cp .env.local.example .env.local
    ```
 4. Run migrations (creates `./dev.db`):
    ```

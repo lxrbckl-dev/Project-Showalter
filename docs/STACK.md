@@ -20,7 +20,7 @@ This document captures the tech-stack decision for the Showalter Services site. 
 | Data persistence   | **Host bind-mount** at `/data`            | SQLite DB file, uploaded images, and nightly backups all persist outside the container. |
 | Backups            | **In-container cron**                     | Nightly `sqlite3 .backup` dump at 03:00 local time into `/data/backups/YYYY-MM-DD.db`, 14-day retention; nightly batch also purges expired booking attachments. Separate 15-min sweep handles booking reminders + auto-expire. |
 | CI/CD              | **GitHub Actions → GHCR**                 | On merge to `main`, build and push `ghcr.io/lxrbckl-dev/project-showalter:{latest,<sha>}`. Alex pulls on the homelab. |
-| Reverse proxy      | **Caddy** (on host)                       | TLS auto-provisioned via Let's Encrypt. Fronts `showalter.business`. |
+| Reverse proxy      | **Caddy** (on host)                       | TLS auto-provisioned via Let's Encrypt. Fronts `sawyer.showalter.business`. |
 
 ### Scheduled jobs
 
@@ -265,14 +265,14 @@ Audit trail for every scheduled-job invocation. Drives the admin dashboard's "cr
 
 ## Deployment topology
 
-The admin is served at `showalter.business/admin` (same-origin path, not a subdomain) — one Next.js app handles both public and admin routes behind a single Caddy upstream.
+The admin is served at `sawyer.showalter.business/admin` (same-origin path, not a subdomain) — one Next.js app handles both public and admin routes behind a single Caddy upstream.
 
 ```
           Internet
              │
              ▼
    ┌────────────────────┐
-   │   Porkbun DNS      │  showalter.business → Alex's homelab public IP
+   │   Porkbun DNS      │  sawyer.showalter.business → Alex's homelab public IP
    └─────────┬──────────┘
              │
              ▼
@@ -297,7 +297,7 @@ The admin is served at `showalter.business/admin` (same-origin path, not a subdo
 Add to `Caddyfile` on the homelab:
 
 ```caddy
-showalter.business, www.showalter.business {
+sawyer.showalter.business {
     encode zstd gzip
     reverse_proxy localhost:5827
 }
@@ -322,7 +322,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5827
-      BASE_URL: https://showalter.business
+      BASE_URL: ${BASE_URL}
       AUTH_SECRET: ${AUTH_SECRET}
       SEED_FROM_BRIEF: ${SEED_FROM_BRIEF:-false}
       BOOKING_RATE_LIMIT_PER_HOUR: ${BOOKING_RATE_LIMIT_PER_HOUR:-30}
@@ -336,7 +336,7 @@ services:
 | Var                   | Purpose                                          |
 |-----------------------|--------------------------------------------------|
 | `AUTH_SECRET`         | Auth.js session secret (generate with `openssl rand -base64 32`) |
-| `BASE_URL`            | `https://showalter.business` — used for absolute URLs, OG tags, and the invite URLs copied from `/admin/settings/admins` |
+| `BASE_URL`            | `https://sawyer.showalter.business` — used for absolute URLs, OG tags, and the invite URLs copied from `/admin/settings/admins` |
 | `PORT`                | `5827`                                           |
 | `VAPID_PUBLIC_KEY`    | Web Push public key (exposed to the client)      |
 | `VAPID_PRIVATE_KEY`   | Web Push private key (server only — signs pushes) |
@@ -443,7 +443,7 @@ Auto-expiration: a booking in `pending` for more than **72 hours** (3 days) auto
 Two links go in every confirmation email:
 
 1. **Google Calendar** — a `calendar.google.com/calendar/render?action=TEMPLATE&text=...&dates=...&details=...&location=...` URL generated server-side when rendering the prefilled email body. One tap → event added on any Google account.
-2. **Apple / universal** — `https://showalter.business/bookings/<token>/ics`. A public Next.js route handler that returns `Content-Type: text/calendar`. The `token` is a random unguessable string stored on the `bookings` row — no login required, but also not enumerable.
+2. **Apple / universal** — `https://sawyer.showalter.business/bookings/<token>/ics`. A public Next.js route handler that returns `Content-Type: text/calendar`. The `token` is a random unguessable string stored on the `bookings` row — no login required, but also not enumerable.
 
 Both links are baked into the email body; the SMS body uses a short link to the `.ics` endpoint for brevity.
 
