@@ -25,6 +25,15 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# BASE_URL is required at build time because `next build` statically
+# generates routes (robots.txt, sitemap.xml, opengraph-image, etc.) that
+# bake absolute URLs into the output. Runtime .env still drives
+# dynamically-rendered pages. Override with:
+#   docker build --build-arg BASE_URL=https://staging.example.com
+ARG BASE_URL=https://sawyer.showalter.business
+ENV BASE_URL=$BASE_URL
+
 RUN pnpm build
 
 # ─── runner ────────────────────────────────────────────────────────────────
