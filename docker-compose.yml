@@ -10,7 +10,7 @@ services:
     ports:
       - "5827:5827"
     volumes:
-      - /srv/showalter/data:/data
+      - ./data:/data
     environment:
       NODE_ENV: production
       PORT: 5827

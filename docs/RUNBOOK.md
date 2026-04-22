@@ -2,7 +2,7 @@
 
 Operational procedures for running, recovering, and debugging the Showalter Services deployment. Keep this document terse and procedure-focused — rationale lives in STACK.md; this is the "what do I type when X is on fire" reference.
 
-Primary host: Alex's homelab. Single Docker container (`showalter`) fronted by Caddy, bind-mounting `/srv/showalter/data` → `/data` inside the container. SQLite is the only database.
+Primary host: Alex's homelab. Single Docker container (`showalter`) fronted by Caddy, bind-mounting `./data` (relative to the repo / compose file) → `/data` inside the container. SQLite is the only database.
 
 ---
 
@@ -49,13 +49,13 @@ docker exec showalter sqlite3 /data/sqlite.db ".backup /data/backups/pre-manual-
 
 ## 2. Backup restoration
 
-Nightly backups land in `/srv/showalter/data/backups/YYYY-MM-DD.db` (host path) / `/data/backups/YYYY-MM-DD.db` (container path). 14-day retention — older files are rotated out by the nightly batch.
+Nightly backups land in `./data/backups/YYYY-MM-DD.db` (host path, relative to the repo root) / `/data/backups/YYYY-MM-DD.db` (container path). 14-day retention — older files are rotated out by the nightly batch.
 
 **Restore procedure:**
 
 ```bash
 docker stop showalter
-cp /srv/showalter/data/backups/2026-04-17.db /srv/showalter/data/sqlite.db
+cp ~/Project-Showalter/data/backups/2026-04-17.db ~/Project-Showalter/data/sqlite.db
 docker start showalter
 ```
 
@@ -95,7 +95,7 @@ docker exec showalter sqlite3 /data/sqlite.db \
 **If a job hasn't run in over 24 hours:**
 
 1. `docker logs showalter --tail 200 | grep -i cron` — look for crashes or startup issues.
-2. `df -h /srv/showalter` — check that the host volume isn't full (a full disk can stall SQLite writes and trip the cron).
+2. `df -h ~/Project-Showalter` — check that the host volume isn't full (a full disk can stall SQLite writes and trip the cron).
 3. `docker exec showalter ps aux | grep cron` — confirm the cron process is running inside the container.
 4. If `cron_runs` has a `status='error'` row, read the `error_message` column for context.
 
@@ -234,12 +234,14 @@ npx web-push generate-vapid-keys
 
 #### Step 2 — Create `.env` on the homelab
 
+Clone the repo (e.g. `~/Project-Showalter`) and create the `.env` file there:
+
 ```bash
-mkdir -p /srv/showalter
-cp /path/to/repo/.env.example /srv/showalter/.env
+git clone git@github.com:lxrbckl-dev/Project-Showalter.git ~/Project-Showalter
+cp ~/Project-Showalter/.env.example ~/Project-Showalter/.env
 ```
 
-Edit `/srv/showalter/.env` and fill in every blank value:
+Edit `~/Project-Showalter/.env` and fill in every blank value:
 
 ```bash
 # ─── App ───────────────────────────────────────────────────────────────────
@@ -256,18 +258,18 @@ VAPID_SUBJECT=mailto:sshowalterservices@gmail.com
 Verify the file is only readable by your user:
 
 ```bash
-chmod 600 /srv/showalter/.env
+chmod 600 ~/Project-Showalter/.env
 ```
 
-#### Step 3 — Place `docker-compose.yml` on the homelab
+#### Step 3 — Prepare the data directory
 
-Copy the `docker-compose.yml` from the repo root to `/srv/showalter/`:
+`docker-compose.yml` lives at the repo root and mounts `./data:/data` relative to itself. Create the data directory next to it:
 
 ```bash
-cp /path/to/repo/docker-compose.yml /srv/showalter/docker-compose.yml
+mkdir -p ~/Project-Showalter/data
 ```
 
-Docker Compose resolves the `.env` file automatically when both files are in the same directory.
+Docker Compose resolves the `.env` file automatically when both files are in the same directory (the repo root).
 
 #### Step 4 — Point Porkbun DNS
 
@@ -314,7 +316,7 @@ caddy validate --config /etc/caddy/Caddyfile
 #### Step 6 — Pull images and start all containers
 
 ```bash
-cd /srv/showalter
+cd ~/Project-Showalter
 docker compose pull
 docker compose up -d
 ```
@@ -367,7 +369,7 @@ Also confirm:
 After the first-time setup above, every subsequent release is three commands:
 
 ```bash
-cd /srv/showalter
+cd ~/Project-Showalter
 docker compose pull showalter
 docker compose up -d showalter
 ```
@@ -388,7 +390,7 @@ curl -sf https://sawyer.showalter.business/api/health
 Every CI build pushes an immutable `:<sha>` tag to GHCR. To roll back:
 
 1. Find the last known-good commit SHA from the GitHub Actions run history.
-2. Edit `/srv/showalter/docker-compose.yml` — pin the `showalter` image to that SHA:
+2. Edit `~/Project-Showalter/docker-compose.yml` — pin the `showalter` image to that SHA:
 
    ```yaml
    image: ghcr.io/lxrbckl-dev/project-showalter:<sha>
@@ -397,7 +399,7 @@ Every CI build pushes an immutable `:<sha>` tag to GHCR. To roll back:
 3. Pull and restart:
 
    ```bash
-   cd /srv/showalter
+   cd ~/Project-Showalter
    docker compose pull showalter
    docker compose up -d showalter
    ```
@@ -412,7 +414,7 @@ Run through this before any first-time deploy or major homelab change.
 
 ### Secrets and config
 
-- [ ] `.env` created from `.env.example` (`cp .env.example /srv/showalter/.env`) and every blank value filled in
+- [ ] `.env` created from `.env.example` (`cp .env.example ~/Project-Showalter/.env`) and every blank value filled in
 - [ ] `BASE_URL` set to the production URL (e.g. `https://sawyer.showalter.business`)
 - [ ] `AUTH_SECRET` set and non-empty (32+ random bytes)
 - [ ] `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` all set
@@ -436,8 +438,8 @@ Run through this before any first-time deploy or major homelab change.
 
 ### Storage
 
-- [ ] `/srv/showalter/data/` directory exists and is writable by Docker
-- [ ] `df -h /srv/showalter` — at least a few GB free (SQLite + uploads + 14-day backups)
+- [ ] `~/Project-Showalter/data/` directory exists and is writable by Docker
+- [ ] `df -h ~/Project-Showalter` — at least a few GB free (SQLite + uploads + 14-day backups)
 
 ### Image availability
 
@@ -481,7 +483,7 @@ docker logs showalter --tail 200
 Common causes:
 - **Migration failure** → see section 1.
 - **Bad env var** (e.g. missing `AUTH_SECRET`, malformed `DATABASE_URL`) — fix and restart.
-- **Disk full** — `df -h /srv/showalter`; prune old backups or extend the volume.
+- **Disk full** — `df -h ~/Project-Showalter`; prune old backups or extend the volume.
 
 If the container is crashlooping but the prior image ran clean, roll back per section 6c.
 
@@ -491,9 +493,9 @@ Shouldn't happen in single-process deployment. If you see `SQLITE_BUSY` in the l
 
 ```bash
 docker stop showalter
-ls -la /srv/showalter/data/sqlite.db*
+ls -la ~/Project-Showalter/data/sqlite.db*
 # if stale *-shm / *-wal files exist and mtime is old, they're safe to remove:
-rm /srv/showalter/data/sqlite.db-shm /srv/showalter/data/sqlite.db-wal
+rm ~/Project-Showalter/data/sqlite.db-shm ~/Project-Showalter/data/sqlite.db-wal
 docker start showalter
 ```
 
@@ -508,7 +510,7 @@ See section 4 — SSH to the homelab, run `admin:reset` for whichever admin can 
 The `BOOKING_RATE_LIMIT_PER_HOUR` env var gates the public booking endpoint. Default is 30. If you see submission spam:
 
 ```bash
-# In /srv/showalter/docker-compose.yml, tighten:
+# In ~/Project-Showalter/docker-compose.yml, tighten:
 #   BOOKING_RATE_LIMIT_PER_HOUR: 3
 docker compose up -d showalter
 ```

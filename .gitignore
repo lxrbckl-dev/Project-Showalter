@@ -8,6 +8,8 @@ out/
 next-env.d.ts
 
 # Production data / runtime
+# Docker volume bind-mount — sqlite.db, uploads/, backups/ live here in local/dev deployments
+data/
 /data/
 dev.db
 dev.db-journal
