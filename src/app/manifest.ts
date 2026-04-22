@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { getSiteConfig } from '@/features/site-config/queries';
 
+export const dynamic = 'force-dynamic';
+
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   // Pull the admin-configurable business name from site_config so the
   // installed-PWA home-screen label tracks a rebrand. The short_name stays

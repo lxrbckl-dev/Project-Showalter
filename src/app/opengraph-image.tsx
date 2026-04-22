@@ -8,6 +8,7 @@ import { getSiteConfig } from '@/features/site-config/queries';
 // extra cold-start cost is negligible for an OG image route that's rarely
 // hit cold in production.
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export const alt = 'Sawyer Showalter Service — Lawn Care in Kansas City';
 export const size = { width: 1200, height: 630 };

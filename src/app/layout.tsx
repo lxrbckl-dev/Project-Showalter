@@ -3,6 +3,8 @@ import { getSiteConfig } from '@/features/site-config/queries';
 import { getBaseUrl } from '@/lib/env';
 import './globals.css';
 
+export const dynamic = 'force-dynamic';
+
 const BASE_URL = getBaseUrl();
 
 // Tagline is still hardcoded (not part of the admin-editable brand); the
