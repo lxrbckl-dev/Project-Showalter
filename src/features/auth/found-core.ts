@@ -20,6 +20,12 @@ export function adminsTableEmpty(
 }
 
 export type FoundFirstAdminInput = {
+  /**
+   * Email for the founding admin. Optional because `admins.email` is
+   * nullable post-0026; callers can omit it when enrolling without an
+   * email address.
+   */
+  email?: string | null;
   /** Display name for the new admin (e.g. "Sawyer"). Trimmed by the caller. */
   name?: string | null;
   /** If provided, the credential is recorded as the founding device. */
@@ -50,7 +56,8 @@ export type FoundFirstAdminResult =
  * loser" path.
  *
  * Returns `{ ok: false, reason: 'insert_failed' }` if any INSERT throws
- * (e.g. a second racing writer slips past the count-check).
+ * (e.g. `admins.email` UNIQUE conflict when the same address races
+ * itself, or a second writer slips past the count-check).
  *
  * The caller is responsible for logging, rate limiting, generating +
  * hashing the recovery code, and post-success session minting.
@@ -60,6 +67,10 @@ export function foundFirstAdmin(
   db: BetterSQLite3Database<Record<string, unknown>>,
   input: FoundFirstAdminInput,
 ): FoundFirstAdminResult {
+  const normalizedEmail =
+    typeof input.email === 'string' && input.email.trim().length > 0
+      ? input.email.trim().toLowerCase()
+      : null;
   const nowIso = (input.now ?? new Date()).toISOString();
 
   let adminId = 0;
@@ -78,6 +89,7 @@ export function foundFirstAdmin(
       const inserted = db
         .insert(admins)
         .values({
+          email: normalizedEmail,
           name: input.name?.trim() ? input.name.trim() : null,
           active: 1,
           enrolledAt: nowIso,

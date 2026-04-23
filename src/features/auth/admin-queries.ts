@@ -1,11 +1,9 @@
 /**
  * DB lookups against the `admins` and `credentials` tables.
  *
- * Single-admin install: there's at most one row in `admins`, so all admin
- * lookups boil down to "the lone admin". The pre-existing email-based
- * helpers (`findAdminByEmail`, `classifyAdmin`) were retired in the
- * single-admin refactor; callers that need to gate on active+enrolled now
- * use `findSingleAdmin()`.
+ * Ticket 1A (#29) owns the schema + reconciliation; this module is read-only
+ * from the 1B side — it never inserts or soft-disables admins, that's 1A's
+ * job via `reconcileAdmins()` on boot.
  */
 
 import { eq } from 'drizzle-orm';
@@ -13,12 +11,35 @@ import { getDb } from '@/db';
 import { admins, credentials, type AdminRow, type CredentialRow } from '@/db/schema';
 
 /**
- * Return the single admin row, or null if none exists. Single-admin install
- * means LIMIT 1 is sufficient — there's no second row to disambiguate.
+ * Look up an admin by email (case-insensitive).
+ *
+ * Returns null when the lookup input is empty or not a string. A
+ * pre-0025 admin row that was enrolled during the single-admin era
+ * carries NULL email; the caller shouldn't be able to "authenticate as
+ * a null-email admin" by passing in an empty string, so we short-circuit
+ * at the input boundary.
  */
-export function findSingleAdmin(): AdminRow | null {
-  const rows = getDb().select().from(admins).limit(1).all();
+export function findAdminByEmail(email: string | null | undefined): AdminRow | null {
+  if (typeof email !== 'string' || email.length === 0) return null;
+  const lower = email.toLowerCase();
+  const rows = getDb().select().from(admins).where(eq(admins.email, lower)).all();
   return rows[0] ?? null;
+}
+
+export type AdminStatus = 'unknown' | 'disabled' | 'pending' | 'enrolled';
+
+/**
+ * Classify an admin's state in one call. Used by server actions to gate
+ * access paths (enrollment vs. login).
+ */
+export function classifyAdmin(
+  email: string | null | undefined,
+): { status: AdminStatus; admin: AdminRow | null } {
+  const admin = findAdminByEmail(email);
+  if (!admin) return { status: 'unknown', admin: null };
+  if (!admin.active) return { status: 'disabled', admin };
+  if (!admin.enrolledAt) return { status: 'pending', admin };
+  return { status: 'enrolled', admin };
 }
 
 /** All credentials rows for an admin. */

@@ -1,12 +1,16 @@
 'use client';
 
 /**
- * Passkey login form — single-admin install.
+ * Passkey login form.
  *
- * No email input: clicking the button calls `startLoginAuto` which
- * resolves the lone enrolled admin server-side, then runs the standard
- * WebAuthn `get()` ceremony. Browser passkey UI handles selection if
- * multiple devices are enrolled to the same account.
+ * Single email input → `startLogin` → WebAuthn `get()` → `finishLogin`
+ * → redirect to /admin.
+ *
+ * First-time enrollment for additional admins is NOT handled here anymore —
+ * per issue #83, admins are onboarded via single-use invite links at
+ * `/admin/signup?token=...`. The only non-invite path that lands in this
+ * project is the founding-admin flow (rendered by `/admin/login` when the
+ * admins table is empty).
  *
  * No-enumeration rule still holds: client-visible outcomes are success +
  * the single canonical failure message.
@@ -16,6 +20,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { AUTH_GENERIC_FAILURE_MESSAGE } from '@/features/auth/response';
 import {
   startLogin as startLoginAction,
@@ -26,6 +31,7 @@ type Stage = 'idle' | 'working';
 
 export function LoginForm() {
   const router = useRouter();
+  const [email, setEmail] = useState('');
   const [stage, setStage] = useState<Stage>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -33,9 +39,13 @@ export function LoginForm() {
     e.preventDefault();
     setError(null);
     if (stage === 'working') return;
+    if (!email.trim()) {
+      setError(AUTH_GENERIC_FAILURE_MESSAGE);
+      return;
+    }
     setStage('working');
 
-    const loginRes = await startLoginAction();
+    const loginRes = await startLoginAction(email);
     if (!loginRes.ok) {
       setError(loginRes.message);
       setStage('idle');
@@ -44,7 +54,7 @@ export function LoginForm() {
 
     try {
       const asserted = await startAuthentication({ optionsJSON: loginRes.options });
-      const finish = await finishLoginAction(asserted);
+      const finish = await finishLoginAction(email, asserted);
       if (!finish.ok) {
         setError(finish.message);
         setStage('idle');
@@ -60,13 +70,27 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <label className="block text-sm">
+        <span className="mb-1 block text-[hsl(var(--muted-foreground))]">Email</span>
+        <Input
+          type="email"
+          name="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={stage === 'working'}
+          data-testid="email-input"
+        />
+      </label>
+
       <Button
         type="submit"
         className="w-full"
         disabled={stage === 'working'}
         data-testid="submit-button"
       >
-        {stage === 'working' ? 'Signing in…' : 'Sign in with passkey'}
+        {stage === 'working' ? 'Working…' : 'Sign in'}
       </Button>
 
       {error && (

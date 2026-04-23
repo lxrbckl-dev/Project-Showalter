@@ -33,6 +33,12 @@ const ACCOUNT_ENTRIES: AccountEntry[] = [
     description: 'Manage the passkeys you use to sign in.',
     testId: 'settings-devices-link',
   },
+  {
+    href: '/admin/settings/admins',
+    label: 'Admins',
+    description: 'Invite and manage the people who can sign in.',
+    testId: 'settings-admins-link',
+  },
 ];
 
 export default async function AdminSettingsPage() {

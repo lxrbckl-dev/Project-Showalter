@@ -220,6 +220,7 @@ export function seedFromBrief(db: Db): void {
         ownerFirstName: 'Sawyer',
         emailTemplateSubject: 'Service inquiry — Sawyer Showalter Services',
         emailTemplateBody: "Hi Sawyer,\n\nI'd like to inquire about a service for my home.\n\nDetails:\n\n\nThanks!",
+        smsTemplate: "Hi Sawyer,\n\nI'd like to inquire about a service. Can you help?\n\nThanks!",
         statsJobsCompletedOverride: 150,
         statsCustomersServedOverride: 45,
         businessStartDate: '2023-04-15',

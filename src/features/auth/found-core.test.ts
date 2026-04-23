@@ -70,6 +70,29 @@ describe('foundFirstAdmin', () => {
     cleanup();
   });
 
+  it('lowercases + trims the email when persisting', () => {
+    const { sqlite, db, cleanup } = createTestDb({ inMemory: true });
+    const typedDb = db as Parameters<typeof foundFirstAdmin>[1];
+    const res = foundFirstAdmin(sqlite, typedDb, {
+      name: 'Founder',
+      email: '  FOUNDER@Example.COM ',
+    });
+    expect(res.ok).toBe(true);
+    const rows = (db as BetterSQLite3Database<typeof schema>).select().from(admins).all();
+    expect(rows[0].email).toBe('founder@example.com');
+    cleanup();
+  });
+
+  it('leaves email NULL when not provided (legacy single-admin path)', () => {
+    const { sqlite, db, cleanup } = createTestDb({ inMemory: true });
+    const typedDb = db as Parameters<typeof foundFirstAdmin>[1];
+    const res = foundFirstAdmin(sqlite, typedDb, { name: 'NoEmail' });
+    expect(res.ok).toBe(true);
+    const rows = (db as BetterSQLite3Database<typeof schema>).select().from(admins).all();
+    expect(rows[0].email).toBeNull();
+    cleanup();
+  });
+
   it('persists credential + recovery code when provided', () => {
     const { sqlite, db, cleanup } = createTestDb({ inMemory: true });
     const typedDb = db as Parameters<typeof foundFirstAdmin>[1];

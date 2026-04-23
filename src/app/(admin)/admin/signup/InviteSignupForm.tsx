@@ -1,19 +1,25 @@
 'use client';
 
 /**
- * Founding-admin enrollment form.
+ * Invite-acceptance client form.
  *
- * Rendered by `/admin/login` when the `admins` table is empty. The first
- * visitor to complete the WebAuthn ceremony claims the founding admin
- * slot — the transactional guard in `finishFoundingEnrollment` is the
- * authoritative winner-picker, this form just provides the UX.
+ * The email field is PRE-FILLED from the server's invited_email lookup and
+ * rendered read-only. Defense-in-depth against typos and to surface that the
+ * invite is email-bound; the server action re-validates the binding inside
+ * the accept transaction.
  *
- * Session minting is deferred until AFTER the recovery-code modal is
- * dismissed (via `finalizeFoundingEnrollment`). Minting during
- * `finishFoundingEnrollment` would set a session cookie, RSC would refresh
- * `/admin/login`, see a non-empty admins table, and swap this component out
- * for `LoginForm` — unmounting us before we can flush the recovery modal.
- * The user would permanently lose the one-time recovery code.
+ * Flow:
+ *   1. `startAcceptInvite(token, email)` → WebAuthn registration options
+ *   2. `startRegistration` (browser ceremony)
+ *   3. `finishAcceptInvite(token, email, attestation)` → new admin row +
+ *      plaintext recovery code. Session is NOT minted yet.
+ *   4. Show recovery-code modal.
+ *   5. On dismiss → call `finalizeInviteSession({ adminId, credentialId })`
+ *      to mint the session, then route to /admin.
+ *
+ * Deferring session minting until step 5 avoids the RSC-refresh-unmount
+ * bug that would otherwise eat the one-time recovery code (see
+ * `FoundingAdminForm` for the founding-flow analogue).
  */
 
 import { useState } from 'react';
@@ -23,11 +29,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AUTH_GENERIC_FAILURE_MESSAGE } from '@/features/auth/response';
 import {
-  startFoundingEnrollment as startFoundingAction,
-  finishFoundingEnrollment as finishFoundingAction,
-  finalizeFoundingSession as finalizeFoundingAction,
-} from '@/features/auth/found';
-import { RecoveryCodeModal } from './RecoveryCodeModal';
+  startAcceptInvite,
+  finishAcceptInvite,
+  finalizeInviteSession,
+} from '@/features/auth/invites';
+import { RecoveryCodeModal } from '../login/RecoveryCodeModal';
+
+type Props = {
+  token: string;
+  invitedEmail: string;
+  expiresAt: string;
+};
 
 type Stage = 'idle' | 'working' | 'recovery-modal' | 'finalizing';
 
@@ -36,10 +48,24 @@ type PendingSession = {
   credentialId: string;
 };
 
-export function FoundingAdminForm() {
+function formatExpires(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+export function InviteSignupForm({ token, invitedEmail, expiresAt }: Props) {
   const router = useRouter();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [stage, setStage] = useState<Stage>('idle');
   const [error, setError] = useState<string | null>(null);
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
@@ -49,13 +75,13 @@ export function FoundingAdminForm() {
     e.preventDefault();
     setError(null);
     if (stage !== 'idle') return;
-    if (!name.trim() || !email.trim()) {
+    if (!name.trim()) {
       setError(AUTH_GENERIC_FAILURE_MESSAGE);
       return;
     }
     setStage('working');
 
-    const start = await startFoundingAction(email);
+    const start = await startAcceptInvite(token, invitedEmail);
     if (!start.ok) {
       setError(start.message);
       setStage('idle');
@@ -64,14 +90,13 @@ export function FoundingAdminForm() {
 
     try {
       const attestation = await startRegistration({ optionsJSON: start.options });
-      const finish = await finishFoundingAction(email, name, attestation);
+      const finish = await finishAcceptInvite(token, invitedEmail, name, attestation);
       if (!finish.ok) {
         setError(finish.message);
         setStage('idle');
         return;
       }
-      // Admin row now exists server-side but no session has been minted yet.
-      // Show the recovery code first; mint the session on dismiss.
+      // Admin row + credential + recovery-code row are written; no session yet.
       setPending({ adminId: finish.adminId, credentialId: finish.credentialId });
       setRecoveryCode(finish.recoveryCode);
       setStage('recovery-modal');
@@ -85,10 +110,10 @@ export function FoundingAdminForm() {
     if (!pending) return;
     setStage('finalizing');
     setError(null);
-    const result = await finalizeFoundingAction(pending);
+    const result = await finalizeInviteSession(pending);
     if (!result.ok) {
-      // Session mint failed. Keep the modal up so the user doesn't lose the
-      // code, but surface the failure so they know to re-login manually.
+      // Keep the modal up so the recovery code remains visible. Surface the
+      // error so the user knows to sign in manually if finalize keeps failing.
       setError(result.message);
       setStage('recovery-modal');
       return;
@@ -102,9 +127,15 @@ export function FoundingAdminForm() {
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4"
+        data-testid="invite-signup-form"
+      >
         <label className="block text-sm">
-          <span className="mb-1 block text-[hsl(var(--muted-foreground))]">Name</span>
+          <span className="mb-1 block text-[hsl(var(--muted-foreground))]">
+            Name
+          </span>
           <Input
             type="text"
             name="name"
@@ -114,41 +145,41 @@ export function FoundingAdminForm() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={stage !== 'idle'}
-            data-testid="name-input"
-            data-founding="true"
-            placeholder="Sawyer"
+            data-testid="invite-signup-name"
+            placeholder="Your name"
           />
         </label>
 
         <label className="block text-sm">
-          <span className="mb-1 block text-[hsl(var(--muted-foreground))]">Email</span>
+          <span className="mb-1 block text-[hsl(var(--muted-foreground))]">
+            Email (from invite)
+          </span>
           <Input
             type="email"
             name="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={stage !== 'idle'}
-            data-testid="email-input"
-            data-founding="true"
+            value={invitedEmail}
+            readOnly
+            aria-readonly="true"
+            data-testid="invite-signup-email"
           />
+          <span className="mt-1 block text-xs text-[hsl(var(--muted-foreground))]">
+            Invite valid until {formatExpires(expiresAt)}.
+          </span>
         </label>
 
         <Button
           type="submit"
           className="w-full"
           disabled={stage !== 'idle'}
-          data-testid="submit-button"
-          data-founding="true"
+          data-testid="invite-signup-submit"
         >
-          {stage === 'working' ? 'Enrolling…' : 'Claim founding admin'}
+          {stage === 'working' ? 'Enrolling…' : 'Enroll passkey'}
         </Button>
 
         {error && (
           <p
             className="text-sm text-[hsl(var(--destructive))]"
-            data-testid="auth-error"
+            data-testid="invite-signup-error"
             role="alert"
           >
             {error}

@@ -13,8 +13,9 @@
  *      the browser ONLY if the admins table is empty. Does NOT reserve the
  *      slot; race protection happens in step 2.
  *
- *   2. `finishFoundingEnrollment(email, response)` — verifies the attestation,
- *      then calls `foundFirstAdmin` (from `found-core.ts`), which atomically:
+ *   2. `finishFoundingEnrollment(email, name, response)` — verifies the
+ *      attestation, then calls `foundFirstAdmin` (from `found-core.ts`),
+ *      which atomically:
  *        (a) re-checks the admins table is still empty (inside a tx)
  *        (b) inserts the new admin row
  *        (c) inserts the credential row
@@ -58,15 +59,8 @@ import { hashCode, generatePlaintextCode } from './recovery';
 import { authFailure, authOk, logAuthFailure, type AuthResult } from './response';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { auth, signIn } from './auth';
+import { emailSchema, normalizeEmail } from './invites-shared';
 import { adminsTableEmpty, foundFirstAdmin } from './found-core';
-
-/**
- * Sentinel "user identity" passed to WebAuthn registration. The username is
- * only ever shown by the browser/OS as the passkey label — single-admin
- * install means there's nothing meaningful to put here, so a stable
- * placeholder keeps every enrolled passkey consistently named.
- */
-const PASSKEY_USERNAME = 'admin';
 
 const RATE_LIMIT_KEY = 'found';
 /**
@@ -120,7 +114,9 @@ export async function isAdminsTableEmpty(): Promise<boolean> {
   }
 }
 
-export async function startFoundingEnrollment(): Promise<
+export async function startFoundingEnrollment(
+  email: string,
+): Promise<
   AuthResult<{ options: Awaited<ReturnType<typeof generateRegistrationOptions>> }>
 > {
   const ip = await getClientIp();
@@ -129,6 +125,13 @@ export async function startFoundingEnrollment(): Promise<
     logAuthFailure('rate_limited', { scope: 'found:start', ip });
     return authFailure();
   }
+
+  const parsed = emailSchema.safeParse(email);
+  if (!parsed.success) {
+    logAuthFailure('invalid_email', { scope: 'found:start' });
+    return authFailure();
+  }
+  const normalized = normalizeEmail(parsed.data);
 
   if (!(await isAdminsTableEmpty())) {
     logAuthFailure('admins_not_empty', { scope: 'found:start' });
@@ -139,8 +142,8 @@ export async function startFoundingEnrollment(): Promise<
   const options = await generateRegistrationOptions({
     rpName,
     rpID,
-    userName: PASSKEY_USERNAME,
-    userDisplayName: PASSKEY_USERNAME,
+    userName: normalized,
+    userDisplayName: normalized,
     attestationType: 'none',
     authenticatorSelection: {
       residentKey: 'preferred',
@@ -148,11 +151,12 @@ export async function startFoundingEnrollment(): Promise<
     },
   });
 
-  saveChallenge('foundAdmin', PASSKEY_USERNAME, options.challenge);
+  saveChallenge('foundAdmin', normalized, options.challenge);
   return authOk({ options });
 }
 
 export async function finishFoundingEnrollment(
+  email: string,
   name: string,
   response: RegistrationResponseJSON,
 ): Promise<
@@ -165,13 +169,20 @@ export async function finishFoundingEnrollment(
     return authFailure();
   }
 
+  const parsed = emailSchema.safeParse(email);
+  if (!parsed.success) {
+    logAuthFailure('invalid_email', { scope: 'found:finish' });
+    return authFailure();
+  }
+  const normalized = normalizeEmail(parsed.data);
+
   const trimmedName = typeof name === 'string' ? name.trim() : '';
   if (trimmedName.length < 1 || trimmedName.length > 100) {
     logAuthFailure('invalid_name', { scope: 'found:finish' });
     return authFailure();
   }
 
-  const expectedChallenge = consumeChallenge('foundAdmin', PASSKEY_USERNAME);
+  const expectedChallenge = consumeChallenge('foundAdmin', normalized);
   if (!expectedChallenge) {
     logAuthFailure('challenge_missing', { scope: 'found:finish' });
     return authFailure();
@@ -208,6 +219,7 @@ export async function finishFoundingEnrollment(
   const hashedRecovery = await hashCode(plaintextRecovery);
 
   const result = foundFirstAdmin(getSqlite(), getDb(), {
+    email: normalized,
     name: trimmedName,
     credential: {
       credentialId: cred.id,
@@ -349,4 +361,3 @@ export async function finalizeFoundingSession(
 
   return authOk();
 }
-

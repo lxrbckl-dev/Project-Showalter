@@ -56,7 +56,7 @@ describe('availability actions', () => {
   beforeEach(() => {
     testHandle = createTestDb({ inMemory: true });
     vi.mocked(auth).mockImplementation(async () => ({
-      user: { id: 'u1', name: 'admin' },
+      user: { id: 'u1', email: 'admin@test.com', name: 'admin' },
       credentialId: null,
       expires: new Date(Date.now() + 86_400_000),
     }));

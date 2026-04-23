@@ -1,24 +1,39 @@
 /**
- * admin:reset — clear the lone admin row and all attached credentials.
+ * admin:reset — reset an admin back to pending-enrollment state.
  *
- * Single-admin install: no args needed. Wipes the admin, all of its
- * credentials, and all recovery codes, returning the deploy to the
- * "founding admin" state where /admin/login renders the enrollment form.
+ * Usage: pnpm admin:reset <email>
  *
- * Usage: pnpm admin:reset
+ * Deletes all credentials and recovery_codes for the admin, then sets
+ * enrolled_at = NULL. The admin record itself is preserved (active flag
+ * unchanged) so they can re-enroll on next login.
  */
 
 import { getDb } from '@/db';
 import { admins } from '@/db/schema/admins';
 import { credentials } from '@/db/schema/credentials';
 import { recoveryCodes } from '@/db/schema/recovery-codes';
+import { eq } from 'drizzle-orm';
 
-async function main(): Promise<void> {
+async function main() {
+  const email = process.argv[2]?.trim().toLowerCase();
+  if (!email) {
+    console.error('Usage: pnpm admin:reset <email>');
+    process.exit(1);
+  }
+
   const db = getDb();
-  db.delete(credentials).run();
-  db.delete(recoveryCodes).run();
-  db.delete(admins).run();
-  console.log('Admin reset complete — visit /admin/login to enroll a new founding admin.');
+
+  const admin = db.select().from(admins).where(eq(admins.email, email)).get();
+  if (!admin) {
+    console.error(`Admin not found: ${email}`);
+    process.exit(1);
+  }
+
+  db.delete(credentials).where(eq(credentials.adminId, admin.id)).run();
+  db.delete(recoveryCodes).where(eq(recoveryCodes.adminId, admin.id)).run();
+  db.update(admins).set({ enrolledAt: null }).where(eq(admins.id, admin.id)).run();
+
+  console.log(`Reset ${email}: credentials and recovery codes cleared, enrolled_at set to NULL.`);
   process.exit(0);
 }
 

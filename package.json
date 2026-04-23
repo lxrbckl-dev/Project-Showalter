@@ -13,7 +13,12 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "format": "prettier --write .",
-    "admin:reset": "tsx src/cli/admin-reset.ts"
+    "admin:list": "tsx src/cli/admin-list.ts",
+    "admin:reset": "tsx src/cli/admin-reset.ts",
+    "admin:disable": "tsx src/cli/admin-disable.ts",
+    "admin:enable": "tsx src/cli/admin-enable.ts",
+    "admin:list-invites": "tsx src/cli/admin-list-invites.ts",
+    "admin:revoke-invite": "tsx src/cli/admin-revoke-invite.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

@@ -24,6 +24,7 @@
  */
 export * from './site-config';
 export * from './admins';
+export * from './admin-invites';
 export * from './credentials';
 export * from './recovery-codes';
 export * from './auth-sessions';

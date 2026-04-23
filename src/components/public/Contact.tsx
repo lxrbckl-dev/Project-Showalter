@@ -1,12 +1,31 @@
-import { Mail, Phone } from 'lucide-react';
+import { Mail, MessageSquare, Phone } from 'lucide-react';
 
 import type { SiteConfigRow } from '@/db/schema/site-config';
 
 interface ContactProps {
   siteConfig: Pick<
     SiteConfigRow,
-    'phone' | 'email' | 'tiktokUrl' | 'emailTemplateSubject' | 'emailTemplateBody' | 'ownerFirstName'
+    | 'phone'
+    | 'email'
+    | 'tiktokUrl'
+    | 'emailTemplateSubject'
+    | 'emailTemplateBody'
+    | 'smsTemplate'
+    | 'ownerFirstName'
   >;
+}
+
+/**
+ * Build an sms: URL with optional prefilled body.
+ * Uses URLSearchParams for encoding, then replaces '+' with '%20' because
+ * sms: URIs require percent-encoding (RFC 5724).
+ * Format: sms:<phone>?body=<encoded> — works on iOS 16+ and Android.
+ */
+function buildSmsHref(phone: string, body: string | null | undefined): string {
+  const params = new URLSearchParams();
+  if (body) params.set('body', body);
+  const qs = params.toString().replace(/\+/g, '%20');
+  return `sms:${phone}${qs ? `?${qs}` : ''}`;
 }
 
 /**
@@ -39,6 +58,9 @@ function TikTokIcon() {
  */
 export function Contact({ siteConfig }: ContactProps) {
   const host = siteConfig.ownerFirstName?.trim() || 'Sawyer';
+  const smsHref = siteConfig.phone
+    ? buildSmsHref(siteConfig.phone, siteConfig.smsTemplate)
+    : null;
   const emailHref = siteConfig.email
     ? buildMailtoHref(siteConfig.email, siteConfig.emailTemplateSubject, siteConfig.emailTemplateBody)
     : null;
@@ -58,6 +80,18 @@ export function Contact({ siteConfig }: ContactProps) {
               className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-green-700 shadow-sm ring-1 ring-gray-200 transition-colors duration-200 hover:bg-green-100 hover:text-green-800"
             >
               <Phone className="h-7 w-7" aria-hidden="true" />
+            </a>
+          )}
+          {smsHref && (
+            <a
+              href={smsHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Text ${host}`}
+              title={`Text ${host}`}
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-green-700 shadow-sm ring-1 ring-gray-200 transition-colors duration-200 hover:bg-green-100 hover:text-green-800"
+            >
+              <MessageSquare className="h-7 w-7" aria-hidden="true" />
             </a>
           )}
           {emailHref && (

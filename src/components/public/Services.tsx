@@ -38,7 +38,26 @@ export function Services({ services }: ServicesProps) {
         <p className="mb-8 text-sm italic text-gray-500">
           Prices are subject to change.
         </p>
-        <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
+        {/* Mobile: card stack (hidden at md+) */}
+        <div className="space-y-3 md:hidden">
+          {services.map((service) => (
+            <div
+              key={service.id}
+              className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <h3 className="font-semibold text-gray-900">{service.name}</h3>
+                <span className="shrink-0 font-medium text-[#6C9630]">
+                  {formatPrice(service.priceCents)}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-gray-600">{service.description}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: table (hidden below md) */}
+        <div className="hidden overflow-hidden rounded-lg border border-gray-200 shadow-sm md:block">
           <table className="w-full text-left text-sm" aria-label="Services and pricing">
             <thead className="bg-[#6C9630] text-white">
               <tr>
@@ -51,11 +70,7 @@ export function Services({ services }: ServicesProps) {
               {services.map((service, idx) => (
                 <tr
                   key={service.id}
-                  className={
-                    idx % 2 === 0
-                      ? 'bg-white'
-                      : 'bg-gray-50'
-                  }
+                  className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
                 >
                   <td className="px-4 py-3 font-medium text-gray-900">{service.name}</td>
                   <td className="px-4 py-3 text-gray-600">{service.description}</td>

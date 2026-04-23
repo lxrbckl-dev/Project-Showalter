@@ -37,7 +37,7 @@ import {
   type CredentialRow,
 } from '@/db/schema';
 import { auth } from './auth';
-import { findSingleAdmin, listCredentialsForAdmin } from './admin-queries';
+import { findAdminByEmail, listCredentialsForAdmin } from './admin-queries';
 import { consumeChallenge, saveChallenge } from './challenges';
 import { getRelyingParty } from './relying-party';
 import { authFailure, authOk, logAuthFailure, type AuthResult } from './response';
@@ -60,16 +60,51 @@ type AdminContext = {
  * The session cookie is the only trust boundary. `credentialId` passed in by
  * the client is compared against DB rows owned by this admin — it never
  * implicitly grants access.
+ *
+ * Admin resolution precedence:
+ *   1. By email from the session (common case — every admin created via
+ *      the founding or invite flow persists a real email).
+ *   2. By credential (pre-0026 single-admin legacy row with NULL email —
+ *      the session still carries the credentialId it was minted with, and
+ *      that credential points back at the admin row).
  */
 async function requireAdmin(): Promise<AdminContext | null> {
   const session = await auth();
   if (!session) return null;
-  const admin = findSingleAdmin();
-  if (!admin || !admin.active || !admin.enrolledAt) return null;
-  return {
-    adminId: admin.id,
-    currentCredentialId: session.credentialId,
-  };
+
+  const byEmail = findAdminByEmail(session.user.email);
+  if (byEmail && byEmail.active && byEmail.enrolledAt) {
+    return {
+      adminId: byEmail.id,
+      currentCredentialId: session.credentialId,
+    };
+  }
+
+  // Fallback: walk session.credentialId → credentials.admin_id for the
+  // pre-0026 NULL-email case.
+  if (session.credentialId) {
+    const db = getDb();
+    const credRow = db
+      .select()
+      .from(credentials)
+      .where(eq(credentials.credentialId, session.credentialId))
+      .all()[0];
+    if (credRow) {
+      const adminRow = db
+        .select()
+        .from(admins)
+        .where(eq(admins.id, credRow.adminId))
+        .all()[0];
+      if (adminRow && adminRow.active && adminRow.enrolledAt) {
+        return {
+          adminId: adminRow.id,
+          currentCredentialId: session.credentialId,
+        };
+      }
+    }
+  }
+
+  return null;
 }
 
 function toDeviceView(
@@ -131,10 +166,14 @@ export async function startAddDevice(): Promise<
 
   const existing = listCredentialsForAdmin(ctx.adminId);
   const { rpID, rpName } = getRelyingParty();
-  // Single-admin install: no email to use as the WebAuthn user identifier.
-  // Use the display name (or a sentinel) — only the OS passkey UI ever
-  // shows it, and the challenge map is keyed on `admin.id` for stability.
-  const passkeyLabel = adminRow.name?.trim() || `admin-${adminRow.id}`;
+  // Prefer the admin's real email as the WebAuthn user identifier; fall
+  // back to display name, then to a stable per-id sentinel. Only the OS
+  // passkey UI surfaces this. Challenge map is keyed on `admin.id` for
+  // stability regardless of which label form is used.
+  const passkeyLabel =
+    (adminRow.email && adminRow.email.trim()) ||
+    (adminRow.name && adminRow.name.trim()) ||
+    `admin-${adminRow.id}`;
   const challengeKey = `admin:${adminRow.id}`;
   const options = await generateRegistrationOptions({
     rpName,

@@ -34,6 +34,7 @@ import { randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
+import { admins } from '@/db/schema';
 import { sessions, users, type UserRow } from '@/db/schema/auth-sessions';
 
 const COOKIE_NAME = 'swt-session';
@@ -43,6 +44,14 @@ const ONE_DAY_MS = 24 * 60 * 60_000;
 export type AuthSession = {
   user: {
     id: string;
+    /**
+     * Email of the admin this session belongs to. May be null for a
+     * pre-0026 founding admin that was enrolled during the single-admin
+     * era (when the `admins.email` column did not exist). Callers that
+     * need to resolve the admin row should prefer the adminId stored in
+     * the session cookie or walk through the users row.
+     */
+    email: string | null;
     name?: string | null;
   };
   /**
@@ -64,23 +73,34 @@ function newToken(): string {
 
 /**
  * Resolve (or create) the auth.js `users` row that owns this admin's
- * sessions. We synthesize a stable sentinel email keyed on `adminId` —
- * never displayed anywhere — so the auth.js schema (which makes user.email
- * NOT NULL) keeps working without email being a real concern.
+ * sessions.
+ *
+ * The admins table may or may not carry an email for a given row
+ * (pre-0026 founding admins are email-less). In both cases we key the
+ * users row on a stable-per-admin value so the same admin always maps
+ * to the same `users.id`:
+ *
+ *   - admin has real email → users.email = that email (lowercased)
+ *   - admin.email is NULL   → synthesize `admin-{id}@local` sentinel
+ *     (kept internal, never displayed — the auth.js users-table schema
+ *     requires email NOT NULL).
  */
 function getOrCreateUserForAdmin(adminId: number): UserRow {
-  const sentinelEmail = `admin-${adminId}@local`;
   const db = getDb();
-  const existing = db
-    .select()
-    .from(users)
-    .where(eq(users.email, sentinelEmail))
-    .all();
+  const adminRow = db.select().from(admins).where(eq(admins.id, adminId)).all()[0];
+  if (!adminRow) {
+    throw new Error(`signIn: admin row ${adminId} does not exist`);
+  }
+  const userEmail =
+    adminRow.email && adminRow.email.length > 0
+      ? adminRow.email.toLowerCase()
+      : `admin-${adminId}@local`;
+
+  const existing = db.select().from(users).where(eq(users.email, userEmail)).all();
   if (existing[0]) return existing[0];
   const id = crypto.randomUUID();
-  db.insert(users)
-    .values({ id, email: sentinelEmail, name: sentinelEmail })
-    .run();
+  const displayName = adminRow.name ?? userEmail;
+  db.insert(users).values({ id, email: userEmail, name: displayName }).run();
   return db.select().from(users).where(eq(users.id, id)).all()[0]!;
 }
 
@@ -131,8 +151,18 @@ export async function auth(): Promise<AuthSession | null> {
     }
   }
 
+  // If the users.email is the sentinel `admin-{id}@local` shape, surface
+  // it as null to callers — that's the pre-0026 email-less legacy path
+  // and consumers shouldn't treat the sentinel as a usable address.
+  const rawEmail = user.email ?? '';
+  const isSentinel = /^admin-\d+@local$/.test(rawEmail);
+
   return {
-    user: { id: user.id, name: user.name },
+    user: {
+      id: user.id,
+      email: isSentinel ? null : rawEmail || null,
+      name: user.name,
+    },
     credentialId: row.credentialId ?? null,
     expires: new Date(expiresAt),
   };
@@ -143,6 +173,11 @@ export async function auth(): Promise<AuthSession | null> {
  * name for parity with the original config. Creates the session row + sets
  * the cookie. Called from `finishLogin` AND `finishEnrollment` (and
  * `finishAddDevice`) after a successful WebAuthn verification.
+ *
+ * Keyed on `adminId` so the session is tied to the admin row, not to an
+ * email that may or may not exist. `getOrCreateUserForAdmin` handles the
+ * auth.js users-row mapping (real email where available, sentinel
+ * otherwise).
  *
  * The optional `credentialId` records which passkey was used to establish
  * this session. Populating it enables two features:
