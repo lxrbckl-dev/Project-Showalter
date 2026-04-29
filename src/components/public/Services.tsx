@@ -6,13 +6,13 @@ interface ServicesProps {
 
 /**
  * Format a price from cents to display string.
- * NULL price_cents → "Contact for pricing"
- * Non-null → "$<dollars>" (e.g. "$40" or "$75")
+ * NULL price_cents → "Contact for pricing" (suffix ignored)
+ * Non-null → "$<dollars><suffix>" (e.g. "$40", "$75+")
  */
-function formatPrice(priceCents: number | null): string {
+function formatPrice(priceCents: number | null, priceSuffix: string): string {
   if (priceCents === null) return 'Contact for pricing';
   const dollars = Math.floor(priceCents / 100);
-  return `$${dollars}`;
+  return `$${dollars}${priceSuffix}`;
 }
 
 /**
@@ -48,7 +48,7 @@ export function Services({ services }: ServicesProps) {
               <div className="flex items-start justify-between gap-4">
                 <h3 className="font-semibold text-gray-900">{service.name}</h3>
                 <span className="shrink-0 font-medium text-[#6C9630]">
-                  {formatPrice(service.priceCents)}
+                  {formatPrice(service.priceCents, service.priceSuffix)}
                 </span>
               </div>
               <p className="mt-2 text-sm text-gray-600">{service.description}</p>
@@ -75,7 +75,7 @@ export function Services({ services }: ServicesProps) {
                   <td className="px-4 py-3 font-medium text-gray-900">{service.name}</td>
                   <td className="px-4 py-3 text-gray-600">{service.description}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-[#6C9630]">
-                    {formatPrice(service.priceCents)}
+                    {formatPrice(service.priceCents, service.priceSuffix)}
                   </td>
                 </tr>
               ))}
