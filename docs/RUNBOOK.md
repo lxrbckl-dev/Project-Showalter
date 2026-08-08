@@ -178,7 +178,7 @@ Alex still has SSH access to the homelab. He uses the recipe above, substituting
 ## 5. Local dev setup
 
 ```bash
-git clone git@github.com:lxrbckl-dev/Project-Showalter.git
+git clone git@github.com:lxrbckl-labs/Project-Showalter.git
 cd Project-Showalter
 pnpm install
 cp .env.example .env.local
@@ -209,7 +209,7 @@ Prints the fully-interpolated `mailto:` / `sms:` URI to stdout for every shipped
 
 ## 6. Deployment
 
-Zero manual build step — merges to `main` trigger a GitHub Actions build that pushes `ghcr.io/lxrbckl-dev/project-showalter:latest` and `:<sha>`. Alex pulls on the homelab when ready.
+Zero manual build step — merges to `main` trigger a GitHub Actions build that pushes `ghcr.io/lxrbckl-labs/project-showalter:latest` and `:<sha>`. Alex pulls on the homelab when ready.
 
 ---
 
@@ -237,7 +237,7 @@ npx web-push generate-vapid-keys
 Clone the repo (e.g. `~/Project-Showalter`) and create the `.env` file there:
 
 ```bash
-git clone git@github.com:lxrbckl-dev/Project-Showalter.git ~/Project-Showalter
+git clone git@github.com:lxrbckl-labs/Project-Showalter.git ~/Project-Showalter
 cp ~/Project-Showalter/.env.example ~/Project-Showalter/.env
 ```
 
@@ -393,7 +393,7 @@ Every CI build pushes an immutable `:<sha>` tag to GHCR. To roll back:
 2. Edit `~/Project-Showalter/docker-compose.yml` — pin the `showalter` image to that SHA:
 
    ```yaml
-   image: ghcr.io/lxrbckl-dev/project-showalter:<sha>
+   image: ghcr.io/lxrbckl-labs/project-showalter:<sha>
    ```
 
 3. Pull and restart:
@@ -443,7 +443,7 @@ Run through this before any first-time deploy or major homelab change.
 
 ### Image availability
 
-- [ ] `docker pull ghcr.io/lxrbckl-dev/project-showalter:latest` succeeds (confirms GHCR auth + CI built the image)
+- [ ] `docker pull ghcr.io/lxrbckl-labs/project-showalter:latest` succeeds (confirms GHCR auth + CI built the image)
 
 ---
 
